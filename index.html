@@ -1,133 +1,188 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SD40 – Carte</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <style>
-    html,body,#map { height:100%; margin:0 }
-    .leaflet-control-layers-expanded { max-height: 80vh; overflow-y:auto; }
-  </style>
+<meta charset="utf-8">
+<title>SD40 – Carte</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  html,body,#map{height:100%;margin:0}
+  .leaflet-control-layers-expanded{max-height:80vh;overflow:auto}
+  #log{position:absolute;left:.5rem;bottom:.5rem;right:.5rem;max-height:28vh;overflow:auto;
+       background:#0b0e13;color:#b0f2a7;font:12px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+       padding:.5rem .6rem;border-radius:.4rem;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:400}
+  #log b{color:#fff}
+</style>
 </head>
 <body>
 <div id="map"></div>
+<div id="log"></div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Fallback gzip universel -->
+<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 <script>
-  // ⚠️ Vérifie que chaque URL ci-dessous pointe vers .geojson ou .geojson.gz selon le VRAI fichier dans /layers
-  const LAYERS = [
-    { name: "Axe_realimentes_Institution_Adour", url: "layers/Axe_realimentes_Institution_Adour.geojson" },
-    { name: "BDT_3_5_Bassin_Versant", url: "layers/BDT_3_5_Bassin_Versant.geojson" },
-    { name: "BDT_3_5_Plan_d_eau", url: "layers/BDT_3_5_Plan_d_eau.geojson" },
-    { name: "BDT_3_5_Reservoir", url: "layers/BDT_3_5_Reservoir.geojson" },
-    { name: "Cadastre_parcelles_Flux", url: "layers/Cadastre_parcelles_Flux.geojson" }, // ou .geojson.gz si compressé
-    { name: "DCE_2022_2027_masses_deau_cotiere_Adour_Garonne", url: "layers/DCE_2022_2027_masses_deau_cotiere_Adour_Garonne.geojson" },
-    { name: "DCE_2022_2027_masses_deau_de_transition_Adour_Garonne", url: "layers/DCE_2022_2027_masses_deau_de_transition_Adour_Garonne.geojson" },
-    { name: "DCE__2022_2027__BV_specifique__AG", url: "layers/DCE__2022_2027__BV_specifique__AG.geojson" },
-    { name: "DCE__2022_2027__plans_deau__adour_garonne", url: "layers/DCE__2022_2027__plans_deau__adour_garonne.geojson" },
-    { name: "DDT40_Carto_Cours_d_Eau_validee", url: "layers/DDT40_Carto_Cours_d_Eau_validee.geojson" },
-    { name: "DDT40_Plan_d_Eau_loi_Eau", url: "layers/DDT40_Plan_d_Eau_loi_Eau.geojson" },
-    { name: "DDT40_retenue_d_eau", url: "layers/DDT40_retenue_d_eau.geojson" },
-    { name: "DPT40Masque", url: "layers/DPT40Masque.geojson" },
-    { name: "DREAL_points_nodaux", url: "layers/DREAL_points_nodaux.geojson" },
-    { name: "IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux", url: "layers/IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux.geojson" },
-    { name: "INRAe_carte_sols", url: "layers/INRAe_carte_sols.geojson" }, // passe en .gz si besoin
-    { name: "Isochrones_nappe_alluviale_adour_IA", url: "layers/Isochrones_nappe_alluviale_adour_IA.geojson" },
-    { name: "ONF_Foret", url: "layers/ONF_Foret.geojson" },
-    { name: "ZAS_sup_40_2024", url: "layers/ZAS_sup_40_2024.geojson" },
-    { name: "ZRE_-_2013", url: "layers/ZRE_-_2013.geojson" },
-    { name: "Zones_port_es_par_les_arr_t_s", url: "layers/Zones_port_es_par_les_arr_t_s.geojson" },
-    { name: "Zones_portes_arretes", url: "layers/Zones_portes_arretes.geojson" },
-    { name: "axes_raliments_l_cde_retenues_l93_institution_adour", url: "layers/axes_raliments_l_cde_retenues_l93_institution_adour.geojson" },
-    { name: "pe_aci_adour", url: "layers/pe_aci_adour.geojson" },
-    { name: "sortie", url: "layers/sortie.geojson" }
-  ];
+/* ====== 1) DÉCLARE ICI TES COUCHES (garde les mêmes noms/urls que dans ton dépôt) ====== */
+const LAYERS = [
+  { name:"Axe_realimentes_Institution_Adour", url:"layers/Axe_realimentes_Institution_Adour.geojson" },
+  { name:"BDT_3_5_Bassin_Versant", url:"layers/BDT_3_5_Bassin_Versant.geojson" },
+  { name:"BDT_3_5_Plan_d_eau", url:"layers/BDT_3_5_Plan_d_eau.geojson" },
+  { name:"BDT_3_5_Reservoir", url:"layers/BDT_3_5_Reservoir.geojson" },
+  { name:"Cadastre_parcelles_Flux", url:"layers/Cadastre_parcelles_Flux.geojson" },
+  { name:"DCE_2022_2027_masses_deau_cotiere_Adour_Garonne", url:"layers/DCE_2022_2027_masses_deau_cotiere_Adour_Garonne.geojson" },
+  { name:"DCE_2022_2027_masses_deau_de_transition_Adour_Garonne", url:"layers/DCE_2022_2027_masses_deau_de_transition_Adour_Garonne.geojson" },
+  { name:"DCE__2022_2027__BV_specifique__AG", url:"layers/DCE__2022_2027__BV_specifique__AG.geojson" },
+  { name:"DCE__2022_2027__plans_deau__adour_garonne", url:"layers/DCE__2022_2027__plans_deau__adour_garonne.geojson" },
+  { name:"DDT40_Carto_Cours_d_Eau_validee", url:"layers/DDT40_Carto_Cours_d_Eau_validee.geojson" },
+  { name:"DDT40_Plan_d_Eau_loi_Eau", url:"layers/DDT40_Plan_d_Eau_loi_Eau.geojson" },
+  { name:"DDT40_retenue_d_eau", url:"layers/DDT40_retenue_d_eau.geojson" },
+  { name:"DPT40Masque", url:"layers/DPT40Masque.geojson" },
+  { name:"DREAL_points_nodaux", url:"layers/DREAL_points_nodaux.geojson" },
+  { name:"IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux", url:"layers/IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux.geojson" },
+  { name:"INRAe_carte_sols", url:"layers/INRAe_carte_sols.geojson" },
+  { name:"Isochrones_nappe_alluviale_adour_IA", url:"layers/Isochrones_nappe_alluviale_adour_IA.geojson" },
+  { name:"ONF_Foret", url:"layers/ONF_Foret.geojson" },
+  { name:"ZAS_sup_40_2024", url:"layers/ZAS_sup_40_2024.geojson" },
+  { name:"ZRE_-_2013", url:"layers/ZRE_-_2013.geojson" },
+  { name:"Zones_port_es_par_les_arr_t_s", url:"layers/Zones_port_es_par_les_arr_t_s.geojson" },
+  { name:"Zones_portes_arretes", url:"layers/Zones_portes_arretes.geojson" },
+  { name:"axes_raliments_l_cde_retenues_l93_institution_adour", url:"layers/axes_raliments_l_cde_retenues_l93_institution_adour.geojson" },
+  { name:"pe_aci_adour", url:"layers/pe_aci_adour.geojson" },
+  { name:"sortie", url:"layers/sortie.geojson" }
+];
 
-  // 1) Carte
-  const map = L.map('map', {zoomControl: true}).setView([43.85, -0.7], 9);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 20, attribution: '© OpenStreetMap'
-  }).addTo(map);
+/* ====== 2) Carte + contrôle des couches (toutes les cases visibles immédiatement) ====== */
+const map = L.map('map',{zoomControl:true}).setView([43.85,-0.7],9);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  maxZoom:20, attribution:'© OpenStreetMap'
+}).addTo(map);
 
-  // 2) Contrôle des couches — créé UNE FOIS, puis alimenté dynamiquement
-  const layersControl = L.control.layers({}, {}, {collapsed: false}).addTo(map);
+const logEl=document.getElementById('log');
+function log(msg){ logEl.innerHTML += msg + "<br>"; logEl.scrollTop = logEl.scrollHeight; }
 
-  // 3) Styles selon géométrie
-  function styleFeature(feature) {
-    const t = feature.geometry?.type || '';
-    if (t === 'Point' || t === 'MultiPoint') {
-      return {radius: 5, fillColor: '#e31a1c', color: '#ffffff', weight: 1, opacity: 1, fillOpacity: 0.85};
-    }
-    if (t.includes('Line')) {
-      return {color: '#1f78b4', weight: 2, opacity: 0.9};
-    }
-    // Polygones
-    return {color: '#33a02c', weight: 1, opacity: 0.9, fillOpacity: 0.25};
+const layerGroups = {};
+const layersControl = L.control.layers({}, {}, {collapsed:false}).addTo(map);
+
+// Ajoute les 25 cases tout de suite (même si pas encore chargé)
+for (const it of LAYERS){
+  const grp = L.layerGroup();
+  layerGroups[it.name] = grp;
+  layersControl.addOverlay(grp, it.name);
+  // (Option) Afficher d’emblée les groupes vides ? je laisse désactivé par défaut
+}
+
+/* ====== 3) Styles + popups ====== */
+function styleByGeom(feature){
+  const t = feature?.geometry?.type || '';
+  if (t === 'Point' || t === 'MultiPoint') return {radius:5, fillColor:'#e31a1c', color:'#fff', weight:1, opacity:1, fillOpacity:.85};
+  if (t.includes('Line')) return {color:'#1f78b4', weight:2, opacity:.95};
+  return {color:'#33a02c', weight:1, opacity:.95, fillOpacity:.25}; // polygones
+}
+function onEachFeature(feature, layer){
+  if(!feature?.properties) return;
+  let html='<table style="border-collapse:collapse">';
+  for (const [k,v] of Object.entries(feature.properties)){
+    if(v===null||v===undefined||String(v).trim()==='') continue;
+    html+=`<tr><th style="text-align:left;padding:2px 8px 2px 0;border-bottom:1px solid #eee">${k}</th><td style="padding:2px 0;border-bottom:1px solid #eee">${v}</td></tr>`;
   }
+  html+='</table>';
+  layer.bindPopup(html);
+}
 
-  // 4) Popups attributaires
-  function onEachFeature(feature, layer) {
-    if (!feature || !feature.properties) return;
-    let html = '<table style="border-collapse:collapse">';
-    for (const [k,v] of Object.entries(feature.properties)) {
-      if (v === null || v === undefined || String(v).trim()==='') continue;
-      html += `<tr><th style="text-align:left;padding:2px 6px 2px 0;border-bottom:1px solid #eee">${k}</th><td style="padding:2px 0;border-bottom:1px solid #eee">${v}</td></tr>`;
-    }
-    html += '</table>';
-    layer.bindPopup(html);
-  }
+/* ====== 4) Lecture robuste (JSON → fallback gzip auto) ====== */
+async function loadGeoJSONSmart(url){
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(res.status+' '+res.statusText);
 
-  // 5) Chargement d’un GeoJSON (texte ou gz)
-  async function loadGeoJSON(url) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(res.status+' '+res.statusText);
-    if (url.toLowerCase().endsWith('.gz')) {
-      if (!('DecompressionStream' in window)) throw new Error('Navigateur sans DecompressionStream (prends des .geojson non zippés).');
+  // 1ère tentative : JSON direct
+  try {
+    return await res.clone().json();
+  } catch(e){ /* on tente mieux */ }
+
+  // 2e tentative : si c'est bien du gzip (signature 0x1f 0x8b), on décompresse
+  const buf = await res.arrayBuffer();
+  const u8  = new Uint8Array(buf);
+  const isGzip = u8.length>=2 && u8[0]===0x1f && u8[1]===0x8b;
+
+  if (isGzip){
+    // a) DecompressionStream (natif)
+    if ('DecompressionStream' in window){
+      const res2 = await fetch(url); // nouveau fetch (le body est déjà lu)
       const ds = new DecompressionStream('gzip');
-      const decompressed = res.body.pipeThrough(ds);
-      return await new Response(decompressed).json();
+      const stream = res2.body.pipeThrough(ds);
+      const text = await new Response(stream).text();
+      return JSON.parse(text);
     }
-    return await res.json();
+    // b) Fallback pako (universel)
+    if (window.pako){
+      const text = pako.ungzip(u8, {to:'string'});
+      return JSON.parse(text);
+    }
+    throw new Error('GZIP détecté mais aucune méthode de décompression dispo (ni DecompressionStream, ni pako).');
   }
 
-  // 6) Charge chaque couche et l’ajoute AU CONTRÔLE
-  (async function(){
-    for (const item of LAYERS) {
-      try {
-        const data = await loadGeoJSON(item.url);
+  // Pas gzip → sans doute JSON tronqué/invalide
+  throw new Error('Fichier non-JSON ou JSON tronqué (vérifie export et CRS=EPSG:4326).');
+}
 
-        // Gère GeometryCollection (certaines couches admin/cadastre)
-        function normalizeGeom(f) {
-          const g = f.geometry;
-          if (g && g.type === 'GeometryCollection' && Array.isArray(g.geometries) && g.geometries.length) {
-            return {...f, geometry: g.geometries[0]}; // on prend la première géométrie
-          }
-          return f;
-        }
-        const fc = (data.type === 'FeatureCollection') ? data
-                 : {type:'FeatureCollection', features:(Array.isArray(data.features)?data.features:[])};
-        fc.features = fc.features.map(normalizeGeom).filter(f => !!f.geometry);
-
-        const layer = L.geoJSON(fc, {
-          style: styleFeature,
-          pointToLayer: (feat, latlng) => L.circleMarker(latlng, styleFeature(feat)),
-          onEachFeature
-        });
-
-        // Ajoute la couche au contrôle (cases à cocher visibles)
-        layersControl.addOverlay(layer, item.name);
-
-        // (Option) l’afficher par défaut :
-        layer.addTo(map);
-
-      } catch(e) {
-        console.error('Erreur sur', item.name, e);
+/* ====== 5) Normalisation GeometryCollection & ajout dans le groupe ====== */
+function normalizeFC(gj){
+  const out = {type:'FeatureCollection', features:[]};
+  const feats = Array.isArray(gj?.features) ? gj.features : [];
+  for (const f of feats){
+    let g = f?.geometry;
+    if (!g) continue;
+    if (g.type === 'GeometryCollection' && Array.isArray(g.geometries) && g.geometries.length){
+      // on éclate en plusieurs features (une par géométrie de la collection)
+      for (const gg of g.geometries){
+        if (!gg) continue;
+        out.features.push({type:'Feature', properties:f.properties||{}, geometry:gg});
       }
+    } else {
+      out.features.push(f);
     }
-  })();
-</script>
+  }
+  return out;
+}
 
+/* ====== 6) Chargement de chaque couche, log et fit auto ====== */
+(async function(){
+  let globalBounds = null;
+  for (const it of LAYERS){
+    try{
+      const gj = await loadGeoJSONSmart(it.url);
+      const fc = normalizeFC(gj);
+
+      const layer = L.geoJSON(fc, {
+        style: styleByGeom,
+        pointToLayer: (feat, latlng)=> L.circleMarker(latlng, styleByGeom(feat)),
+        onEachFeature
+      });
+
+      // on remplace le groupe « vide » par la vraie couche
+      const grp = layerGroups[it.name];
+      grp.clearLayers();
+      grp.addLayer(layer);
+
+      // log & bounds
+      log(`<b>OK</b> ${it.name} — ${fc.features.length} entités`);
+      try{
+        const b = layer.getBounds();
+        if (b && b.isValid()){
+          globalBounds = globalBounds ? globalBounds.extend(b) : b;
+        }
+      }catch(_){/* no-op */}
+    }catch(err){
+      log(`<b>ERR</b> ${it.name} — ${String(err)}`);
+    }
+  }
+  // Fit global si on a au moins une couche valide
+  if (globalBounds && globalBounds.isValid()){
+    map.fitBounds(globalBounds, {padding:[20,20]});
+  } else {
+    log("<b>INFO</b> Aucune emprise valide détectée (vérifie CRS/exports).");
+  }
+})();
+</script>
 </body>
 </html>
-
-</script>
