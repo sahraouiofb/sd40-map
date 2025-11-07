@@ -8,8 +8,6 @@
 <!-- Leaflet & plugins CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css">
-<!-- Plugin mesure (version stable) -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-measure/3.3.0/leaflet-measure.css">
 
 <style>
   html,body,#map{height:100%;margin:0}
@@ -19,12 +17,14 @@
   .leaflet-control-layers-overlays label{padding:6px 4px;font-size:14px}
   .leaflet-control-layers-overlays input[type="checkbox"]{width:18px;height:18px;margin-right:6px}
 
-  /* Bouton toggle "couches" */
-  .layer-toggle-btn.leaflet-bar{
-    display:inline-flex; align-items:center; justify-content:center;
-    width:36px; height:36px; font:20px/1 system-ui,Segoe UI,Roboto,Arial;
-    text-decoration:none; cursor:pointer;
+  /* Boutons custom (toggle couches + outils mesure) */
+  .leaflet-top.leaflet-right .leaflet-bar{margin-top:10px}
+  .tool-btn.leaflet-bar a{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:36px;height:36px;font:20px/1 system-ui,Segoe UI,Roboto,Arial;
+    text-decoration:none;cursor:pointer;
   }
+  .tool-btn.leaflet-bar a.active{background:#1f78b4;color:#fff}
 
   /* Popups lisibles type "fiche" */
   .popup-card{font:14px/1.35 system-ui,Segoe UI,Roboto,Arial;max-width:340px}
@@ -33,6 +33,12 @@
   .popup-table{width:100%;border-collapse:collapse;font-size:13px}
   .popup-table th{white-space:nowrap;text-align:left;color:#22313f;font-weight:600;padding:.25rem .5rem .25rem 0;border-bottom:1px solid #eef}
   .popup-table td{padding:.25rem 0;border-bottom:1px solid #f2f4f7;word-break:break-word}
+
+  /* Etiquettes de mesure */
+  .measure-label{
+    background:#0b2239;color:#fff;padding:4px 6px;border-radius:4px;
+    font:12px/1.2 system-ui,Segoe UI,Roboto,Arial; box-shadow:0 2px 8px rgba(0,0,0,.25);
+  }
 </style>
 </head>
 <body>
@@ -42,8 +48,8 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
-<!-- Plugin mesure (version stable) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-measure/3.3.0/leaflet-measure.min.js"></script>
+<!-- Turf pour mesures géodésiques fiables -->
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
 
 <script>
 /* ===================== 1) Déclaration des couches ===================== */
@@ -111,26 +117,6 @@ try{
   }).addTo(map);
 }catch(e){ console.warn('LocateControl non chargé:', e); }
 
-// Mesure distance & surface (plugin mesure stable)
-try{
-  const measureOpts = {
-    position: 'topleft',
-    primaryLengthUnit: 'meters',
-    secondaryLengthUnit: 'kilometers',
-    primaryAreaUnit: 'hectares',
-    secondaryAreaUnit: 'sqmeters',
-    activeColor: '#1f78b4',
-    completedColor: '#33a02c'
-  };
-  if (L.control && L.control.measure) {
-    L.control.measure(measureOpts).addTo(map);
-  } else if (L.Control && L.Control.Measure) {
-    new L.Control.Measure(measureOpts).addTo(map);
-  } else {
-    console.warn('leaflet-measure non chargé');
-  }
-}catch(e){ console.warn('Erreur init mesure:', e); }
-
 // Légende (cases à cocher)
 const layersControl = L.control.layers({}, {}, {collapsed:false}).addTo(map);
 const layerGroups = {};
@@ -144,7 +130,7 @@ for (const it of LAYERS){
 const LayerToggle = L.Control.extend({
   options: { position: 'topright' },
   onAdd: function(){
-    const a = L.DomUtil.create('a','leaflet-bar layer-toggle-btn');
+    const a = L.DomUtil.create('a','leaflet-bar tool-btn');
     a.href = '#'; a.title = 'Afficher/masquer la liste des couches'; a.innerHTML = '☰';
     L.DomEvent.on(a,'click', L.DomEvent.stop)
               .on(a,'click', () => {
@@ -264,7 +250,141 @@ function normalizeFC(gj){
   }
 })();
 
-/* ===================== 6) Fit auto sur une couche quand on l’active ===================== */
+/* ===================== 6) OUTILS MESURE (Distance & Surface) – sans plugin ===================== */
+const MeasureControls = L.Control.extend({
+  options:{ position:'topleft' },
+  onAdd: function(){
+    const wrap = L.DomUtil.create('div','leaflet-bar tool-btn');
+    const btnDist = L.DomUtil.create('a','',wrap);
+    btnDist.href='#'; btnDist.title='Mesurer une distance'; btnDist.innerHTML='📏';
+
+    const btnArea = L.DomUtil.create('a','',wrap);
+    btnArea.href='#'; btnArea.title='Mesurer une surface'; btnArea.innerHTML='▱';
+
+    L.DomEvent.disableClickPropagation(wrap);
+    L.DomEvent.on(btnDist,'click',L.DomEvent.stop).on(btnDist,'click',()=>startDistance(btnDist,btnArea));
+    L.DomEvent.on(btnArea,'click',L.DomEvent.stop).on(btnArea,'click',()=>startArea(btnArea,btnDist));
+    return wrap;
+  }
+});
+map.addControl(new MeasureControls());
+
+let measureState = null; // {mode:'dist'|'area', pts:LatLng[], line:Polyline, poly:Polygon, label:Tooltip, btn:AElement}
+
+function resetMeasure(){
+  if(!measureState) return;
+  if (measureState.line) map.removeLayer(measureState.line);
+  if (measureState.poly) map.removeLayer(measureState.poly);
+  if (measureState.label) map.removeLayer(measureState.label);
+  if (measureState.btn) measureState.btn.classList.remove('active');
+  map.getContainer().style.cursor='';
+  map.doubleClickZoom.enable();
+  map.off('click', onClickMeasure);
+  map.off('dblclick', finishMeasure);
+  map.off('contextmenu', finishMeasure);
+  measureState = null;
+}
+
+function startDistance(btnDist,btnOther){
+  if (measureState?.mode==='dist'){ resetMeasure(); return; }
+  resetMeasure();
+  btnDist.classList.add('active');
+  measureState = {mode:'dist', pts:[], line:null, poly:null, label:null, btn:btnDist};
+  map.getContainer().style.cursor='crosshair';
+  map.doubleClickZoom.disable();
+  map.on('click', onClickMeasure);
+  map.on('dblclick', finishMeasure);
+  map.on('contextmenu', finishMeasure);
+}
+
+function startArea(btnArea,btnOther){
+  if (measureState?.mode==='area'){ resetMeasure(); return; }
+  resetMeasure();
+  btnArea.classList.add('active');
+  measureState = {mode:'area', pts:[], line:null, poly:null, label:null, btn:btnArea};
+  map.getContainer().style.cursor='crosshair';
+  map.doubleClickZoom.disable();
+  map.on('click', onClickMeasure);
+  map.on('dblclick', finishMeasure);
+  map.on('contextmenu', finishMeasure);
+}
+
+function onClickMeasure(e){
+  const s = measureState; if(!s) return;
+  s.pts.push(e.latlng);
+
+  if (s.mode==='dist'){
+    if (!s.line){
+      s.line = L.polyline([e.latlng], {color:'#1f78b4', weight:3, dashArray:'6,4'}).addTo(map);
+    } else {
+      s.line.addLatLng(e.latlng);
+    }
+    const totalMeters = computeLengthMeters(s.pts);
+    updateMeasureLabel(e.latlng, fmtLength(totalMeters));
+  }
+
+  if (s.mode==='area'){
+    if (s.pts.length===1){
+      s.line = L.polyline([e.latlng], {color:'#33a02c', weight:3, dashArray:'6,4'}).addTo(map);
+    } else if (s.pts.length===2){
+      s.line.addLatLng(e.latlng);
+    } else {
+      // passer en polygone dès 3 points
+      if (!s.poly){
+        s.poly = L.polygon(s.pts, {color:'#33a02c', weight:2, fillOpacity:.15}).addTo(map);
+      } else {
+        s.poly.setLatLngs([s.pts]);
+      }
+      const m2 = computeAreaM2(s.pts);
+      updateMeasureLabel(e.latlng, fmtArea(m2));
+    }
+  }
+}
+
+function finishMeasure(){
+  if(!measureState) return;
+  // Finalise l’étiquette à la dernière position, puis sort du mode
+  resetMeasure();
+}
+
+function updateMeasureLabel(latlng, text){
+  const s = measureState; if(!s) return;
+  if (s.label) map.removeLayer(s.label);
+  s.label = L.tooltip({
+    permanent:true, direction:'top', offset:[0,-10], className:'measure-label'
+  })
+  .setLatLng(latlng)
+  .setContent(text)
+  .addTo(map);
+}
+
+function computeLengthMeters(latlngs){
+  if (latlngs.length<2) return 0;
+  const coords = latlngs.map(ll => [ll.lng, ll.lat]);
+  const line = turf.lineString(coords);
+  const km = turf.length(line, {units:'kilometers'});
+  return km*1000;
+}
+function computeAreaM2(latlngs){
+  if (latlngs.length<3) return 0;
+  const ring = [...latlngs.map(ll => [ll.lng,ll.lat]), [latlngs[0].lng, latlngs[0].lat]];
+  const poly = turf.polygon([ring]);
+  return turf.area(poly); // m²
+}
+function fmtLength(m){
+  if (m<1000) return `${m.toFixed(1)} m`;
+  const km = m/1000;
+  return `${km.toFixed(3)} km`;
+}
+function fmtArea(m2){
+  if (m2<10000) return `${m2.toFixed(0)} m²`;
+  const ha = m2/10000;
+  if (ha<100) return `${ha.toFixed(2)} ha`;
+  const km2 = m2/1e6;
+  return `${km2.toFixed(3)} km²`;
+}
+
+/* ===================== 7) Fit auto sur une couche quand on l’active ===================== */
 map.on('overlayadd', (e)=>{
   try{
     if (e?.layer?.getBounds){
