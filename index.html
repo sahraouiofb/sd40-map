@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>SD40 – Carte (mobile + boutons améliorés)</title>
+<title>SD40 – Carte (mesures + annotations)</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 
 <!-- Leaflet & plugins CSS -->
@@ -13,57 +13,33 @@
 <style>
   html,body,#map{height:100%;margin:0}
 
-  /* ====== PANNEAU DES COUCHES : mobile-safe, large, lisible ====== */
-  .leaflet-control-layers{
-    right:10px !important; left:auto !important;         /* jamais coupé à gauche */
-    max-width: min(92vw, 420px); width:auto;              /* tient dans l'écran */
-    box-sizing: border-box; z-index:1000;
-    border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.35);
-    background:#ffffff;
-  }
-  .leaflet-control-layers-expanded{
-    padding:10px; max-height:70vh; overflow:auto;         /* défilement propre */
-  }
-  .leaflet-control-layers-overlays label{
-    display:flex; align-items:center; gap:10px;
-    padding:8px 6px; border-radius:8px;
-    font-size:14px; line-height:1.2;
-  }
-  .leaflet-control-layers-overlays label:hover{ background:#f5f7fb; }
-  .leaflet-control-layers-overlays input[type="checkbox"]{
-    width:22px; height:22px; flex:0 0 22px; margin:0;     /* plus gros au doigt */
-    accent-color:#1f78b4;
-  }
+  /* Liste des couches : plus lisible au doigt */
+  .leaflet-control-layers-expanded{max-height:70vh;overflow:auto}
+  .leaflet-control-layers-overlays label{padding:6px 4px;font-size:14px}
+  .leaflet-control-layers-overlays input[type="checkbox"]{width:18px;height:18px;margin-right:6px}
 
-  /* ====== Bouton “☰ Couches” visuel ====== */
+  /* Barre d’outils (gauche) */
+  .leaflet-top.leaflet-left .leaflet-bar{margin-top:10px}
+  .tool-btn.leaflet-bar a{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:40px;height:40px;font:20px/1.1 system-ui,Segoe UI,Roboto,Arial;
+    text-decoration:none;cursor:pointer; user-select:none;
+  }
+  .tool-btn.leaflet-bar a.active{background:#1f78b4;color:#fff}
+
+  /* Bouton “☰ Couches” bien visible (droite) */
   .layer-toggle-wrap.leaflet-control{
-    background:#111827;color:#fff;border-radius:12px;overflow:hidden;
-    box-shadow:0 10px 24px rgba(0,0,0,.35);border:1px solid #0b1220
+    background:#111827;color:#fff;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.35);
+    overflow:hidden;border:1px solid #0b1220
   }
   .layer-toggle-btn{
     display:flex;align-items:center;gap:10px;
-    padding:12px 14px; font:600 14px system-ui,Segoe UI,Roboto,Arial;
-    text-decoration:none;color:#fff;background:#111827;cursor:pointer;
-    letter-spacing:.2px
+    padding:10px 14px; font:600 14px system-ui,Segoe UI,Roboto,Arial;
+    text-decoration:none; color:#fff; background:#111827; cursor:pointer;
+    line-height:1; letter-spacing:.2px
   }
   .layer-toggle-btn .icon{font-size:18px}
   .layer-toggle-btn:hover{background:#0f172a}
-
-  /* ====== Barre d’outils : gros boutons contrastés ====== */
-  .leaflet-top.leaflet-left .leaflet-bar{margin-top:10px}
-  .tool-btn.leaflet-bar{
-    border:none; overflow:hidden; border-radius:12px;
-    box-shadow:0 10px 24px rgba(0,0,0,.25);
-  }
-  .tool-btn.leaflet-bar a{
-    display:inline-flex; align-items:center; justify-content:center;
-    width:44px; height:44px; font:22px/1 system-ui,Segoe UI,Roboto,Arial;
-    text-decoration:none; cursor:pointer; user-select:none;
-    background:#111827; color:#e5e7eb; border-bottom:1px solid #0b1220;
-  }
-  .tool-btn.leaflet-bar a:last-child{ border-bottom:none }
-  .tool-btn.leaflet-bar a:hover{ background:#0f172a }
-  .tool-btn.leaflet-bar a.active{ background:#1f78b4; color:#fff }
 
   /* Popups type “fiche” */
   .popup-card{font:14px/1.35 system-ui,Segoe UI,Roboto,Arial;max-width:360px}
@@ -76,11 +52,6 @@
   .measure-label{
     background:#0b2239;color:#fff;padding:4px 6px;border-radius:4px;
     font:12px/1.2 system-ui,Segoe UI,Roboto,Arial; box-shadow:0 2px 8px rgba(0,0,0,.25);
-  }
-
-  /* Petits écrans : espace pour les contrôles en haut */
-  @media (max-width:480px){
-    .leaflet-top{ margin-top:6px }
   }
 </style>
 </head>
@@ -98,7 +69,7 @@
 <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
 
 <script>
-/* ============== 1) Déclare tes couches (inchangé) ============== */
+/* ===================== 1) Couches ===================== */
 const LAYERS = [
   { name:"Axe_realimentes_Institution_Adour", url:"layers/Axe_realimentes_Institution_Adour.geojson" },
   { name:"BDT_3_5_Bassin_Versant", url:"layers/BDT_3_5_Bassin_Versant.geojson" },
@@ -119,6 +90,7 @@ const LAYERS = [
   { name:"Isochrones_nappe_alluviale_adour_IA", url:"layers/Isochrones_nappe_alluviale_adour_IA.geojson" },
   { name:"ONF_Foret", url:"layers/ONF_Foret.geojson" },
 
+  /* GZIP */
   { name:"DCE_2022-2027_cours_deau_Adour-Garonne", url:"layers/DCE_2022-2027_cours_deau_Adour-Garonne.geojson.gz" },
   { name:"DCE_2022_2027__masses_deau_souterraine", url:"layers/DCE_2022_2027__masses_deau_souterraine.geojson.gz" },
   { name:"BDT_3_5_Surface_hydrographique", url:"layers/BDT_3_5_Surface_hydrographique.geojson.gz" },
@@ -135,12 +107,12 @@ const LAYERS = [
   { name:"sortie", url:"layers/sortie.geojson" }
 ];
 
-/* ============== 2) Carte & contrôles ============== */
+/* ===================== 2) Carte & contrôles ===================== */
 const map = L.map('map', { zoomControl:true, preferCanvas:true }).setView([43.85,-0.7], 9);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'© OpenStreetMap'}).addTo(map);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:20, attribution:'© OpenStreetMap' }).addTo(map);
 L.control.scale({metric:true, imperial:false, position:'bottomleft'}).addTo(map);
 
-/* Géolocalisation */
 try{
   L.control.locate({
     position:'topleft',
@@ -150,21 +122,25 @@ try{
   }).addTo(map);
 }catch(e){ console.warn('LocateControl non chargé:', e); }
 
-/* Panneau des couches */
 const layersControl = L.control.layers({}, {}, {collapsed:false}).addTo(map);
 const layerGroups = {};
-for (const it of LAYERS){ const grp=L.layerGroup(); layerGroups[it.name]=grp; layersControl.addOverlay(grp, it.name); }
+for (const it of LAYERS){
+  const grp = L.layerGroup(); layerGroups[it.name] = grp;
+  layersControl.addOverlay(grp, it.name);
+}
 
-/* Bouton “☰ Couches” (afficher/masquer) */
+/* Bouton “☰ Couches” pour masquer/afficher la liste */
 const LayerToggleBig = L.Control.extend({
   options:{ position:'topright' },
   onAdd: function(){
     const wrap = L.DomUtil.create('div','layer-toggle-wrap leaflet-control');
-    const btn  = L.DomUtil.create('button','layer-toggle-btn',wrap);
-    btn.type='button'; btn.innerHTML=`<span class="icon">☰</span><span class="label">Couches</span>`;
-    btn.title='Afficher/masquer la liste des couches';
+    const btn = L.DomUtil.create('button','layer-toggle-btn',wrap);
+    btn.type='button';
+    btn.innerHTML = `<span class="icon">☰</span><span class="label">Couches</span>`;
+    btn.title = 'Afficher/masquer la liste des couches';
     L.DomEvent.on(btn,'click', L.DomEvent.stop).on(btn,'click', ()=>{
-      const el=document.querySelector('.leaflet-control-layers'); if(!el) return;
+      const el = document.querySelector('.leaflet-control-layers');
+      if (!el) return;
       el.style.display = (el.style.display==='none' ? '' : 'none');
     });
     return wrap;
@@ -172,282 +148,395 @@ const LayerToggleBig = L.Control.extend({
 });
 map.addControl(new LayerToggleBig());
 
-/* ============== 3) Styles & popups ============== */
+/* ===================== 3) Styles & popups ===================== */
 function styleByGeom(feature){
   const t = feature?.geometry?.type || '';
-  if (t==='Point' || t==='MultiPoint') return {radius:5, fillColor:'#e31a1c', color:'#ffffff', weight:1, opacity:1, fillOpacity:.85};
-  if (t.includes('Line')) return {color:'#1f78b4', weight:2, opacity:.95};
+  if (t==='Point' || t==='MultiPoint')
+    return {radius:5, fillColor:'#e31a1c', color:'#ffffff', weight:1, opacity:1, fillOpacity:.85};
+  if (t.includes('Line'))
+    return {color:'#1f78b4', weight:2, opacity:.95};
   return {color:'#33a02c', weight:1, opacity:.95, fillOpacity:.25};
 }
-function toTitle(s){ return s.replace(/_/g,' ').replace(/\s+/g,' ').toLowerCase().replace(/(^|\s)\S/g,t=>t.toUpperCase()); }
+function toTitle(s){ return s.replace(/_/g,' ').replace(/\s+/g,' ').toLowerCase().replace(/(^|\s)\S/g, t=>t.toUpperCase()); }
 const PRIORITY_FIELDS = ['NOM','NOM_OUVRAG','name','nom','libelle','LIBELLE','titre'];
 function buildPopupHTML(props){
-  const keys = Object.keys(props||{}); if(!keys.length) return '<em>Aucun attribut</em>';
-  const titleKey = PRIORITY_FIELDS.find(k=>k in props); const title=titleKey?String(props[titleKey]):null;
-  const ordered=[...PRIORITY_FIELDS.filter(k=>k in props), ...keys.filter(k=>!PRIORITY_FIELDS.includes(k))];
-  let rows=''; for (const k of ordered){ const v=props[k]; if(v==null||String(v).trim()==='') continue; rows+=`<tr><th>${toTitle(k)}</th><td>${v}</td></tr>`; }
+  const keys = Object.keys(props||{});
+  if (!keys.length) return '<em>Aucun attribut</em>';
+  const titleKey = PRIORITY_FIELDS.find(k => k in props);
+  const title = titleKey ? String(props[titleKey]) : null;
+  const ordered = [...PRIORITY_FIELDS.filter(k => k in props), ...keys.filter(k => !PRIORITY_FIELDS.includes(k))];
+  let rows = '';
+  for (const k of ordered){
+    const v = props[k];
+    if (v===null || v===undefined || String(v).trim()==='') continue;
+    rows += `<tr><th>${toTitle(k)}</th><td>${v}</td></tr>`;
+  }
   return `<div class="popup-card">${title?`<div class="popup-title">${title}</div>`:''}<table class="popup-table">${rows}</table></div>`;
 }
 function onEachFeature(feature, layer){ layer.bindPopup(buildPopupHTML(feature.properties||{}), {maxWidth:380,minWidth:220,autoPan:true}); }
 
-/* ============== 4) Loader + cache ============== */
+/* ===================== 4) Loader + cache ===================== */
 const {get:cacheGet, set:cacheSet} = idbKeyval;
-const CACHE_VERSION='v1';
+const CACHE_VERSION = 'v1';
+
 async function loadGeoJSONSmart(url){
   try{
-    const res=await fetch(url,{cache:'no-store'}); if(!res.ok) throw new Error(res.status+' '+res.statusText);
-    try{ const j=await res.clone().json(); await cacheSet(CACHE_VERSION+':'+url,j); return j; }catch(_){}
-    const buf=await res.arrayBuffer(); const u8=new Uint8Array(buf);
-    if(u8.length===0) throw new Error('Fichier vide');
-    const isGzip=(u8[0]===0x1f&&u8[1]===0x8b); const looksHTML=(u8[0]===0x3C);
-    if(isGzip){
-      let text; if('DecompressionStream' in window){ const res2=await fetch(url,{cache:'no-store'});
-        const ds=new DecompressionStream('gzip'); const stream=res2.body.pipeThrough(ds); text=await new Response(stream).text();
-      } else if(window.pako){ text=pako.ungzip(u8,{to:'string'}); } else { throw new Error('GZIP détecté mais pas de décompresseur'); }
-      const j=JSON.parse(text); await cacheSet(CACHE_VERSION+':'+url,j); return j;
+    const res = await fetch(url, {cache:'no-store'});
+    if (!res.ok) throw new Error(res.status+' '+res.statusText);
+    try{
+      const j = await res.clone().json();
+      await cacheSet(CACHE_VERSION+':'+url, j);
+      return j;
+    }catch(_){}
+    const buf = await res.arrayBuffer();
+    const u8 = new Uint8Array(buf);
+    if (u8.length===0) throw new Error('Fichier vide');
+    const isGzip = (u8[0]===0x1f && u8[1]===0x8b);
+    const looksHTML = (u8[0]===0x3C);
+    if (isGzip){
+      let text;
+      if ('DecompressionStream' in window){
+        const res2 = await fetch(url,{cache:'no-store'});
+        const ds = new DecompressionStream('gzip');
+        const stream = res2.body.pipeThrough(ds);
+        text = await new Response(stream).text();
+      } else if (window.pako){
+        text = pako.ungzip(u8, {to:'string'});
+      } else throw new Error('GZIP détecté mais pas de décompresseur');
+      const j = JSON.parse(text);
+      await cacheSet(CACHE_VERSION+':'+url, j);
+      return j;
     }
-    if(looksHTML) throw new Error('HTML/404 — mauvais chemin/nom');
+    if (looksHTML) throw new Error('HTML/404 — mauvais chemin/nom');
     throw new Error('Non-JSON ou tronqué');
   }catch(err){
-    const cached=await cacheGet(CACHE_VERSION+':'+url); if(cached) return cached; throw err;
+    const cached = await cacheGet(CACHE_VERSION+':'+url);
+    if (cached) return cached;
+    throw err;
   }
 }
 function normalizeFC(gj){
-  const out={type:'FeatureCollection',features:[]};
-  const feats=Array.isArray(gj?.features)?gj.features:[];
-  for(const f of feats){ const g=f?.geometry; if(!g) continue;
-    if(g.type==='GeometryCollection' && Array.isArray(g.geometries) && g.geometries.length){
-      for(const gg of g.geometries){ if(!gg) continue; out.features.push({type:'Feature',properties:f.properties||{},geometry:gg}); }
+  const out={type:'FeatureCollection', features:[]};
+  const feats = Array.isArray(gj?.features)?gj.features:[];
+  for (const f of feats){
+    const g=f?.geometry; if(!g) continue;
+    if (g.type==='GeometryCollection' && Array.isArray(g.geometries) && g.geometries.length){
+      for (const gg of g.geometries){ if(!gg) continue; out.features.push({type:'Feature',properties:f.properties||{},geometry:gg}); }
     } else out.features.push(f);
   }
   return out;
 }
 
-/* ============== 5) Chargement à la demande ============== */
-const loaded=new Set(); let maskBounds=null;
+/* ===================== 5) Chargement à la demande ===================== */
+const loaded = new Set();
+let maskBounds = null;
+
 async function ensureLayerLoaded(name){
-  if(loaded.has(name)) return; const it=LAYERS.find(l=>l.name===name); if(!it) return;
-  const grp=layerGroups[it.name];
+  if (loaded.has(name)) return;
+  const it = LAYERS.find(l => l.name===name);
+  if (!it) return;
+  const grp = layerGroups[it.name];
   try{
-    const gj=await loadGeoJSONSmart(it.url); const fc=normalizeFC(gj);
-    const layer=L.geoJSON(fc,{ style:styleByGeom, pointToLayer:(f,ll)=>L.circleMarker(ll,styleByGeom(f)), onEachFeature });
-    grp.clearLayers(); grp.addLayer(layer); loaded.add(name);
-    if(name==='DPT40Masque'){ try{ maskBounds=layer.getBounds(); }catch(_){} }
+    const gj = await loadGeoJSONSmart(it.url);
+    const fc = normalizeFC(gj);
+    const layer = L.geoJSON(fc, {
+      style: styleByGeom,
+      pointToLayer: (feat, latlng)=> L.circleMarker(latlng, styleByGeom(feat)),
+      onEachFeature
+    });
+    grp.clearLayers(); grp.addLayer(layer);
+    loaded.add(name);
+    if (name==='DPT40Masque'){ try{ maskBounds = layer.getBounds(); }catch(_){} }
   }catch(err){ console.warn(`ERR ${name}:`, err); }
 }
 ensureLayerLoaded('DPT40Masque');
+
 map.on('overlayadd', async (e)=>{
-  const name=Object.keys(layerGroups).find(k=>layerGroups[k]===e.layer);
-  if(name) await ensureLayerLoaded(name);
-  try{ const b=e.layer.getBounds?.(); if(b && b.isValid()) map.fitBounds(b,{padding:[20,20]}); }catch(_){}
+  const name = Object.keys(layerGroups).find(k => layerGroups[k]===e.layer);
+  if (name) await ensureLayerLoaded(name);
+  try{
+    if (e?.layer?.getBounds){
+      const b = e.layer.getBounds();
+      if (b && b.isValid()) map.fitBounds(b,{padding:[20,20]});
+    }
+  }catch(_){}
 });
 
-/* ============== 6) Mesures MANUELLES (📏 ▱ + export 📤) ============== */
-const ManualMeasure=L.Control.extend({
+/* ===================== 6) Mesures MANUELLES (📏 ▱ + export 📤) ===================== */
+const ManualMeasure = L.Control.extend({
   options:{ position:'topleft' },
   onAdd: function(){
-    const wrap=L.DomUtil.create('div','leaflet-bar tool-btn');
-    const btnDist=L.DomUtil.create('a','',wrap); btnDist.href='#'; btnDist.title='Mesurer une distance (manuel)'; btnDist.innerHTML='📏';
-    const btnArea=L.DomUtil.create('a','',wrap); btnArea.href='#'; btnArea.title='Mesurer une surface (manuel)'; btnArea.innerHTML='▱';
-    const btnExport=L.DomUtil.create('a','',wrap); btnExport.href='#'; btnExport.title='Exporter la mesure (GeoJSON)'; btnExport.innerHTML='📤';
+    const wrap = L.DomUtil.create('div','leaflet-bar tool-btn');
+    const btnDist = L.DomUtil.create('a','',wrap);
+    btnDist.href='#'; btnDist.title='Mesurer une distance (manuel)'; btnDist.innerHTML='📏';
+    const btnArea = L.DomUtil.create('a','',wrap);
+    btnArea.href='#'; btnArea.title='Mesurer une surface (manuel)'; btnArea.innerHTML='▱';
+    const btnExport = L.DomUtil.create('a','',wrap);
+    btnExport.href='#'; btnExport.title='Exporter la mesure (GeoJSON)'; btnExport.innerHTML='📤';
+
     L.DomEvent.disableClickPropagation(wrap);
     L.DomEvent.on(btnDist,'click',L.DomEvent.stop).on(btnDist,'click',()=>startManual('dist',btnDist));
     L.DomEvent.on(btnArea,'click',L.DomEvent.stop).on(btnArea,'click',()=>startManual('area',btnArea));
     L.DomEvent.on(btnExport,'click',L.DomEvent.stop).on(btnExport,'click',()=>exportCurrentMeasure());
     return wrap;
   }
-}); map.addControl(new ManualMeasure());
+});
+map.addControl(new ManualMeasure());
 
-let manualState=null;
+let manualState = null;
 function resetManual(){
   if(!manualState) return;
-  if(manualState.line) map.removeLayer(manualState.line);
-  if(manualState.poly) map.removeLayer(manualState.poly);
-  if(manualState.label) map.removeLayer(manualState.label);
-  manualState.btn?.classList.remove('active');
-  map.getContainer().style.cursor=''; map.doubleClickZoom.enable();
-  map.off('click', onClickManual); map.off('dblclick', finishManual); map.off('contextmenu', finishManual);
-  manualState=null;
+  if (manualState.line) map.removeLayer(manualState.line);
+  if (manualState.poly) map.removeLayer(manualState.poly);
+  if (manualState.label) map.removeLayer(manualState.label);
+  if (manualState.btn) manualState.btn.classList.remove('active');
+  map.getContainer().style.cursor='';
+  map.doubleClickZoom.enable();
+  map.off('click', onClickManual);
+  map.off('dblclick', finishManual);
+  map.off('contextmenu', finishManual);
+  manualState = null;
 }
-function startManual(mode,btnOn){
-  if(manualState?.mode===mode){ resetManual(); return; }
-  resetManual(); stopGPS(); btnOn.classList.add('active');
-  manualState={mode,pts:[],line:null,poly:null,label:null,btn:btnOn};
-  map.getContainer().style.cursor='crosshair'; map.doubleClickZoom.disable();
-  map.on('click', onClickManual); map.on('dblclick', finishManual); map.on('contextmenu', finishManual);
+function startManual(mode, btnOn){
+  if (manualState?.mode===mode){ resetManual(); return; }
+  resetManual(); stopGPS();
+  btnOn.classList.add('active');
+  manualState = {mode, pts:[], line:null, poly:null, label:null, btn:btnOn};
+  map.getContainer().style.cursor='crosshair';
+  map.doubleClickZoom.disable();
+  map.on('click', onClickManual);
+  map.on('dblclick', finishManual);
+  map.on('contextmenu', finishManual);
 }
 function onClickManual(e){
-  const s=manualState; if(!s) return; s.pts.push(e.latlng);
-  if(s.mode==='dist'){
-    if(!s.line){ s.line=L.polyline([e.latlng],{color:'#1f78b4',weight:3,dashArray:'6,4'}).addTo(map);}
-    else{ s.line.addLatLng(e.latlng); }
+  const s = manualState; if(!s) return;
+  s.pts.push(e.latlng);
+  if (s.mode==='dist'){
+    if (!s.line){ s.line = L.polyline([e.latlng], {color:'#1f78b4', weight:3, dashArray:'6,4'}).addTo(map); }
+    else { s.line.addLatLng(e.latlng); }
     updateManualLabel(e.latlng, fmtLength(computeLengthMeters(s.pts)));
-  }else{
-    if(s.pts.length===1){ s.line=L.polyline([e.latlng],{color:'#33a02c',weight:3,dashArray:'6,4'}).addTo(map);}
-    else if(s.pts.length===2){ s.line.addLatLng(e.latlng); }
-    else{
-      if(!s.poly){ s.poly=L.polygon(s.pts,{color:'#33a02c',weight:2,fillOpacity:.15}).addTo(map); }
-      else{ s.poly.setLatLngs([s.pts]); }
+  } else {
+    if (s.pts.length===1){
+      s.line = L.polyline([e.latlng], {color:'#33a02c', weight:3, dashArray:'6,4'}).addTo(map);
+    } else if (s.pts.length===2){
+      s.line.addLatLng(e.latlng);
+    } else {
+      if (!s.poly){ s.poly = L.polygon(s.pts, {color:'#33a02c', weight:2, fillOpacity:.15}).addTo(map); }
+      else { s.poly.setLatLngs([s.pts]); }
       updateManualLabel(e.latlng, fmtArea(computeAreaM2(s.pts)));
     }
   }
 }
 function finishManual(){ resetManual(); }
-function updateManualLabel(latlng,text){
-  if(manualState?.label) map.removeLayer(manualState.label);
-  manualState.label=L.tooltip({permanent:true,direction:'top',offset:[0,-10],className:'measure-label'}).setLatLng(latlng).setContent(text).addTo(map);
+function updateManualLabel(latlng, text){
+  if (manualState?.label) map.removeLayer(manualState.label);
+  manualState.label = L.tooltip({permanent:true, direction:'top', offset:[0,-10], className:'measure-label'})
+    .setLatLng(latlng).setContent(text).addTo(map);
 }
 
-/* ============== 7) Mesures GPS (📍📏 / 📍▱ + export 📤) ============== */
-const GPSMeasure=L.Control.extend({
+/* ===================== 7) Mesures GPS (📍📏 / 📍▱ + export 📤) ===================== */
+const GPSMeasure = L.Control.extend({
   options:{ position:'topleft' },
   onAdd: function(){
-    const wrap=L.DomUtil.create('div','leaflet-bar tool-btn');
-    const btnGDist=L.DomUtil.create('a','',wrap); btnGDist.href='#'; btnGDist.title='Mesurer distance en suivant la géolocalisation'; btnGDist.innerHTML='📍📏';
-    const btnGArea=L.DomUtil.create('a','',wrap); btnGArea.href='#'; btnGArea.title='Mesurer surface en suivant la géolocalisation'; btnGArea.innerHTML='📍▱';
-    const btnExport=L.DomUtil.create('a','',wrap); btnExport.href='#'; btnExport.title='Exporter la mesure (GeoJSON)'; btnExport.innerHTML='📤';
+    const wrap = L.DomUtil.create('div','leaflet-bar tool-btn');
+    const btnGDist = L.DomUtil.create('a','',wrap);
+    btnGDist.href='#'; btnGDist.title='Mesurer distance en suivant la géolocalisation'; btnGDist.innerHTML='📍📏';
+    const btnGArea = L.DomUtil.create('a','',wrap);
+    btnGArea.href='#'; btnGArea.title='Mesurer surface en suivant la géolocalisation'; btnGArea.innerHTML='📍▱';
+    const btnExport = L.DomUtil.create('a','',wrap);
+    btnExport.href='#'; btnExport.title='Exporter la mesure (GeoJSON)'; btnExport.innerHTML='📤';
+
     L.DomEvent.disableClickPropagation(wrap);
     L.DomEvent.on(btnGDist,'click',L.DomEvent.stop).on(btnGDist,'click',()=>startGPS('dist',btnGDist));
     L.DomEvent.on(btnGArea,'click',L.DomEvent.stop).on(btnGArea,'click',()=>startGPS('area',btnGArea));
     L.DomEvent.on(btnExport,'click',L.DomEvent.stop).on(btnExport,'click',()=>exportCurrentMeasure());
     return wrap;
   }
-}); map.addControl(new GPSMeasure());
+});
+map.addControl(new GPSMeasure());
 
-let gpsState=null;
+let gpsState = null;
 function stopGPS(){
   if(!gpsState) return;
-  if(gpsState.watchId!=null) navigator.geolocation.clearWatch(gpsState.watchId);
-  if(gpsState.line) map.removeLayer(gpsState.line);
-  if(gpsState.poly) map.removeLayer(gpsState.poly);
-  if(gpsState.label) map.removeLayer(gpsState.label);
-  gpsState.btn?.classList.remove('active'); gpsState=null; map.off('contextmenu', stopGPS);
+  if (gpsState.watchId!=null) navigator.geolocation.clearWatch(gpsState.watchId);
+  if (gpsState.line) map.removeLayer(gpsState.line);
+  if (gpsState.poly) map.removeLayer(gpsState.poly);
+  if (gpsState.label) map.removeLayer(gpsState.label);
+  if (gpsState.btn) gpsState.btn.classList.remove('active');
+  gpsState = null;
+  map.off('contextmenu', stopGPS);
 }
-function startGPS(mode,btnOn){
-  if(gpsState?.mode===mode){ stopGPS(); return; }
-  stopGPS(); resetManual(); gpsState={mode,pts:[],line:null,poly:null,label:null,btn:btnOn,watchId:null}; btnOn.classList.add('active');
-  if(!('geolocation' in navigator)){ alert('Géolocalisation non disponible.'); stopGPS(); return; }
+function startGPS(mode, btnOn){
+  if (gpsState?.mode===mode){ stopGPS(); return; }
+  stopGPS(); resetManual();
+  gpsState = {mode, pts:[], line:null, poly:null, label:null, btn:btnOn, watchId:null};
+  btnOn.classList.add('active');
+  if (!('geolocation' in navigator)){ alert('Géolocalisation non disponible.'); stopGPS(); return; }
   try{
-    gpsState.watchId=navigator.geolocation.watchPosition(onGPS,onGPSError,{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
+    gpsState.watchId = navigator.geolocation.watchPosition(onGPS, onGPSError, {
+      enableHighAccuracy:true, maximumAge:1000, timeout:20000
+    });
     map.on('contextmenu', stopGPS);
   }catch(e){ alert('Impossible de démarrer la géolocalisation.'); stopGPS(); }
 }
 function onGPS(pos){
-  const {latitude,longitude}=pos.coords; const ll=L.latLng(latitude,longitude);
-  const s=gpsState; if(!s) return;
-  if(s.pts.length){
-    const last=s.pts[s.pts.length-1];
-    const d=turf.distance([last.lng,last.lat],[ll.lng,ll.lat],{units:'meters'});
-    if(d<3) return;
+  const { latitude, longitude } = pos.coords;
+  const ll = L.latLng(latitude, longitude);
+  const s = gpsState; if(!s) return;
+  if (s.pts.length){
+    const last = s.pts[s.pts.length-1];
+    const d = turf.distance([last.lng,last.lat], [ll.lng,ll.lat], {units:'meters'});
+    if (d < 3) return; // lissage
   }
   s.pts.push(ll);
-  if(s.mode==='dist'){
-    if(!s.line){ s.line=L.polyline([ll],{color:'#1f78b4',weight:3,dashArray:'6,4'}).addTo(map);}
-    else{ s.line.addLatLng(ll); }
+  if (s.mode==='dist'){
+    if (!s.line){ s.line = L.polyline([ll], {color:'#1f78b4', weight:3, dashArray:'6,4'}).addTo(map); }
+    else { s.line.addLatLng(ll); }
     updateGPSLabel(ll, fmtLength(computeLengthMeters(s.pts)));
-  }else{
-    if(!s.poly){ s.poly=L.polygon(s.pts,{color:'#33a02c',weight:2,fillOpacity:.15}).addTo(map);}
-    else{ s.poly.setLatLngs([s.pts]); }
+  } else {
+    if (!s.poly){ s.poly = L.polygon(s.pts, {color:'#33a02c', weight:2, fillOpacity:.15}).addTo(map); }
+    else { s.poly.setLatLngs([s.pts]); }
     updateGPSLabel(ll, fmtArea(computeAreaM2(s.pts)));
   }
 }
-function onGPSError(err){ alert('Erreur géolocalisation : ' + (err?.message||err)); stopGPS(); }
-function updateGPSLabel(latlng,text){
-  if(gpsState?.label) map.removeLayer(gpsState.label);
-  gpsState.label=L.tooltip({permanent:true,direction:'top',offset:[0,-10],className:'measure-label'}).setLatLng(latlng).setContent(text).addTo(map);
+function onGPSError(err){ alert('Erreur géolocalisation : ' + (err?.message || err)); stopGPS(); }
+function updateGPSLabel(latlng, text){
+  if (gpsState?.label) map.removeLayer(gpsState.label);
+  gpsState.label = L.tooltip({permanent:true, direction:'top', offset:[0,-10], className:'measure-label'})
+    .setLatLng(latlng).setContent(text).addTo(map);
 }
 
-/* ============== 8) Export mesure courante (📤) ============== */
+/* ===================== 8) Export de la mesure courante (📤) ===================== */
 function exportCurrentMeasure(){
-  let pts=null, mode=null;
-  if(manualState){ pts=manualState.pts; mode=manualState.mode; }
-  else if(gpsState){ pts=gpsState.pts; mode=gpsState.mode; }
-  if(!pts || pts.length < (mode==='area'?3:2)){
+  // Priorité à la mesure en cours (manuel sinon GPS)
+  let pts = null, mode = null;
+  if (manualState){ pts = manualState.pts; mode = manualState.mode; }
+  else if (gpsState){ pts = gpsState.pts; mode = gpsState.mode; }
+  if (!pts || pts.length < (mode==='area'?3:2)){
     alert('Aucune mesure à exporter.\nCrée d’abord une distance (📏/📍📏) ou une surface (▱/📍▱).');
     return;
   }
   let gj;
-  if(mode==='dist'){
-    gj={type:'FeatureCollection',features:[{type:'Feature',properties:{type:'measure_distance',date:new Date().toISOString()},geometry:{type:'LineString',coordinates:pts.map(ll=>[ll.lng,ll.lat])}}]};
-  }else{
-    const ring=[...pts.map(ll=>[ll.lng,ll.lat]),[pts[0].lng,pts[0].lat]];
-    gj={type:'FeatureCollection',features:[{type:'Feature',properties:{type:'measure_area',date:new Date().toISOString()},geometry:{type:'Polygon',coordinates:[ring]}}]};
+  if (mode==='dist'){
+    gj = { type:'FeatureCollection', features:[{ type:'Feature',
+      properties:{ type:'measure_distance', date:new Date().toISOString() },
+      geometry:{ type:'LineString', coordinates: pts.map(ll=>[ll.lng, ll.lat]) }
+    }]};
+  } else {
+    const ring = [...pts.map(ll=>[ll.lng,ll.lat]), [pts[0].lng, pts[0].lat]];
+    gj = { type:'FeatureCollection', features:[{ type:'Feature',
+      properties:{ type:'measure_area', date:new Date().toISOString() },
+      geometry:{ type:'Polygon', coordinates:[ring] }
+    }]};
   }
-  const blob=new Blob([JSON.stringify(gj)],{type:'application/geo+json'});
-  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=(mode==='dist'?'mesure_distance':'mesure_surface')+'.geojson';
+  const blob = new Blob([JSON.stringify(gj)], {type:'application/geo+json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = (mode==='dist'?'mesure_distance':'mesure_surface')+'.geojson';
   document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 
-/* ============== 9) Annotations (Leaflet.draw) ============== */
-const annotations=new L.FeatureGroup().addTo(map);
-layersControl.addOverlay(annotations,'Annotations (dessins)');
-const drawControl=new L.Control.Draw({
-  position:'topleft',
-  edit:{ featureGroup:annotations, poly:{allowIntersection:false}, remove:true },
-  draw:{
-    marker:{ repeatMode:true },
-    polyline:{ shapeOptions:{ color:'#ff7f00', weight:3 } },
-    polygon:{ allowIntersection:false, showArea:true, shapeOptions:{ color:'#ff7f00', weight:2, fillOpacity:.2 } },
-    rectangle:false, circle:false, circlemarker:false
-  }
-}); map.addControl(drawControl);
+/* ===================== 9) ANNOTATIONS (💾 export unique + 🧹 vider) ===================== */
+const annotations = new L.FeatureGroup().addTo(map);
+layersControl.addOverlay(annotations, 'Annotations (dessins)');
 
-const ANNOS_KEY='sd40:annotations';
-function saveAnnotations(){ try{ localStorage.setItem(ANNOS_KEY, JSON.stringify(annotations.toGeoJSON())); }catch(_){ } }
+const drawControl = new L.Control.Draw({
+  position:'topleft',
+  edit: { featureGroup: annotations, poly:{allowIntersection:false}, remove:true },
+  draw: {
+    marker: { repeatMode:true },
+    polyline: { shapeOptions:{ color:'#ff7f00', weight:3 } },
+    polygon: { allowIntersection:false, showArea:true, shapeOptions:{ color:'#ff7f00', weight:2, fillOpacity:.2 } },
+    rectangle: false, circle:false, circlemarker:false
+  }
+});
+map.addControl(drawControl);
+
+// Persistance locale
+const ANNOS_KEY = 'sd40:annotations';
+function saveAnnotations(){
+  try{ localStorage.setItem(ANNOS_KEY, JSON.stringify(annotations.toGeoJSON())); }catch(_){}
+}
 function loadAnnotations(){
   try{
-    const raw=localStorage.getItem(ANNOS_KEY); if(!raw) return; const gj=JSON.parse(raw);
-    L.geoJSON(gj,{ style:()=>({color:'#ff7f00',weight:2,fillOpacity:.2}), pointToLayer:(_f,ll)=>L.marker(ll) })
-      .eachLayer(l=>annotations.addLayer(l));
+    const raw = localStorage.getItem(ANNOS_KEY); if(!raw) return;
+    const gj = JSON.parse(raw);
+    L.geoJSON(gj,{
+      style: ()=>({color:'#ff7f00', weight:2, fillOpacity:.2}),
+      pointToLayer: (_f,latlng)=> L.marker(latlng)
+    }).eachLayer(l => annotations.addLayer(l));
   }catch(_){}
 }
 loadAnnotations();
-map.on(L.Draw.Event.CREATED, e=>{ annotations.addLayer(e.layer); saveAnnotations(); });
-map.on(L.Draw.Event.EDITED, ()=>saveAnnotations());
-map.on(L.Draw.Event.DELETED,()=>saveAnnotations());
 
-/* Export & clear pour ANNOTATIONS : 💾 + 🧹 (feuille+stylo supprimé) */
-const AnnoExport=L.Control.extend({
+map.on(L.Draw.Event.CREATED, e => { annotations.addLayer(e.layer); saveAnnotations(); });
+map.on(L.Draw.Event.EDITED,  () => saveAnnotations());
+map.on(L.Draw.Event.DELETED, () => saveAnnotations());
+
+// Contrôle export/clear pour ANNOTATIONS — UNIQUEMENT 💾 et 🧹
+const AnnoExport = L.Control.extend({
   options:{ position:'topleft' },
-  onAdd:function(){
-    const wrap=L.DomUtil.create('div','leaflet-bar tool-btn');
-    const btnSave=L.DomUtil.create('a','',wrap); btnSave.href='#'; btnSave.title='Exporter les annotations (GeoJSON)'; btnSave.innerHTML='💾';
-    const btnClear=L.DomUtil.create('a','',wrap); btnClear.href='#'; btnClear.title='Vider toutes les annotations'; btnClear.innerHTML='🧹';
+  onAdd: function(){
+    const wrap = L.DomUtil.create('div','leaflet-bar tool-btn');
+    const btnSave = L.DomUtil.create('a','',wrap);
+    btnSave.href='#'; btnSave.title='Exporter les annotations (GeoJSON)'; btnSave.innerHTML='💾';
+    const btnClear = L.DomUtil.create('a','',wrap);
+    btnClear.href='#'; btnClear.title='Vider toutes les annotations'; btnClear.innerHTML='🧹';
+
     L.DomEvent.disableClickPropagation(wrap);
     L.DomEvent.on(btnSave,'click',L.DomEvent.stop).on(btnSave,'click',()=>{
-      if(annotations.getLayers().length===0){ alert('Aucune annotation.'); return; }
-      const gj=annotations.toGeoJSON(); const blob=new Blob([JSON.stringify(gj)],{type:'application/geo+json'});
-      const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='annotations.geojson';
+      if (annotations.getLayers().length===0){ alert('Aucune annotation.'); return; }
+      const gj = annotations.toGeoJSON();
+      const blob = new Blob([JSON.stringify(gj)], {type:'application/geo+json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download='annotations.geojson';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     });
     L.DomEvent.on(btnClear,'click',L.DomEvent.stop).on(btnClear,'click',()=>{
-      if(!confirm('Supprimer toutes les annotations ?')) return;
+      if (!confirm('Supprimer toutes les annotations ?')) return;
       annotations.clearLayers(); saveAnnotations();
     });
     return wrap;
   }
-}); map.addControl(new AnnoExport());
+});
+map.addControl(new AnnoExport());
 
-/* ============== 10) Bouton “🏠 Landes” ============== */
-let maskBounds=null;
-const HomeControl=L.Control.extend({
+/* ===================== 10) Bouton “🏠 Landes” ===================== */
+const HomeControl = L.Control.extend({
   options:{ position:'topright' },
-  onAdd:function(){
-    const d=L.DomUtil.create('div','leaflet-bar tool-btn');
-    const a=L.DomUtil.create('a','',d); a.href='#'; a.title='Recentrer sur Landes'; a.innerHTML='🏠';
+  onAdd: function(){
+    const d = L.DomUtil.create('div','leaflet-bar tool-btn');
+    const a = L.DomUtil.create('a','',d);
+    a.href='#'; a.title='Recentrer sur Landes'; a.innerHTML='🏠';
     L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>{
-      if(maskBounds && maskBounds.isValid()) map.fitBounds(maskBounds,{padding:[20,20]}); else map.setView([43.85,-0.7],9);
+      if (maskBounds && maskBounds.isValid()) map.fitBounds(maskBounds,{padding:[20,20]});
+      else map.setView([43.85,-0.7],9);
     });
     return d;
   }
-}); map.addControl(new HomeControl());
+});
+map.addControl(new HomeControl());
 
-/* ============== 11) Utils ============== */
-proj4.defs('EPSG:2154','+proj=lcc +lat_1=49 +lat_2=44 +lat_0=46.5 +lon_0=3 +x_0=700000 +y_0=6600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs');
-function computeLengthMeters(latlngs){ if(latlngs.length<2) return 0; const line=turf.lineString(latlngs.map(ll=>[ll.lng,ll.lat])); return turf.length(line,{units:'kilometers'})*1000; }
-function computeAreaM2(latlngs){ if(latlngs.length<3) return 0; const ring=[...latlngs.map(ll=>[ll.lng,ll.lat]),[latlngs[0].lng,latlngs[0].lat]]; return turf.area(turf.polygon([ring])); }
+/* ===================== 11) Utils ===================== */
+proj4.defs('EPSG:2154', '+proj=lcc +lat_1=49 +lat_2=44 +lat_0=46.5 +lon_0=3 +x_0=700000 +y_0=6600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs');
+function computeLengthMeters(latlngs){
+  if (latlngs.length<2) return 0;
+  const line = turf.lineString(latlngs.map(ll=>[ll.lng,ll.lat]));
+  return turf.length(line,{units:'kilometers'})*1000;
+}
+function computeAreaM2(latlngs){
+  if (latlngs.length<3) return 0;
+  const ring = [...latlngs.map(ll=>[ll.lng,ll.lat]), [latlngs[0].lng, latlngs[0].lat]];
+  return turf.area(turf.polygon([ring]));
+}
 function fmtLength(m){ return m<1000 ? `${m.toFixed(1)} m` : `${(m/1000).toFixed(3)} km`; }
-function fmtArea(m2){ if(m2<10000) return `${m2.toFixed(0)} m²`; const ha=m2/10000; if(ha<100) return `${ha.toFixed(2)} ha`; return `${(m2/1e6).toFixed(3)} km²`; }
+function fmtArea(m2){
+  if (m2<10000) return `${m2.toFixed(0)} m²`;
+  const ha=m2/10000; if (ha<100) return `${ha.toFixed(2)} ha`;
+  return `${(m2/1e6).toFixed(3)} km²`;
+}
 </script>
 </body>
+</html>
+
 </html>
