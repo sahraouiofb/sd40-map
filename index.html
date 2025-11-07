@@ -1,0 +1,158 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SD40 – Viewer (lazy-load)</title>
+<style>
+  html,body,#map{height:100%;margin:0} #map{width:100%;height:100%;background:#eef3f6;touch-action:none}
+  .panel{position:absolute;right:.8rem;top:.8rem;background:#fff;border:1px solid #e4e6ea;border-radius:.8rem;box-shadow:0 4px 16px rgba(0,0,0,.15);padding:.6rem .7rem;z-index:3;max-width:min(92vw,680px)}
+  .row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+  .chip{display:inline-flex;align-items:center;gap:.4rem;border:1px solid #e0e0e0;padding:.25rem .5rem;border-radius:999px;background:#fff;margin:.15rem .25rem}
+  .sw{width:14px;height:14px;border-radius:3px;border:1px solid #999}
+  .btn{border:1px solid #d0d5da;background:#fff;border-radius:.6rem;padding:.35rem .6rem;cursor:pointer}
+  .muted{color:#6b7280;font-size:.9em}
+  .log{position:absolute;left:.8rem;bottom:.8rem;max-width:min(760px,94vw);z-index:5}
+  .log pre{max-height:34vh;overflow:auto;font-size:.8rem;background:#0b0e13;color:#b0f2a7;padding:.6rem .7rem;border-radius:.5rem;box-shadow:0 4px 16px rgba(0,0,0,.15)}
+  .path{fill-opacity:.16;stroke-width:1;vector-effect:non-scaling-stroke;cursor:pointer; pointer-events: fill;}
+  .line{fill:none;stroke-width:1.3;vector-effect:non-scaling-stroke;cursor:pointer; pointer-events: stroke;}
+  .pt{stroke:#fff;stroke-width:1;cursor:pointer; pointer-events: all;}
+  .hl{filter:drop-shadow(0 0 6px rgba(0,0,0,.35));stroke-width:2.2!important}
+  .popup{position:absolute;z-index:10;display:none;max-width:min(85vw,520px)}
+  .popin{background:#fff;border:1px solid #dfe3e8;border-radius:.8rem;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+  .phead{display:flex;align-items:center;justify-content:space-between;padding:.5rem .7rem;border-bottom:1px solid #eef1f4}
+  .ptitle{font-weight:600;font-size:.95rem}
+  .pbody{padding:.5rem .7rem;max-height:46vh;overflow:auto}
+  .pbody table{border-collapse:collapse;width:100%}
+  .pbody td{border-bottom:1px solid #f0f2f5;padding:.25rem .3rem;font-size:.92rem;vertical-align:top}
+  .pbody td.key{color:#555;width:38%;font-weight:600}
+</style>
+<svg id="map" xmlns="http://www.w3.org/2000/svg"><g id="root"></g></svg>
+
+<div class="panel">
+  <div><b>SD40 – Lazy-load</b> <span class="muted">/ Couches distantes</span></div>
+  <div id="stats" class="muted" style="margin:.25rem 0 .4rem 0"></div>
+  <div class="row" style="margin:.2rem 0 .35rem">
+    <span class="chip"><span class="muted">Tolérance</span><input id="tol" type="range" min="0" max="60" value="10"/><span id="tolv" class="muted">10</span></span>
+    <span class="chip"><span class="muted">Max/L</span><input id="cap" type="range" min="100" max="25000" step="100" value="2000"/><span id="capv" class="muted">2000</span></span>
+    <button class="btn" id="fit">Fit</button> <button class="btn" id="clear">Purger</button>
+  </div>
+  <div id="switch" class="row"></div>
+</div>
+
+<div class="log"><pre id="log"></pre></div>
+
+<div id="popup" class="popup"><div class="popin">
+  <div class="phead"><div id="ptitle" class="ptitle">Détails</div><button id="pclose" class="btn">×</button></div>
+  <div class="pbody"><div id="pcontent"></div></div>
+</div></div>
+
+<script>
+/*** 1) RENSEIGNE TES COUCHES ICI (chemins relatifs vers /layers) ***/
+const LAYERS = [
+  // { name:"ZRE-2013", url:"layers/ZRE-2013.geojson" },
+];
+
+/*** 2) Moteur de rendu SVG ***/
+const COLORS=["#2078dc","#2aa36b","#e65100","#6a1b9a","#00695c","#ad1457","#283593","#558b2f","#00838f","#ef6c00"];
+const svg=document.getElementById('map'), g=document.getElementById('root');
+const logEl=document.getElementById('log'); function log(s){ logEl.textContent+=(typeof s==='string'?s:JSON.stringify(s))+"\\n"; }
+
+const tolEl=document.getElementById('tol'), tolv=document.getElementById('tolv');
+const capEl=document.getElementById('cap'), capv=document.getElementById('capv');
+tolEl.oninput=()=>tolv.textContent=tolEl.value; capEl.oninput=()=>capv.textContent=capEl.value;
+
+let tf={x:0,y:0,k:1}, startX=0,startY=0, drag=false, moved=false, lastEl=null;
+function apply(){ g.setAttribute('transform',`matrix(${tf.k},0,0,${-tf.k},${tf.x},${tf.y})`); }
+svg.addEventListener('pointerdown',e=>{ if(e.button!==0)return; drag=true;moved=false;startX=e.clientX;startY=e.clientY; try{svg.setPointerCapture(e.pointerId);}catch(_){} });
+svg.addEventListener('pointermove',e=>{ if(!drag)return; const dx=e.clientX-startX,dy=e.clientY-startY; if(Math.abs(dx)+Math.abs(dy)>4)moved=true; tf.x+=dx; tf.y+=dy; startX=e.clientX; startY=e.clientY; apply();});
+svg.addEventListener('pointerup',e=>{ drag=false;moved=false; try{svg.releasePointerCapture(e.pointerId);}catch(_){} });
+
+const popup=document.getElementById('popup'), ptitle=document.getElementById('ptitle'), pcontent=document.getElementById('pcontent'), pclose=document.getElementById('pclose');
+pclose.onclick=()=>{ popup.style.display='none'; if(lastEl){ lastEl.classList.remove('hl'); lastEl=null; } };
+function showPopup(x,y,title,props,target){
+  if(moved) return;
+  if(lastEl) lastEl.classList.remove('hl'); lastEl=target; target.classList.add('hl');
+  ptitle.textContent=title||'Détails';
+  const ent=Object.entries(props||{}).filter(([k,v])=>v!==null&&v!==undefined&&String(v).trim()!=='').slice(0,180);
+  let h='<table>'; for(const [k,v] of ent){ h+=`<tr><td class="key">${k}</td><td>${String(v)}</td></tr>`; } if(!ent.length) h+='<tr><td colspan="2"><i>Aucun attribut</i></td></tr>'; h+='</table>';
+  pcontent.innerHTML=h; popup.style.left=Math.max(6,x+10)+'px'; popup.style.top=Math.max(46,y+10)+'px'; popup.style.display='block';
+}
+
+function dp(pts, eps){ const n=pts.length;if(n<=2)return pts.slice(); const keep=new Uint8Array(n); keep[0]=keep[n-1]=1; const st=[[0,n-1]];
+  function d2(p,a,b){ const x=a[0],y=a[1],dx=b[0]-x,dy=b[1]-y; if(dx===0&&dy===0){ const qx=p[0]-x,qy=p[1]-y; return qx*qx+qy*qy; }
+    const t=((p[0]-x)*dx+(p[1]-y)*dy)/(dx*dx+dy*dy); const tx=x+Math.max(0,Math.min(1,t))*dx,ty=y+Math.max(0,Math.min(1,t))*dy; const qx=p[0]-tx,qy=p[1]-ty; return qx*qx+qy*qy; }
+  const e2=eps*eps; while(st.length){ const [i,j]=st.pop(); let idx=-1,mx=-1; for(let k=i+1;k<j;k++){ const d=d2(pts[k],pts[i],pts[j]); if(d>mx){mx=d; idx=k;} }
+    if(mx>e2){ keep[idx]=1; st.push([i,idx],[idx,j]); } }
+  const out=[]; for(let i=0;i<n;i++) if(keep[i]) out.push(pts[i]); return out;
+}
+function simplify(G, eps){ const t=G.type,c=G.coordinates;
+  if(t==='Point'||t==='MultiPoint') return G;
+  if(t==='LineString'){ const pts=c.map(p=>[p[0],p[1]]); const s=dp(pts,eps); return {type:t,coordinates:s.length>=2?s:pts.slice(0,2)}; }
+  if(t==='MultiLineString'){ return {type:t,coordinates:c.map(line=>{ const pts=line.map(p=>[p[0],p[1]]); const s=dp(pts,eps); return s.length>=2?s:pts.slice(0,2); })}; }
+  if(t==='Polygon'){ const rings=c.map(r=>{ let pts=r.map(p=>[p[0],p[1]]); const closed=pts.length>2&&(pts[0][0]===pts[pts.length-1][0]&&pts[0][1]===pts[pts.length-1][1]); if(closed) pts=pts.slice(0,-1); let s=dp(pts,eps); if(s.length<3) s=pts.slice(0,3); if(s[0][0]!==s[s.length-1][0]||s[0][1]!==s[s.length-1][1]) s.push([s[0][0],s[0][1]]); return s; }); return {type:t,coordinates:rings}; }
+  if(t==='MultiPolygon'){ return {type:t,coordinates:c.map(poly=>poly.map(r=>{ let pts=r.map(p=>[p[0],p[1]]); const closed=pts.length>2&&(pts[0][0]===pts[pts.length-1][0]&&pts[0][1]===pts[pts.length-1][1]); if(closed) pts=pts.slice(0,-1); let s=dp(pts,eps); if(s.length<3) s=pts.slice(0,3); if(s[0][0]!==s[s.length-1][0]||s[0][1]!==s[s.length-1][1]) s.push([s[0][0],s[0][1]]); return s; }))}; }
+  return G;
+}
+function pathD(G){ const t=G.type,c=G.coordinates,to=p=>p[0]+' '+p[1];
+  if(t==='LineString') return 'M '+c.map(to).join(' L ');
+  if(t==='MultiLineString') return c.map(l=>'M '+l.map(to).join(' L ')).join(' ');
+  if(t==='Polygon') return c.map(r=>'M '+r.map(to).join(' L ')+' Z').join(' ');
+  if(t==='MultiPolygon') return c.map(poly=>poly.map(r=>'M '+r.map(to).join(' L ')+' Z').join(' ')).join(' ');
+  return null;
+}
+function bFromCoords(coords){ let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;(function w(c){ if(Array.isArray(c)&&c.length>=2&&typeof c[0]==='number'){const x=c[0],y=c[1]; if(x<minx)minx=x;if(x>maxx)maxx=x;if(y<miny)miny=y;if(y>maxy)maxy=y;return;} if(Array.isArray(c)) for(const t of c) w(t);} )(coords); if(minx===Infinity) return null; return {minx,miny,maxx,maxy}; }
+function mergeB(a,b){ if(!a) return b; return {minx:Math.min(a.minx,b.minx),miny:Math.min(a.miny,b.miny),maxx:Math.max(a.maxx,b.maxx),maxy:Math.max(a.maxy,b.maxy)}; }
+function fit(){ if(!window.W){ log("Pas d'emprise"); return; } const w=svg.clientWidth,h=svg.clientHeight,p=.06; const wx=W.maxx-W.minx,wy=W.maxy-W.miny;
+  const k=Math.min((1-p*2)*w/Math.max(wx,1e-9),(1-p*2)*h/Math.max(wy,1e-9)); const cx=(W.minx+W.maxx)/2, cy=(W.miny+W.maxy)/2; tf.k=k; tf.x=w/2-cx*k; tf.y=h/2+cy*k; apply(); }
+document.getElementById('fit').onclick=fit;
+document.getElementById('clear').onclick=()=>{ while(g.firstChild) g.removeChild(g.firstChild); window.W=null; apply(); log("DOM purgé"); };
+
+const COLORS_MAP=new Map(); function colorFor(name){ if(!COLORS_MAP.has(name)) COLORS_MAP.set(name, COLORS[COLORS_MAP.size%COLORS.length]); return COLORS_MAP.get(name); }
+async function fetchMaybeGz(url){
+  const r = await fetch(url, {mode: 'cors'}); if(!r.ok) throw new Error(r.status+" "+r.statusText);
+  const ct = r.headers.get('content-type')||''; if(url.endsWith('.gz') || ct.includes('gzip')){
+    if(!('DecompressionStream' in window)) throw new Error("Pas de DecompressionStream — préfère .geojson non gz");
+    const ds = new DecompressionStream('gzip'); const decompressed = r.body.pipeThrough(ds);
+    const text = await new Response(decompressed).text(); return JSON.parse(text);
+  } else { return await r.json(); }
+}
+function mountLayer(layer){
+  const {name, features} = layer; const color=colorFor(name);
+  const grp=document.createElementNS('http://www.w3.org/2000/svg','g'); g.appendChild(grp); layer._group=grp;
+  const cap=parseInt(capEl.value,10), eps=parseInt(tolEl.value,10); let n=0;
+  for(let i=0;i<features.length && n<cap;i++){
+    const f=features[i]; if(!f||!f.geometry) continue;
+    const G=simplify(f.geometry, eps); const t=G.type,c=G.coordinates;
+    if(t==='Point'){ const el=document.createElementNS('http://www.w3.org/2000/svg','circle'); el.setAttribute('class','pt'); el.setAttribute('cx',c[0]); el.setAttribute('cy',c[1]); el.setAttribute('r',2.2); el.setAttribute('fill',color); el.addEventListener('click',ev=>showPopup(ev.clientX,ev.clientY,name,f.properties||{},el)); grp.appendChild(el); n++; }
+    else if(t==='MultiPoint'){ for(const p of c){ const el=document.createElementNS('http://www.w3.org/2000/svg','circle'); el.setAttribute('class','pt'); el.setAttribute('cx',p[0]); el.setAttribute('cy',p[1]); el.setAttribute('r',2.2); el.setAttribute('fill',color); el.addEventListener('click',ev=>showPopup(ev.clientX,ev.clientY,name,f.properties||{},el)); grp.appendChild(el); n++; if(n>=cap) break; } }
+    else{ const d=pathD(G); if(!d) continue; const el=document.createElementNS('http://www.w3.org/2000/svg','path'); el.setAttribute('d',d); const isLine=t.includes('Line'); el.setAttribute('class',isLine?'line':'path'); el.setAttribute('stroke',color); if(!isLine){ el.setAttribute('fill',color); el.setAttribute('fill-opacity',.16); } el.addEventListener('click',ev=>showPopup(ev.clientX,ev.clientY,name,f.properties||{},el)); grp.appendChild(el); n++; }
+  }
+  for(const f of features){ if(!f.geometry) continue; const b=bFromCoords(f.geometry.coordinates); if(b) window.W=mergeB(window.W,b); }
+  log(`+ ${name}: ${n}/${features.length}`);
+}
+function unmountLayer(layer){ if(layer._group && layer._group.parentNode){ layer._group.parentNode.removeChild(layer._group); } layer._group=null; log(`- ${layer.name}`); }
+
+(async function init(){
+  const stats=document.getElementById('stats'), sw=document.getElementById('switch');
+  stats.textContent = "Couches déclarées: "+LAYERS.length+" — chargement à la demande";
+  sw.innerHTML='';
+  for(const item of LAYERS){
+    const label=document.createElement('label'); label.className='chip';
+    const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=false;
+    const box=document.createElement('span'); box.className='sw'; box.style.background=colorFor(item.name);
+    const txt=document.createElement('span'); txt.textContent=item.name;
+    label.appendChild(cb); label.appendChild(box); label.appendChild(txt); sw.appendChild(label);
+    let loaded=null;
+    cb.onchange = async ()=>{
+      if(cb.checked){
+        try{
+          log(`fetch ${item.name}…`);
+          const gj = await fetchMaybeGz(item.url);
+          if(gj.type!=='FeatureCollection'){ log(`ERR ${item.name}: pas un FeatureCollection`); cb.checked=false; return; }
+          loaded={ name:item.name, features:(gj.features||[]) };
+          mountLayer(loaded); if(window.W) document.getElementById('fit').click();
+        }catch(e){ log(`ERR ${item.name}: `+e); cb.checked=false; }
+      }else{ if(loaded) unmountLayer(loaded); }
+    };
+  }
+})();
+</script>
