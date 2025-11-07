@@ -2,13 +2,14 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>SD40 – Carte (mode terrain)</title>
+<title>SD40 – Carte (terrain)</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 
 <!-- Leaflet & plugins CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet-measure/dist/leaflet-measure.min.css">
+<!-- Plugin mesure (version stable) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-measure/3.3.0/leaflet-measure.css">
 
 <style>
   html,body,#map{height:100%;margin:0}
@@ -17,6 +18,13 @@
   .leaflet-control-layers-expanded{max-height:70vh;overflow:auto}
   .leaflet-control-layers-overlays label{padding:6px 4px;font-size:14px}
   .leaflet-control-layers-overlays input[type="checkbox"]{width:18px;height:18px;margin-right:6px}
+
+  /* Bouton toggle "couches" */
+  .layer-toggle-btn.leaflet-bar{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:36px; height:36px; font:20px/1 system-ui,Segoe UI,Roboto,Arial;
+    text-decoration:none; cursor:pointer;
+  }
 
   /* Popups lisibles type "fiche" */
   .popup-card{font:14px/1.35 system-ui,Segoe UI,Roboto,Arial;max-width:340px}
@@ -32,10 +40,10 @@
 
 <!-- JS libs -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<!-- GZIP fallback -->
 <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
-<script src="https://unpkg.com/leaflet-measure/dist/leaflet-measure.min.js"></script>
+<!-- Plugin mesure (version stable) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-measure/3.3.0/leaflet-measure.min.js"></script>
 
 <script>
 /* ===================== 1) Déclaration des couches ===================== */
@@ -76,13 +84,10 @@ const LAYERS = [
   { name:"sortie", url:"layers/sortie.geojson" }
 ];
 
-/* Couches allumées au démarrage (pour montrer que ça marche) */
-const DEFAULT_ON = new Set(['DPT40Masque']);
-
 /* ===================== 2) Carte & contrôles ===================== */
 const map = L.map('map', {
   zoomControl: true,
-  preferCanvas: true       // + fluide sur Android
+  preferCanvas: true   // + fluide sur Android
 }).setView([43.85, -0.7], 9);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -90,10 +95,10 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OpenStreetMap'
 }).addTo(map);
 
-// Échelle métrique
+// Échelle
 L.control.scale({metric:true, imperial:false, position:'bottomleft'}).addTo(map);
 
-// Géolocalisation (protégée par try/catch pour ne pas bloquer si plugin absent)
+// Géoloc (protégé pour ne jamais bloquer)
 try{
   L.control.locate({
     position: 'topleft',
@@ -106,24 +111,25 @@ try{
   }).addTo(map);
 }catch(e){ console.warn('LocateControl non chargé:', e); }
 
-// Outil de mesure (API compatible : constructeur explicite)
+// Mesure distance & surface (plugin mesure stable)
 try{
-  new L.Control.Measure({
+  const measureOpts = {
     position: 'topleft',
-    primaryLengthUnit: 'kilometers',
-    secondaryLengthUnit: 'meters',
+    primaryLengthUnit: 'meters',
+    secondaryLengthUnit: 'kilometers',
     primaryAreaUnit: 'hectares',
+    secondaryAreaUnit: 'sqmeters',
     activeColor: '#1f78b4',
     completedColor: '#33a02c'
-  }).addTo(map);
-}catch(e){ console.warn('MeasureControl non chargé:', e); }
-
-// Dépôt d’une épingle via appui long / clic droit
-map.on('contextmenu', (e)=>{
-  const {lat,lng} = e.latlng;
-  const m = L.marker(e.latlng).addTo(map);
-  m.bindPopup(`<b>Point</b><br>Lat: ${lat.toFixed(6)}<br>Lng: ${lng.toFixed(6)}`).openPopup();
-});
+  };
+  if (L.control && L.control.measure) {
+    L.control.measure(measureOpts).addTo(map);
+  } else if (L.Control && L.Control.Measure) {
+    new L.Control.Measure(measureOpts).addTo(map);
+  } else {
+    console.warn('leaflet-measure non chargé');
+  }
+}catch(e){ console.warn('Erreur init mesure:', e); }
 
 // Légende (cases à cocher)
 const layersControl = L.control.layers({}, {}, {collapsed:false}).addTo(map);
@@ -134,6 +140,23 @@ for (const it of LAYERS){
   layersControl.addOverlay(grp, it.name);
 }
 
+// Bouton pour afficher/masquer la liste des couches
+const LayerToggle = L.Control.extend({
+  options: { position: 'topright' },
+  onAdd: function(){
+    const a = L.DomUtil.create('a','leaflet-bar layer-toggle-btn');
+    a.href = '#'; a.title = 'Afficher/masquer la liste des couches'; a.innerHTML = '☰';
+    L.DomEvent.on(a,'click', L.DomEvent.stop)
+              .on(a,'click', () => {
+                const el = document.querySelector('.leaflet-control-layers');
+                if (!el) return;
+                el.style.display = (el.style.display==='none' ? '' : 'none');
+              });
+    return a;
+  }
+});
+map.addControl(new LayerToggle());
+
 /* ===================== 3) Styles & popups ===================== */
 function styleByGeom(feature){
   const t = feature?.geometry?.type || '';
@@ -141,34 +164,28 @@ function styleByGeom(feature){
     return {radius:5, fillColor:'#e31a1c', color:'#ffffff', weight:1, opacity:1, fillOpacity:.85};
   if (t.includes('Line'))
     return {color:'#1f78b4', weight:2, opacity:.95};
-  return {color:'#33a02c', weight:1, opacity:.95, fillOpacity:.25};
+  return {color:'#33a02c', weight:1, opacity:.95, fillOpacity:.25}; // polygones
 }
-
 function toTitle(s){
   return s.replace(/_/g,' ').replace(/\s+/g,' ')
           .toLowerCase().replace(/(^|\s)\S/g, t => t.toUpperCase());
 }
 const PRIORITY_FIELDS = ['NOM','NOM_OUVRAG','name','nom','libelle','LIBELLE','titre'];
-
 function buildPopupHTML(props){
   const keys = Object.keys(props||{});
   if (!keys.length) return '<em>Aucun attribut</em>';
-
   let titleKey = PRIORITY_FIELDS.find(k => k in props);
   const title = titleKey ? String(props[titleKey]) : null;
-
   const ordered = [
     ...PRIORITY_FIELDS.filter(k => k in props),
     ...keys.filter(k => !PRIORITY_FIELDS.includes(k))
   ];
-
   let rows = '';
   for (const k of ordered){
     const v = props[k];
     if (v === null || v === undefined || String(v).trim()==='') continue;
     rows += `<tr><th>${toTitle(k)}</th><td>${v}</td></tr>`;
   }
-
   return `
     <div class="popup-card">
       ${title ? `<div class="popup-title">${title}</div>` : ''}
@@ -177,7 +194,6 @@ function buildPopupHTML(props){
     </div>
   `;
 }
-
 function onEachFeature(feature, layer){
   const html = buildPopupHTML(feature.properties||{});
   layer.bindPopup(html, {maxWidth:360, minWidth:220, autoPan:true});
@@ -242,13 +258,7 @@ function normalizeFC(gj){
         onEachFeature
       });
       grp.clearLayers(); grp.addLayer(layer);
-
-      // Allume automatiquement certaines couches utiles au démarrage
-      if (DEFAULT_ON.has(it.name) && !map.hasLayer(grp)) grp.addTo(map);
-
-      // console.info(`OK ${it.name} — ${fc.features.length} entités`);
     }catch(err){
-      // On reste silencieux à l'écran pour le terrain, traces en console si besoin
       console.warn(`ERR ${it.name}:`, err);
     }
   }
