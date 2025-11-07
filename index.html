@@ -22,167 +22,147 @@
 <!-- Fallback gzip universel -->
 <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 <script>
-/* ====== 1) DÉCLARE ICI TES COUCHES (garde les mêmes noms/urls que dans ton dépôt) ====== */
-const LAYERS = [
-  { name:"Axe_realimentes_Institution_Adour", url:"layers/Axe_realimentes_Institution_Adour.geojson" },
-  { name:"BDT_3_5_Bassin_Versant", url:"layers/BDT_3_5_Bassin_Versant.geojson" },
-  { name:"BDT_3_5_Plan_d_eau", url:"layers/BDT_3_5_Plan_d_eau.geojson" },
-  { name:"BDT_3_5_Reservoir", url:"layers/BDT_3_5_Reservoir.geojson" },
-  { name:"Cadastre_parcelles_Flux", url:"layers/Cadastre_parcelles_Flux.geojson" },
-  { name:"DCE_2022_2027_masses_deau_cotiere_Adour_Garonne", url:"layers/DCE_2022_2027_masses_deau_cotiere_Adour_Garonne.geojson" },
-  { name:"DCE_2022_2027_masses_deau_de_transition_Adour_Garonne", url:"layers/DCE_2022_2027_masses_deau_de_transition_Adour_Garonne.geojson" },
-  { name:"DCE__2022_2027__BV_specifique__AG", url:"layers/DCE__2022_2027__BV_specifique__AG.geojson" },
-  { name:"DCE__2022_2027__plans_deau__adour_garonne", url:"layers/DCE__2022_2027__plans_deau__adour_garonne.geojson" },
-  { name:"DDT40_Carto_Cours_d_Eau_validee", url:"layers/DDT40_Carto_Cours_d_Eau_validee.geojson" },
-  { name:"DDT40_Plan_d_Eau_loi_Eau", url:"layers/DDT40_Plan_d_Eau_loi_Eau.geojson" },
-  { name:"DDT40_retenue_d_eau", url:"layers/DDT40_retenue_d_eau.geojson" },
-  { name:"DPT40Masque", url:"layers/DPT40Masque.geojson" },
-  { name:"DREAL_points_nodaux", url:"layers/DREAL_points_nodaux.geojson" },
-  { name:"IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux", url:"layers/IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux.geojson" },
-  { name:"INRAe_carte_sols", url:"layers/INRAe_carte_sols.geojson" },
-  { name:"Isochrones_nappe_alluviale_adour_IA", url:"layers/Isochrones_nappe_alluviale_adour_IA.geojson" },
-  { name:"ONF_Foret", url:"layers/ONF_Foret.geojson" },
-  { name:"ZAS_sup_40_2024", url:"layers/ZAS_sup_40_2024.geojson" },
-  { name:"ZRE_-_2013", url:"layers/ZRE_-_2013.geojson" },
-  { name:"Zones_port_es_par_les_arr_t_s", url:"layers/Zones_port_es_par_les_arr_t_s.geojson" },
-  { name:"Zones_portes_arretes", url:"layers/Zones_portes_arretes.geojson" },
-  { name:"axes_raliments_l_cde_retenues_l93_institution_adour", url:"layers/axes_raliments_l_cde_retenues_l93_institution_adour.geojson" },
-  { name:"pe_aci_adour", url:"layers/pe_aci_adour.geojson" },
-  { name:"sortie", url:"layers/sortie.geojson" }
-];
+  // === Déclare ici TES couches (garde ta liste existante) ===
+  const LAYERS = [
+    { name:"Axe_realimentes_Institution_Adour", url:"layers/Axe_realimentes_Institution_Adour.geojson" },
+    { name:"BDT_3_5_Bassin_Versant", url:"layers/BDT_3_5_Bassin_Versant.geojson" },
+    { name:"BDT_3_5_Plan_d_eau", url:"layers/BDT_3_5_Plan_d_eau.geojson" },
+    { name:"BDT_3_5_Reservoir", url:"layers/BDT_3_5_Reservoir.geojson" },
+    { name:"Cadastre_parcelles_Flux", url:"layers/Cadastre_parcelles_Flux.geojson" },
+    { name:"DCE_2022_2027_masses_deau_cotiere_Adour_Garonne", url:"layers/DCE_2022_2027_masses_deau_cotiere_Adour_Garonne.geojson" },
+    { name:"DCE_2022_2027_masses_deau_de_transition_Adour_Garonne", url:"layers/DCE_2022_2027_masses_deau_de_transition_Adour_Garonne.geojson" },
+    { name:"DCE__2022_2027__BV_specifique__AG", url:"layers/DCE__2022_2027__BV_specifique__AG.geojson" },
+    { name:"DCE__2022_2027__plans_deau__adour_garonne", url:"layers/DCE__2022_2027__plans_deau__adour_garonne.geojson" },
+    { name:"DDT40_Carto_Cours_d_Eau_validee", url:"layers/DDT40_Carto_Cours_d_Eau_validee.geojson" },
+    { name:"DDT40_Plan_d_Eau_loi_Eau", url:"layers/DDT40_Plan_d_Eau_loi_Eau.geojson" },
+    { name:"DDT40_retenue_d_eau", url:"layers/DDT40_retenue_d_eau.geojson" },
+    { name:"DPT40Masque", url:"layers/DPT40Masque.geojson" },
+    { name:"DREAL_points_nodaux", url:"layers/DREAL_points_nodaux.geojson" },
+    { name:"IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux", url:"layers/IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux.geojson" },
+    { name:"INRAe_carte_sols", url:"layers/INRAe_carte_sols.geojson" },
+    { name:"Isochrones_nappe_alluviale_adour_IA", url:"layers/Isochrones_nappe_alluviale_adour_IA.geojson" },
+    { name:"ONF_Foret", url:"layers/ONF_Foret.geojson" },
+    { name:"ZAS_sup_40_2024", url:"layers/ZAS_sup_40_2024.geojson" },
+    { name:"ZRE_-_2013", url:"layers/ZRE_-_2013.geojson" },
+    { name:"Zones_port_es_par_les_arr_t_s", url:"layers/Zones_port_es_par_les_arr_t_s.geojson" },
+    { name:"Zones_portes_arretes", url:"layers/Zones_portes_arretes.geojson" },
+    { name:"axes_raliments_l_cde_retenues_l93_institution_adour", url:"layers/axes_raliments_l_cde_retenues_l93_institution_adour.geojson" },
+    { name:"pe_aci_adour", url:"layers/pe_aci_adour.geojson" },
+    { name:"sortie", url:"layers/sortie.geojson" }
+  ];
 
-/* ====== 2) Carte + contrôle des couches (toutes les cases visibles immédiatement) ====== */
-const map = L.map('map',{zoomControl:true}).setView([43.85,-0.7],9);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-  maxZoom:20, attribution:'© OpenStreetMap'
-}).addTo(map);
+  // --- Carte + base ---
+  const map = L.map('map',{ zoomControl:true }).setView([43.85,-0.7], 9);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom: 20, attribution: '© OpenStreetMap'
+  }).addTo(map);
 
-const logEl=document.getElementById('log');
-function log(msg){ logEl.innerHTML += msg + "<br>"; logEl.scrollTop = logEl.scrollHeight; }
+  // --- Journal (si tu n'as pas déjà <div id="log">, ajoute-le sous #map) ---
+  const logEl = document.getElementById('log') || (()=>{const d=document.createElement('div');d.id='log';d.style.cssText='position:absolute;left:.5rem;bottom:.5rem;right:.5rem;max-height:28vh;overflow:auto;background:#0b0e13;color:#b0f2a7;font:12px ui-monospace,monospace;padding:.5rem;border-radius:.4rem;z-index:400';document.body.appendChild(d);return d;})();
+  function log(msg){ logEl.innerHTML += msg + "<br>"; logEl.scrollTop = logEl.scrollHeight; }
 
-const layerGroups = {};
-const layersControl = L.control.layers({}, {}, {collapsed:false}).addTo(map);
-
-// Ajoute les 25 cases tout de suite (même si pas encore chargé)
-for (const it of LAYERS){
-  const grp = L.layerGroup();
-  layerGroups[it.name] = grp;
-  layersControl.addOverlay(grp, it.name);
-  // (Option) Afficher d’emblée les groupes vides ? je laisse désactivé par défaut
-}
-
-/* ====== 3) Styles + popups ====== */
-function styleByGeom(feature){
-  const t = feature?.geometry?.type || '';
-  if (t === 'Point' || t === 'MultiPoint') return {radius:5, fillColor:'#e31a1c', color:'#fff', weight:1, opacity:1, fillOpacity:.85};
-  if (t.includes('Line')) return {color:'#1f78b4', weight:2, opacity:.95};
-  return {color:'#33a02c', weight:1, opacity:.95, fillOpacity:.25}; // polygones
-}
-function onEachFeature(feature, layer){
-  if(!feature?.properties) return;
-  let html='<table style="border-collapse:collapse">';
-  for (const [k,v] of Object.entries(feature.properties)){
-    if(v===null||v===undefined||String(v).trim()==='') continue;
-    html+=`<tr><th style="text-align:left;padding:2px 8px 2px 0;border-bottom:1px solid #eee">${k}</th><td style="padding:2px 0;border-bottom:1px solid #eee">${v}</td></tr>`;
-  }
-  html+='</table>';
-  layer.bindPopup(html);
-}
-
-/* ====== 4) Lecture robuste (JSON → fallback gzip auto) ====== */
-async function loadGeoJSONSmart(url){
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(res.status+' '+res.statusText);
-
-  // 1ère tentative : JSON direct
-  try {
-    return await res.clone().json();
-  } catch(e){ /* on tente mieux */ }
-
-  // 2e tentative : si c'est bien du gzip (signature 0x1f 0x8b), on décompresse
-  const buf = await res.arrayBuffer();
-  const u8  = new Uint8Array(buf);
-  const isGzip = u8.length>=2 && u8[0]===0x1f && u8[1]===0x8b;
-
-  if (isGzip){
-    // a) DecompressionStream (natif)
-    if ('DecompressionStream' in window){
-      const res2 = await fetch(url); // nouveau fetch (le body est déjà lu)
-      const ds = new DecompressionStream('gzip');
-      const stream = res2.body.pipeThrough(ds);
-      const text = await new Response(stream).text();
-      return JSON.parse(text);
-    }
-    // b) Fallback pako (universel)
-    if (window.pako){
-      const text = pako.ungzip(u8, {to:'string'});
-      return JSON.parse(text);
-    }
-    throw new Error('GZIP détecté mais aucune méthode de décompression dispo (ni DecompressionStream, ni pako).');
-  }
-
-  // Pas gzip → sans doute JSON tronqué/invalide
-  throw new Error('Fichier non-JSON ou JSON tronqué (vérifie export et CRS=EPSG:4326).');
-}
-
-/* ====== 5) Normalisation GeometryCollection & ajout dans le groupe ====== */
-function normalizeFC(gj){
-  const out = {type:'FeatureCollection', features:[]};
-  const feats = Array.isArray(gj?.features) ? gj.features : [];
-  for (const f of feats){
-    let g = f?.geometry;
-    if (!g) continue;
-    if (g.type === 'GeometryCollection' && Array.isArray(g.geometries) && g.geometries.length){
-      // on éclate en plusieurs features (une par géométrie de la collection)
-      for (const gg of g.geometries){
-        if (!gg) continue;
-        out.features.push({type:'Feature', properties:f.properties||{}, geometry:gg});
-      }
-    } else {
-      out.features.push(f);
-    }
-  }
-  return out;
-}
-
-/* ====== 6) Chargement de chaque couche, log et fit auto ====== */
-(async function(){
-  let globalBounds = null;
+  // --- Contrôle des couches (cases visibles tout de suite) ---
+  const layersControl = L.control.layers({}, {}, { collapsed:false }).addTo(map);
+  const layerGroups = {};
   for (const it of LAYERS){
-    try{
-      const gj = await loadGeoJSONSmart(it.url);
-      const fc = normalizeFC(gj);
+    const grp = L.layerGroup(); layerGroups[it.name]=grp;
+    layersControl.addOverlay(grp, it.name);
+  }
 
-      const layer = L.geoJSON(fc, {
-        style: styleByGeom,
-        pointToLayer: (feat, latlng)=> L.circleMarker(latlng, styleByGeom(feat)),
-        onEachFeature
-      });
-
-      // on remplace le groupe « vide » par la vraie couche
-      const grp = layerGroups[it.name];
-      grp.clearLayers();
-      grp.addLayer(layer);
-
-      // log & bounds
-      log(`<b>OK</b> ${it.name} — ${fc.features.length} entités`);
-      try{
-        const b = layer.getBounds();
-        if (b && b.isValid()){
-          globalBounds = globalBounds ? globalBounds.extend(b) : b;
-        }
-      }catch(_){/* no-op */}
-    }catch(err){
-      log(`<b>ERR</b> ${it.name} — ${String(err)}`);
+  // --- Styles + popups ---
+  function styleByGeom(feature){
+    const t = feature?.geometry?.type || '';
+    if (t === 'Point' || t === 'MultiPoint') return {radius:5, fillColor:'#e31a1c', color:'#fff', weight:1, opacity:1, fillOpacity:.85};
+    if (t.includes('Line')) return {color:'#1f78b4', weight:2, opacity:.95};
+    return {color:'#33a02c', weight:1, opacity:.95, fillOpacity:.25}; // polygones
+  }
+  function onEachFeature(feature, layer){
+    if(!feature?.properties) return;
+    let html='<table style="border-collapse:collapse">';
+    for (const [k,v] of Object.entries(feature.properties)){
+      if(v===null||v===undefined||String(v).trim()==='') continue;
+      html+=`<tr><th style="text-align:left;padding:2px 8px 2px 0;border-bottom:1px solid #eee">${k}</th><td style="padding:2px 0;border-bottom:1px solid #eee">${v}</td></tr>`;
     }
+    html+='</table>';
+    layer.bindPopup(html);
   }
-  // Fit global si on a au moins une couche valide
-  if (globalBounds && globalBounds.isValid()){
-    map.fitBounds(globalBounds, {padding:[20,20]});
-  } else {
-    log("<b>INFO</b> Aucune emprise valide détectée (vérifie CRS/exports).");
+
+  // --- Loader très robuste (JSON, GZIP, ZIP, HTML, vide) ---
+  async function loadGeoJSONSmart(url){
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(res.status+' '+res.statusText);
+
+    // 1) tentative JSON direct
+    try { return await res.clone().json(); } catch(e){ /* on continue */ }
+
+    // 2) buffer et détection
+    const buf = await res.arrayBuffer();
+    const u8  = new Uint8Array(buf);
+    if (u8.length === 0) throw new Error('Fichier vide');
+    const b0=u8[0], b1=u8[1], b2=u8[2], b3=u8[3], b4=u8[4];
+    const isGzip = (b0===0x1f && b1===0x8b);
+    const isZip  = (b0===0x50 && b1===0x4B && b2===0x03 && b3===0x04); // "PK"
+    const is7z   = (b0===0x37 && b1===0x7A && b2===0xBC && b3===0xAF && b4===0x27);
+    const looksHTML = (u8[0]===0x3C); // '<' => probablement HTML
+    if (isGzip){
+      // DecompressionStream natif sinon pako
+      if ('DecompressionStream' in window){
+        const res2 = await fetch(url);
+        const ds = new DecompressionStream('gzip');
+        const stream = res2.body.pipeThrough(ds);
+        const text = await new Response(stream).text();
+        return JSON.parse(text);
+      }
+      if (window.pako){
+        const text = pako.ungzip(u8, {to:'string'});
+        return JSON.parse(text);
+      }
+      throw new Error('GZIP détecté mais pas de décompresseur (passe en .geojson non compressé).');
+    }
+    if (isZip) throw new Error('Archive ZIP détectée — **ne pas** utiliser .zip ; exporte en GeoJSON texte ou compresse en .geojson.gz');
+    if (is7z)  throw new Error('Archive 7z détectée — exporte en GeoJSON texte ou compresse en .geojson.gz');
+    if (looksHTML) throw new Error('Contenu HTML — souvent un 404 déguisé (mauvais chemin/nom/casse)');
+
+    // Sinon… ni JSON, ni GZIP, ni ZIP → probablement fichier tronqué/invalide
+    throw new Error('Fichier non-JSON ou JSON tronqué (ré-exporte en GeoJSON EPSG:4326 ou compresse en .geojson.gz correctement).');
   }
-})();
+
+  // Normalisation GeometryCollection → features simples
+  function normalizeFC(gj){
+    const out = {type:'FeatureCollection', features:[]};
+    const feats = Array.isArray(gj?.features) ? gj.features : [];
+    for (const f of feats){
+      let g=f?.geometry; if(!g) continue;
+      if (g.type==='GeometryCollection' && Array.isArray(g.geometries) && g.geometries.length){
+        for (const gg of g.geometries){ if(!gg) continue; out.features.push({type:'Feature', properties:f.properties||{}, geometry:gg}); }
+      } else out.features.push(f);
+    }
+    return out;
+  }
+
+  // Fit auto quand on active une couche
+  map.on('overlayadd', (e)=>{ try{ const b=e.layer.getBounds(); if(b?.isValid()) map.fitBounds(b,{padding:[20,20]}); }catch(_){} });
+
+  // Chargement séquentiel (log détaillé)
+  (async function(){
+    for (const it of LAYERS){
+      const grp = layerGroups[it.name];
+      try{
+        const gj = await loadGeoJSONSmart(it.url);
+        const fc = normalizeFC(gj);
+        const layer = L.geoJSON(fc, {
+          style: styleByGeom,
+          pointToLayer: (feat, latlng)=> L.circleMarker(latlng, styleByGeom(feat)),
+          onEachFeature
+        });
+        grp.clearLayers(); grp.addLayer(layer);
+        log(`<b>OK</b> ${it.name} — ${fc.features.length} entités`);
+      }catch(err){
+        log(`<b>ERR</b> ${it.name} — ${String(err.message||err)}`);
+      }
+    }
+  })();
 </script>
+
 </body>
 </html>
