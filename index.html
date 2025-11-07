@@ -32,6 +32,7 @@
 
 <!-- JS libs -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- GZIP fallback -->
 <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
 <script src="https://unpkg.com/leaflet-measure/dist/leaflet-measure.min.js"></script>
@@ -75,6 +76,9 @@ const LAYERS = [
   { name:"sortie", url:"layers/sortie.geojson" }
 ];
 
+/* Couches allumées au démarrage (pour montrer que ça marche) */
+const DEFAULT_ON = new Set(['DPT40Masque']);
+
 /* ===================== 2) Carte & contrôles ===================== */
 const map = L.map('map', {
   zoomControl: true,
@@ -89,28 +93,32 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 // Échelle métrique
 L.control.scale({metric:true, imperial:false, position:'bottomleft'}).addTo(map);
 
-// Géolocalisation (HTTPS requis → OK sur GitHub Pages)
-L.control.locate({
-  position: 'topleft',
-  strings: { title: 'Me localiser' },
-  keepCurrentZoomLevel: true,
-  flyTo: true,
-  drawCircle: true,
-  showPopup: true,
-  cacheLocation: true
-}).addTo(map);
+// Géolocalisation (protégée par try/catch pour ne pas bloquer si plugin absent)
+try{
+  L.control.locate({
+    position: 'topleft',
+    strings: { title: 'Me localiser' },
+    keepCurrentZoomLevel: true,
+    flyTo: true,
+    drawCircle: true,
+    showPopup: true,
+    cacheLocation: true
+  }).addTo(map);
+}catch(e){ console.warn('LocateControl non chargé:', e); }
 
-// Outil de mesure distance/surface
-L.control.measure({
-  position: 'topleft',
-  primaryLengthUnit: 'kilometers',
-  secondaryLengthUnit: 'meters',
-  primaryAreaUnit: 'hectares',
-  activeColor: '#1f78b4',
-  completedColor: '#33a02c'
-}).addTo(map);
+// Outil de mesure (API compatible : constructeur explicite)
+try{
+  new L.Control.Measure({
+    position: 'topleft',
+    primaryLengthUnit: 'kilometers',
+    secondaryLengthUnit: 'meters',
+    primaryAreaUnit: 'hectares',
+    activeColor: '#1f78b4',
+    completedColor: '#33a02c'
+  }).addTo(map);
+}catch(e){ console.warn('MeasureControl non chargé:', e); }
 
-// Dépôt d’une épingle via appui long / clic droit (coords utiles sur le terrain)
+// Dépôt d’une épingle via appui long / clic droit
 map.on('contextmenu', (e)=>{
   const {lat,lng} = e.latlng;
   const m = L.marker(e.latlng).addTo(map);
@@ -175,24 +183,21 @@ function onEachFeature(feature, layer){
   layer.bindPopup(html, {maxWidth:360, minWidth:220, autoPan:true});
 }
 
-/* ===================== 4) Loader robuste (JSON / GZIP / erreurs claires) ===================== */
+/* ===================== 4) Loader robuste (JSON / GZIP) ===================== */
 async function loadGeoJSONSmart(url){
   const res = await fetch(url, {cache:'no-store'});
   if (!res.ok) throw new Error(res.status+' '+res.statusText);
 
-  // 1) Essai JSON direct
-  try { return await res.clone().json(); } catch(e){ /* continue */ }
+  // Essai JSON direct
+  try { return await res.clone().json(); } catch(e){}
 
-  // 2) Binaire : détecte gzip/zip/html
+  // Binaire : GZIP ?
   const buf = await res.arrayBuffer();
   const u8  = new Uint8Array(buf);
   if (u8.length===0) throw new Error('Fichier vide');
-  const b0=u8[0], b1=u8[1], b2=u8[2], b3=u8[3], b4=u8[4];
-  const isGzip = (b0===0x1f && b1===0x8b);
-  const isZip  = (b0===0x50 && b1===0x4B && b2===0x03 && b3===0x04); // "PK"
-  const is7z   = (b0===0x37 && b1===0x7A && b2===0xBC && b3===0xAF && b4===0x27);
-  const looksHTML = (b0===0x3C); // '<'
 
+  const isGzip = (u8[0]===0x1f && u8[1]===0x8b);
+  const looksHTML = (u8[0]===0x3C); // '<'
   if (isGzip){
     if ('DecompressionStream' in window){
       const res2 = await fetch(url, {cache:'no-store'});
@@ -207,11 +212,8 @@ async function loadGeoJSONSmart(url){
     }
     throw new Error('GZIP détecté mais pas de décompresseur');
   }
-  if (isZip)  throw new Error('ZIP détecté — exporte en GeoJSON texte ou GZIP (.geojson.gz), pas .zip/.7z');
-  if (is7z)   throw new Error('7z détecté — exporte en GeoJSON texte ou GZIP (.geojson.gz)');
   if (looksHTML) throw new Error('HTML/404 — mauvais chemin/nom (casse/accents)');
-
-  throw new Error('Non-JSON ou JSON tronqué — ré-exporte en GeoJSON EPSG:4326 ou compresse en .geojson.gz correctement');
+  throw new Error('Non-JSON ou tronqué — ré-export EPSG:4326 ou .geojson.gz propre');
 }
 
 // GeometryCollection → features simples
@@ -227,7 +229,7 @@ function normalizeFC(gj){
   return out;
 }
 
-/* ===================== 5) Chargement des couches (sans journal visuel) ===================== */
+/* ===================== 5) Chargement des couches ===================== */
 (async function(){
   for (const it of LAYERS){
     const grp = layerGroups[it.name];
@@ -240,14 +242,19 @@ function normalizeFC(gj){
         onEachFeature
       });
       grp.clearLayers(); grp.addLayer(layer);
+
+      // Allume automatiquement certaines couches utiles au démarrage
+      if (DEFAULT_ON.has(it.name) && !map.hasLayer(grp)) grp.addTo(map);
+
       // console.info(`OK ${it.name} — ${fc.features.length} entités`);
     }catch(err){
-      // console.error(`ERR ${it.name} — ${String(err.message||err)}`);
+      // On reste silencieux à l'écran pour le terrain, traces en console si besoin
+      console.warn(`ERR ${it.name}:`, err);
     }
   }
 })();
 
-/* ===================== 6) Fit auto (optionnel) sur la couche Masque 40 lorsqu’elle est activée ===================== */
+/* ===================== 6) Fit auto sur une couche quand on l’active ===================== */
 map.on('overlayadd', (e)=>{
   try{
     if (e?.layer?.getBounds){
