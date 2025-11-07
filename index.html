@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>SD40 – Carte (terrain)</title>
+<title>SD40 – Carte (terrain++)</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 
 <!-- Leaflet & plugins CSS -->
@@ -17,17 +17,32 @@
   .leaflet-control-layers-overlays label{padding:6px 4px;font-size:14px}
   .leaflet-control-layers-overlays input[type="checkbox"]{width:18px;height:18px;margin-right:6px}
 
-  /* Boutons custom (toggle couches + outils mesure) */
-  .leaflet-top.leaflet-right .leaflet-bar{margin-top:10px}
+  /* Boutons outils (gauche) */
+  .leaflet-top.leaflet-left .leaflet-bar{margin-top:10px}
   .tool-btn.leaflet-bar a{
     display:inline-flex;align-items:center;justify-content:center;
-    width:36px;height:36px;font:20px/1 system-ui,Segoe UI,Roboto,Arial;
-    text-decoration:none;cursor:pointer;
+    width:40px;height:40px;font:20px/1.1 system-ui,Segoe UI,Roboto,Arial;
+    text-decoration:none;cursor:pointer; user-select:none;
   }
   .tool-btn.leaflet-bar a.active{background:#1f78b4;color:#fff}
 
+  /* Bouton “☰ Couches” – bien visible (droite) */
+  .layer-toggle-wrap.leaflet-control{
+    background:#111827;color:#fff;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.35);
+    overflow:hidden; border:1px solid #0b1220;
+  }
+  .layer-toggle-btn{
+    display:flex;align-items:center;gap:8px;
+    padding:8px 12px; font:600 14px system-ui,Segoe UI,Roboto,Arial;
+    text-decoration:none; color:#fff; background:#111827;
+    cursor:pointer; line-height:1;
+  }
+  .layer-toggle-btn:focus{outline:2px solid #2563eb; outline-offset:2px}
+  .layer-toggle-btn .icon{font-size:18px}
+  .layer-toggle-btn .label{letter-spacing:.2px}
+
   /* Popups lisibles type "fiche" */
-  .popup-card{font:14px/1.35 system-ui,Segoe UI,Roboto,Arial;max-width:340px}
+  .popup-card{font:14px/1.35 system-ui,Segoe UI,Roboto,Arial;max-width:360px}
   .popup-title{font-weight:700;margin:0 0 .25rem}
   .popup-meta{margin:0 0 .5rem;color:#5b6670;font-size:12px}
   .popup-table{width:100%;border-collapse:collapse;font-size:13px}
@@ -73,7 +88,7 @@ const LAYERS = [
   { name:"Isochrones_nappe_alluviale_adour_IA", url:"layers/Isochrones_nappe_alluviale_adour_IA.geojson" },
   { name:"ONF_Foret", url:"layers/ONF_Foret.geojson" },
 
-  /* 6 nouvelles couches en GZIP */
+  /* en GZIP */
   { name:"DCE_2022-2027_cours_deau_Adour-Garonne", url:"layers/DCE_2022-2027_cours_deau_Adour-Garonne.geojson.gz" },
   { name:"DCE_2022_2027__masses_deau_souterraine", url:"layers/DCE_2022_2027__masses_deau_souterraine.geojson.gz" },
   { name:"BDT_3_5_Surface_hydrographique", url:"layers/BDT_3_5_Surface_hydrographique.geojson.gz" },
@@ -109,11 +124,8 @@ try{
   L.control.locate({
     position: 'topleft',
     strings: { title: 'Me localiser' },
-    keepCurrentZoomLevel: true,
-    flyTo: true,
-    drawCircle: true,
-    showPopup: true,
-    cacheLocation: true
+    keepCurrentZoomLevel: true, flyTo: true,
+    drawCircle: true, showPopup: true, cacheLocation: true
   }).addTo(map);
 }catch(e){ console.warn('LocateControl non chargé:', e); }
 
@@ -126,22 +138,25 @@ for (const it of LAYERS){
   layersControl.addOverlay(grp, it.name);
 }
 
-// Bouton pour afficher/masquer la liste des couches
-const LayerToggle = L.Control.extend({
+/* ======= Bouton GROS & CONTRASTÉ pour afficher/masquer la liste des couches ======= */
+const LayerToggleBig = L.Control.extend({
   options: { position: 'topright' },
   onAdd: function(){
-    const a = L.DomUtil.create('a','leaflet-bar tool-btn');
-    a.href = '#'; a.title = 'Afficher/masquer la liste des couches'; a.innerHTML = '☰';
-    L.DomEvent.on(a,'click', L.DomEvent.stop)
-              .on(a,'click', () => {
+    const wrap = L.DomUtil.create('div','layer-toggle-wrap leaflet-control');
+    const btn = L.DomUtil.create('button','layer-toggle-btn',wrap);
+    btn.type='button';
+    btn.innerHTML = `<span class="icon">☰</span><span class="label">Couches</span>`;
+    btn.title = 'Afficher/masquer la liste des couches';
+    L.DomEvent.on(btn,'click', L.DomEvent.stop)
+              .on(btn,'click', () => {
                 const el = document.querySelector('.leaflet-control-layers');
                 if (!el) return;
                 el.style.display = (el.style.display==='none' ? '' : 'none');
               });
-    return a;
+    return wrap;
   }
 });
-map.addControl(new LayerToggle());
+map.addControl(new LayerToggleBig());
 
 /* ===================== 3) Styles & popups ===================== */
 function styleByGeom(feature){
@@ -182,7 +197,7 @@ function buildPopupHTML(props){
 }
 function onEachFeature(feature, layer){
   const html = buildPopupHTML(feature.properties||{});
-  layer.bindPopup(html, {maxWidth:360, minWidth:220, autoPan:true});
+  layer.bindPopup(html, {maxWidth:380, minWidth:220, autoPan:true});
 }
 
 /* ===================== 4) Loader robuste (JSON / GZIP) ===================== */
@@ -250,114 +265,162 @@ function normalizeFC(gj){
   }
 })();
 
-/* ===================== 6) OUTILS MESURE (Distance & Surface) – sans plugin ===================== */
-const MeasureControls = L.Control.extend({
+/* ===================== 6) Mesures manuelles (boutons 📏 et ▱) ===================== */
+const ManualMeasure = L.Control.extend({
   options:{ position:'topleft' },
   onAdd: function(){
     const wrap = L.DomUtil.create('div','leaflet-bar tool-btn');
     const btnDist = L.DomUtil.create('a','',wrap);
-    btnDist.href='#'; btnDist.title='Mesurer une distance'; btnDist.innerHTML='📏';
-
+    btnDist.href='#'; btnDist.title='Mesurer une distance (manuel)'; btnDist.innerHTML='📏';
     const btnArea = L.DomUtil.create('a','',wrap);
-    btnArea.href='#'; btnArea.title='Mesurer une surface'; btnArea.innerHTML='▱';
-
+    btnArea.href='#'; btnArea.title='Mesurer une surface (manuel)'; btnArea.innerHTML='▱';
     L.DomEvent.disableClickPropagation(wrap);
-    L.DomEvent.on(btnDist,'click',L.DomEvent.stop).on(btnDist,'click',()=>startDistance(btnDist,btnArea));
-    L.DomEvent.on(btnArea,'click',L.DomEvent.stop).on(btnArea,'click',()=>startArea(btnArea,btnDist));
+    L.DomEvent.on(btnDist,'click',L.DomEvent.stop).on(btnDist,'click',()=>startManual('dist',btnDist,btnArea));
+    L.DomEvent.on(btnArea,'click',L.DomEvent.stop).on(btnArea,'click',()=>startManual('area',btnArea,btnDist));
     return wrap;
   }
 });
-map.addControl(new MeasureControls());
+map.addControl(new ManualMeasure());
 
-let measureState = null; // {mode:'dist'|'area', pts:LatLng[], line:Polyline, poly:Polygon, label:Tooltip, btn:AElement}
-
-function resetMeasure(){
-  if(!measureState) return;
-  if (measureState.line) map.removeLayer(measureState.line);
-  if (measureState.poly) map.removeLayer(measureState.poly);
-  if (measureState.label) map.removeLayer(measureState.label);
-  if (measureState.btn) measureState.btn.classList.remove('active');
+let manualState = null; // {mode:'dist'|'area', pts:[], line, poly, label, btn}
+function resetManual(){
+  if(!manualState) return;
+  if (manualState.line) map.removeLayer(manualState.line);
+  if (manualState.poly) map.removeLayer(manualState.poly);
+  if (manualState.label) map.removeLayer(manualState.label);
+  if (manualState.btn) manualState.btn.classList.remove('active');
   map.getContainer().style.cursor='';
   map.doubleClickZoom.enable();
-  map.off('click', onClickMeasure);
-  map.off('dblclick', finishMeasure);
-  map.off('contextmenu', finishMeasure);
-  measureState = null;
+  map.off('click', onClickManual);
+  map.off('dblclick', finishManual);
+  map.off('contextmenu', finishManual);
+  manualState = null;
 }
-
-function startDistance(btnDist,btnOther){
-  if (measureState?.mode==='dist'){ resetMeasure(); return; }
-  resetMeasure();
-  btnDist.classList.add('active');
-  measureState = {mode:'dist', pts:[], line:null, poly:null, label:null, btn:btnDist};
+function startManual(mode, btnOn, btnOther){
+  if (manualState?.mode===mode){ resetManual(); return; }
+  resetManual(); stopGPS(); // exclusif
+  btnOn.classList.add('active');
+  manualState = {mode, pts:[], line:null, poly:null, label:null, btn:btnOn};
   map.getContainer().style.cursor='crosshair';
   map.doubleClickZoom.disable();
-  map.on('click', onClickMeasure);
-  map.on('dblclick', finishMeasure);
-  map.on('contextmenu', finishMeasure);
+  map.on('click', onClickManual);
+  map.on('dblclick', finishManual);
+  map.on('contextmenu', finishManual);
 }
-
-function startArea(btnArea,btnOther){
-  if (measureState?.mode==='area'){ resetMeasure(); return; }
-  resetMeasure();
-  btnArea.classList.add('active');
-  measureState = {mode:'area', pts:[], line:null, poly:null, label:null, btn:btnArea};
-  map.getContainer().style.cursor='crosshair';
-  map.doubleClickZoom.disable();
-  map.on('click', onClickMeasure);
-  map.on('dblclick', finishMeasure);
-  map.on('contextmenu', finishMeasure);
-}
-
-function onClickMeasure(e){
-  const s = measureState; if(!s) return;
+function onClickManual(e){
+  const s = manualState; if(!s) return;
   s.pts.push(e.latlng);
-
   if (s.mode==='dist'){
-    if (!s.line){
-      s.line = L.polyline([e.latlng], {color:'#1f78b4', weight:3, dashArray:'6,4'}).addTo(map);
-    } else {
-      s.line.addLatLng(e.latlng);
-    }
-    const totalMeters = computeLengthMeters(s.pts);
-    updateMeasureLabel(e.latlng, fmtLength(totalMeters));
-  }
-
-  if (s.mode==='area'){
+    if (!s.line){ s.line = L.polyline([e.latlng], {color:'#1f78b4', weight:3, dashArray:'6,4'}).addTo(map); }
+    else { s.line.addLatLng(e.latlng); }
+    updateManualLabel(e.latlng, fmtLength(computeLengthMeters(s.pts)));
+  } else {
     if (s.pts.length===1){
       s.line = L.polyline([e.latlng], {color:'#33a02c', weight:3, dashArray:'6,4'}).addTo(map);
     } else if (s.pts.length===2){
       s.line.addLatLng(e.latlng);
     } else {
-      // passer en polygone dès 3 points
-      if (!s.poly){
-        s.poly = L.polygon(s.pts, {color:'#33a02c', weight:2, fillOpacity:.15}).addTo(map);
-      } else {
-        s.poly.setLatLngs([s.pts]);
-      }
-      const m2 = computeAreaM2(s.pts);
-      updateMeasureLabel(e.latlng, fmtArea(m2));
+      if (!s.poly){ s.poly = L.polygon(s.pts, {color:'#33a02c', weight:2, fillOpacity:.15}).addTo(map); }
+      else { s.poly.setLatLngs([s.pts]); }
+      updateManualLabel(e.latlng, fmtArea(computeAreaM2(s.pts)));
     }
   }
 }
-
-function finishMeasure(){
-  if(!measureState) return;
-  // Finalise l’étiquette à la dernière position, puis sort du mode
-  resetMeasure();
+function finishManual(){ resetManual(); }
+function updateManualLabel(latlng, text){
+  if (manualState?.label) map.removeLayer(manualState.label);
+  manualState.label = L.tooltip({permanent:true, direction:'top', offset:[0,-10], className:'measure-label'})
+    .setLatLng(latlng).setContent(text).addTo(map);
 }
 
-function updateMeasureLabel(latlng, text){
-  const s = measureState; if(!s) return;
-  if (s.label) map.removeLayer(s.label);
-  s.label = L.tooltip({
-    permanent:true, direction:'top', offset:[0,-10], className:'measure-label'
-  })
-  .setLatLng(latlng)
-  .setContent(text)
-  .addTo(map);
+/* ===================== 7) Mesures GPS (boutons 📍📏 et 📍▱) ===================== */
+const GPSMeasure = L.Control.extend({
+  options:{ position:'topleft' },
+  onAdd: function(){
+    const wrap = L.DomUtil.create('div','leaflet-bar tool-btn');
+    const btnGDist = L.DomUtil.create('a','',wrap);
+    btnGDist.href='#'; btnGDist.title='Mesurer distance en suivant la géolocalisation'; btnGDist.innerHTML='📍📏';
+    const btnGArea = L.DomUtil.create('a','',wrap);
+    btnGArea.href='#'; btnGArea.title='Mesurer surface en suivant la géolocalisation'; btnGArea.innerHTML='📍▱';
+    L.DomEvent.disableClickPropagation(wrap);
+    L.DomEvent.on(btnGDist,'click',L.DomEvent.stop).on(btnGDist,'click',()=>startGPS('dist',btnGDist,btnGArea));
+    L.DomEvent.on(btnGArea,'click',L.DomEvent.stop).on(btnGArea,'click',()=>startGPS('area',btnGArea,btnGDist));
+    return wrap;
+  }
+});
+map.addControl(new GPSMeasure());
+
+let gpsState = null; // {mode:'dist'|'area', pts:[], line, poly, label, btn, watchId}
+function stopGPS(){
+  if(!gpsState) return;
+  if (gpsState.watchId!=null) navigator.geolocation.clearWatch(gpsState.watchId);
+  if (gpsState.line) map.removeLayer(gpsState.line);
+  if (gpsState.poly) map.removeLayer(gpsState.poly);
+  if (gpsState.label) map.removeLayer(gpsState.label);
+  if (gpsState.btn) gpsState.btn.classList.remove('active');
+  gpsState = null;
+  map.off('contextmenu', stopGPS);
+}
+function startGPS(mode, btnOn, btnOther){
+  if (gpsState?.mode===mode){ stopGPS(); return; }
+  stopGPS(); resetManual(); // exclusif
+  gpsState = {mode, pts:[], line:null, poly:null, label:null, btn:btnOn, watchId:null};
+  btnOn.classList.add('active');
+
+  if (!('geolocation' in navigator)){
+    alert('Géolocalisation non disponible sur cet appareil.');
+    stopGPS(); return;
+  }
+  try{
+    gpsState.watchId = navigator.geolocation.watchPosition(onGPS, onGPSError, {
+      enableHighAccuracy: true, maximumAge: 1000, timeout: 20000
+    });
+    map.on('contextmenu', stopGPS); // appui long/clic droit = stop
+  }catch(e){
+    alert('Impossible de démarrer la géolocalisation.');
+    stopGPS();
+  }
+}
+function onGPS(pos){
+  const { latitude, longitude } = pos.coords;
+  const ll = L.latLng(latitude, longitude);
+
+  const s = gpsState; if(!s) return;
+  // anti bruit : on ajoute si on a > 3 m de déplacement ou aucun point
+  if (s.pts.length){
+    const last = s.pts[s.pts.length-1];
+    const d = turf.distance([last.lng,last.lat], [ll.lng,ll.lat], {units:'meters'});
+    if (d < 3) return; // ignore petit bruit GPS
+  }
+  s.pts.push(ll);
+
+  if (s.mode==='dist'){
+    if (!s.line){ s.line = L.polyline([ll], {color:'#1f78b4', weight:3, dashArray:'6,4'}).addTo(map); }
+    else { s.line.addLatLng(ll); }
+    updateGPSLabel(ll, fmtLength(computeLengthMeters(s.pts)));
+  } else {
+    if (s.pts.length===1){
+      s.line = L.polyline([ll], {color:'#33a02c', weight:3, dashArray:'6,4'}).addTo(map);
+    } else if (s.pts.length===2){
+      s.line.addLatLng(ll);
+    } else {
+      if (!s.poly){ s.poly = L.polygon(s.pts, {color:'#33a02c', weight:2, fillOpacity:.15}).addTo(map); }
+      else { s.poly.setLatLngs([s.pts]); }
+      updateGPSLabel(ll, fmtArea(computeAreaM2(s.pts)));
+    }
+  }
+}
+function onGPSError(err){
+  alert('Erreur géolocalisation : ' + (err?.message || err));
+  stopGPS();
+}
+function updateGPSLabel(latlng, text){
+  if (gpsState?.label) map.removeLayer(gpsState.label);
+  gpsState.label = L.tooltip({permanent:true, direction:'top', offset:[0,-10], className:'measure-label'})
+    .setLatLng(latlng).setContent(text).addTo(map);
 }
 
+/* ===================== 8) Outils communs (calculs) ===================== */
 function computeLengthMeters(latlngs){
   if (latlngs.length<2) return 0;
   const coords = latlngs.map(ll => [ll.lng, ll.lat]);
@@ -384,7 +447,7 @@ function fmtArea(m2){
   return `${km2.toFixed(3)} km²`;
 }
 
-/* ===================== 7) Fit auto sur une couche quand on l’active ===================== */
+/* ===================== 9) Fit auto sur une couche quand on l’active ===================== */
 map.on('overlayadd', (e)=>{
   try{
     if (e?.layer?.getBounds){
