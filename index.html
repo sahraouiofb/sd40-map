@@ -14,13 +14,13 @@
 <div id="map"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  // Liste des couches : ajuste les URLs selon que le fichier est .geojson ou .geojson.gz
+  // ⚠️ Vérifie que chaque URL ci-dessous pointe vers .geojson ou .geojson.gz selon le VRAI fichier dans /layers
   const LAYERS = [
     { name: "Axe_realimentes_Institution_Adour", url: "layers/Axe_realimentes_Institution_Adour.geojson" },
     { name: "BDT_3_5_Bassin_Versant", url: "layers/BDT_3_5_Bassin_Versant.geojson" },
     { name: "BDT_3_5_Plan_d_eau", url: "layers/BDT_3_5_Plan_d_eau.geojson" },
     { name: "BDT_3_5_Reservoir", url: "layers/BDT_3_5_Reservoir.geojson" },
-    { name: "Cadastre_parcelles_Flux", url: "layers/Cadastre_parcelles_Flux.geojson.gz" },
+    { name: "Cadastre_parcelles_Flux", url: "layers/Cadastre_parcelles_Flux.geojson" }, // ou .geojson.gz si compressé
     { name: "DCE_2022_2027_masses_deau_cotiere_Adour_Garonne", url: "layers/DCE_2022_2027_masses_deau_cotiere_Adour_Garonne.geojson" },
     { name: "DCE_2022_2027_masses_deau_de_transition_Adour_Garonne", url: "layers/DCE_2022_2027_masses_deau_de_transition_Adour_Garonne.geojson" },
     { name: "DCE__2022_2027__BV_specifique__AG", url: "layers/DCE__2022_2027__BV_specifique__AG.geojson" },
@@ -31,7 +31,7 @@
     { name: "DPT40Masque", url: "layers/DPT40Masque.geojson" },
     { name: "DREAL_points_nodaux", url: "layers/DREAL_points_nodaux.geojson" },
     { name: "IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux", url: "layers/IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux.geojson" },
-    { name: "INRAe_carte_sols", url: "layers/INRAe_carte_sols.geojson" },
+    { name: "INRAe_carte_sols", url: "layers/INRAe_carte_sols.geojson" }, // passe en .gz si besoin
     { name: "Isochrones_nappe_alluviale_adour_IA", url: "layers/Isochrones_nappe_alluviale_adour_IA.geojson" },
     { name: "ONF_Foret", url: "layers/ONF_Foret.geojson" },
     { name: "ZAS_sup_40_2024", url: "layers/ZAS_sup_40_2024.geojson" },
@@ -43,70 +43,90 @@
     { name: "sortie", url: "layers/sortie.geojson" }
   ];
 
-  // Crée la carte
-  const map = L.map('map').setView([43.8, -0.8], 9);
-  // Tu peux mettre une couche WMTS/XYZ ici si tu en veux une, sinon laisse vide
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    maxZoom: 19, attribution: '© OpenStreetMap'
+  // 1) Carte
+  const map = L.map('map', {zoomControl: true}).setView([43.85, -0.7], 9);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 20, attribution: '© OpenStreetMap'
   }).addTo(map);
 
-  // Styles en fonction du type géométrique
+  // 2) Contrôle des couches — créé UNE FOIS, puis alimenté dynamiquement
+  const layersControl = L.control.layers({}, {}, {collapsed: false}).addTo(map);
+
+  // 3) Styles selon géométrie
   function styleFeature(feature) {
-    const type = feature.geometry.type;
-    if (type === 'Point' || type === 'MultiPoint') {
-      return {radius: 5, fillColor: '#e31a1c', color: '#fff', weight: 1, opacity: 1, fillOpacity: 0.8};
-    } else if (type === 'LineString' || type === 'MultiLineString') {
-      return {color: '#1f78b4', weight: 2, opacity: 0.8};
-    } else {
-      return {color: '#33a02c', weight: 1, opacity: 0.8, fillOpacity: 0.3};
+    const t = feature.geometry?.type || '';
+    if (t === 'Point' || t === 'MultiPoint') {
+      return {radius: 5, fillColor: '#e31a1c', color: '#ffffff', weight: 1, opacity: 1, fillOpacity: 0.85};
     }
+    if (t.includes('Line')) {
+      return {color: '#1f78b4', weight: 2, opacity: 0.9};
+    }
+    // Polygones
+    return {color: '#33a02c', weight: 1, opacity: 0.9, fillOpacity: 0.25};
   }
-  // Génère un popup pour chaque entité
+
+  // 4) Popups attributaires
   function onEachFeature(feature, layer) {
-    let content = '';
-    if (feature.properties) {
-      content = '<table>';
-      Object.keys(feature.properties).forEach(function (k) {
-        content += '<tr><th style="text-align:left;padding-right:6px;">'+k+'</th><td>'+feature.properties[k]+'</td></tr>';
-      });
-      content += '</table>';
+    if (!feature || !feature.properties) return;
+    let html = '<table style="border-collapse:collapse">';
+    for (const [k,v] of Object.entries(feature.properties)) {
+      if (v === null || v === undefined || String(v).trim()==='') continue;
+      html += `<tr><th style="text-align:left;padding:2px 6px 2px 0;border-bottom:1px solid #eee">${k}</th><td style="padding:2px 0;border-bottom:1px solid #eee">${v}</td></tr>`;
     }
-    layer.bindPopup(content);
+    html += '</table>';
+    layer.bindPopup(html);
   }
 
-  const overlays = {};
-  LAYERS.forEach(function(item){
-    fetch(item.url)
-      .then(function(response){
-        if (item.url.toLowerCase().endsWith('.gz')) {
-          // si le fichier est gzippé, on le décompresse avec les Streams
-          if (!('DecompressionStream' in window)) {
-            throw new Error('Ce navigateur ne supporte pas DecompressionStream. Utilise des .geojson non zippés.');
-          }
-          const ds = new DecompressionStream('gzip');
-          const decompressed = response.body.pipeThrough(ds);
-          return new Response(decompressed).json();
-        }
-        return response.json();
-      })
-      .then(function(data){
-        const geoLayer = L.geoJSON(data, {
-          style: styleFeature,
-          pointToLayer: function(feature, latlng){ 
-            return L.circleMarker(latlng, styleFeature(feature));
-          },
-          onEachFeature: onEachFeature
-        });
-        overlays[item.name] = geoLayer;
-        geoLayer.addTo(map);
-      })
-      .catch(function(err){
-        console.error('Erreur chargement '+item.name+' : '+err);
-      });
-  });
+  // 5) Chargement d’un GeoJSON (texte ou gz)
+  async function loadGeoJSON(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(res.status+' '+res.statusText);
+    if (url.toLowerCase().endsWith('.gz')) {
+      if (!('DecompressionStream' in window)) throw new Error('Navigateur sans DecompressionStream (prends des .geojson non zippés).');
+      const ds = new DecompressionStream('gzip');
+      const decompressed = res.body.pipeThrough(ds);
+      return await new Response(decompressed).json();
+    }
+    return await res.json();
+  }
 
-  L.control.layers(null, overlays, {collapsed: false}).addTo(map);
+  // 6) Charge chaque couche et l’ajoute AU CONTRÔLE
+  (async function(){
+    for (const item of LAYERS) {
+      try {
+        const data = await loadGeoJSON(item.url);
+
+        // Gère GeometryCollection (certaines couches admin/cadastre)
+        function normalizeGeom(f) {
+          const g = f.geometry;
+          if (g && g.type === 'GeometryCollection' && Array.isArray(g.geometries) && g.geometries.length) {
+            return {...f, geometry: g.geometries[0]}; // on prend la première géométrie
+          }
+          return f;
+        }
+        const fc = (data.type === 'FeatureCollection') ? data
+                 : {type:'FeatureCollection', features:(Array.isArray(data.features)?data.features:[])};
+        fc.features = fc.features.map(normalizeGeom).filter(f => !!f.geometry);
+
+        const layer = L.geoJSON(fc, {
+          style: styleFeature,
+          pointToLayer: (feat, latlng) => L.circleMarker(latlng, styleFeature(feat)),
+          onEachFeature
+        });
+
+        // Ajoute la couche au contrôle (cases à cocher visibles)
+        layersControl.addOverlay(layer, item.name);
+
+        // (Option) l’afficher par défaut :
+        layer.addTo(map);
+
+      } catch(e) {
+        console.error('Erreur sur', item.name, e);
+      }
+    }
+  })();
 </script>
+
 </body>
 </html>
 
