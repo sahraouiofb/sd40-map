@@ -2,12 +2,13 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>SD40 – Carte (terrain++)</title>
+<title>SD40 – Carte (annotations)</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 
 <!-- Leaflet & plugins CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
 
 <style>
   html,body,#map{height:100%;margin:0}
@@ -26,20 +27,19 @@
   }
   .tool-btn.leaflet-bar a.active{background:#1f78b4;color:#fff}
 
-  /* Bouton “☰ Couches” – bien visible (droite) */
+  /* Bouton “☰ Couches” – gros & contrasté (droite) */
   .layer-toggle-wrap.leaflet-control{
-    background:#111827;color:#fff;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.35);
-    overflow:hidden; border:1px solid #0b1220;
+    background:#111827;color:#fff;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.35);
+    overflow:hidden;border:1px solid #0b1220
   }
   .layer-toggle-btn{
-    display:flex;align-items:center;gap:8px;
-    padding:8px 12px; font:600 14px system-ui,Segoe UI,Roboto,Arial;
-    text-decoration:none; color:#fff; background:#111827;
-    cursor:pointer; line-height:1;
+    display:flex;align-items:center;gap:10px;
+    padding:10px 14px; font:600 14px system-ui,Segoe UI,Roboto,Arial;
+    text-decoration:none; color:#fff; background:#111827; cursor:pointer;
+    line-height:1; letter-spacing:.2px
   }
-  .layer-toggle-btn:focus{outline:2px solid #2563eb; outline-offset:2px}
   .layer-toggle-btn .icon{font-size:18px}
-  .layer-toggle-btn .label{letter-spacing:.2px}
+  .layer-toggle-btn:hover{background:#0f172a}
 
   /* Popups lisibles type "fiche" */
   .popup-card{font:14px/1.35 system-ui,Segoe UI,Roboto,Arial;max-width:360px}
@@ -61,10 +61,14 @@
 
 <!-- JS libs -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
-<!-- Turf pour mesures géodésiques fiables -->
+<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/proj4leaflet@1.0.2/src/proj4leaflet.min.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<!-- Cache offline simple -->
+<script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
 
 <script>
 /* ===================== 1) Déclaration des couches ===================== */
@@ -88,7 +92,7 @@ const LAYERS = [
   { name:"Isochrones_nappe_alluviale_adour_IA", url:"layers/Isochrones_nappe_alluviale_adour_IA.geojson" },
   { name:"ONF_Foret", url:"layers/ONF_Foret.geojson" },
 
-  /* en GZIP */
+  /* GZIP */
   { name:"DCE_2022-2027_cours_deau_Adour-Garonne", url:"layers/DCE_2022-2027_cours_deau_Adour-Garonne.geojson.gz" },
   { name:"DCE_2022_2027__masses_deau_souterraine", url:"layers/DCE_2022_2027__masses_deau_souterraine.geojson.gz" },
   { name:"BDT_3_5_Surface_hydrographique", url:"layers/BDT_3_5_Surface_hydrographique.geojson.gz" },
@@ -108,7 +112,7 @@ const LAYERS = [
 /* ===================== 2) Carte & contrôles ===================== */
 const map = L.map('map', {
   zoomControl: true,
-  preferCanvas: true   // + fluide sur Android
+  preferCanvas: true
 }).setView([43.85, -0.7], 9);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -119,7 +123,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 // Échelle
 L.control.scale({metric:true, imperial:false, position:'bottomleft'}).addTo(map);
 
-// Géoloc (protégé pour ne jamais bloquer)
+// Géoloc
 try{
   L.control.locate({
     position: 'topleft',
@@ -129,7 +133,7 @@ try{
   }).addTo(map);
 }catch(e){ console.warn('LocateControl non chargé:', e); }
 
-// Légende (cases à cocher)
+// Légende
 const layersControl = L.control.layers({}, {}, {collapsed:false}).addTo(map);
 const layerGroups = {};
 for (const it of LAYERS){
@@ -138,7 +142,7 @@ for (const it of LAYERS){
   layersControl.addOverlay(grp, it.name);
 }
 
-/* ======= Bouton GROS & CONTRASTÉ pour afficher/masquer la liste des couches ======= */
+/* ===== Bouton “☰ Couches” visible ===== */
 const LayerToggleBig = L.Control.extend({
   options: { position: 'topright' },
   onAdd: function(){
@@ -200,40 +204,46 @@ function onEachFeature(feature, layer){
   layer.bindPopup(html, {maxWidth:380, minWidth:220, autoPan:true});
 }
 
-/* ===================== 4) Loader robuste (JSON / GZIP) ===================== */
+/* ===================== 4) Loader + cache offline ===================== */
+const {get:cacheGet, set:cacheSet} = idbKeyval;
+const CACHE_VERSION = 'v1';
+
 async function loadGeoJSONSmart(url){
-  const res = await fetch(url, {cache:'no-store'});
-  if (!res.ok) throw new Error(res.status+' '+res.statusText);
-
-  // Essai JSON direct
-  try { return await res.clone().json(); } catch(e){}
-
-  // Binaire : GZIP ?
-  const buf = await res.arrayBuffer();
-  const u8  = new Uint8Array(buf);
-  if (u8.length===0) throw new Error('Fichier vide');
-
-  const isGzip = (u8[0]===0x1f && u8[1]===0x8b);
-  const looksHTML = (u8[0]===0x3C); // '<'
-  if (isGzip){
-    if ('DecompressionStream' in window){
-      const res2 = await fetch(url, {cache:'no-store'});
-      const ds = new DecompressionStream('gzip');
-      const stream = res2.body.pipeThrough(ds);
-      const text = await new Response(stream).text();
-      return JSON.parse(text);
+  try{
+    const res = await fetch(url, {cache:'no-store'});
+    if (!res.ok) throw new Error(res.status+' '+res.statusText);
+    try {
+      const j = await res.clone().json();
+      await cacheSet(CACHE_VERSION+':'+url, j);
+      return j;
+    } catch(_){}
+    const buf = await res.arrayBuffer();
+    const u8  = new Uint8Array(buf);
+    if (u8.length===0) throw new Error('Fichier vide');
+    const isGzip = (u8[0]===0x1f && u8[1]===0x8b);
+    const looksHTML = (u8[0]===0x3C);
+    if (isGzip){
+      let text;
+      if ('DecompressionStream' in window){
+        const res2 = await fetch(url, {cache:'no-store'});
+        const ds = new DecompressionStream('gzip');
+        const stream = res2.body.pipeThrough(ds);
+        text = await new Response(stream).text();
+      } else if (window.pako){
+        text = pako.ungzip(u8, {to:'string'});
+      } else throw new Error('GZIP détecté mais pas de décompresseur');
+      const j = JSON.parse(text);
+      await cacheSet(CACHE_VERSION+':'+url, j);
+      return j;
     }
-    if (window.pako){
-      const text = pako.ungzip(u8, {to:'string'});
-      return JSON.parse(text);
-    }
-    throw new Error('GZIP détecté mais pas de décompresseur');
+    if (looksHTML) throw new Error('HTML/404 — mauvais chemin/nom');
+    throw new Error('Non-JSON ou tronqué');
+  }catch(err){
+    const cached = await cacheGet(CACHE_VERSION+':'+url);
+    if (cached) return cached;
+    throw err;
   }
-  if (looksHTML) throw new Error('HTML/404 — mauvais chemin/nom (casse/accents)');
-  throw new Error('Non-JSON ou tronqué — ré-export EPSG:4326 ou .geojson.gz propre');
 }
-
-// GeometryCollection → features simples
 function normalizeFC(gj){
   const out={type:'FeatureCollection', features:[]};
   const feats = Array.isArray(gj?.features)? gj.features : [];
@@ -246,26 +256,50 @@ function normalizeFC(gj){
   return out;
 }
 
-/* ===================== 5) Chargement des couches ===================== */
-(async function(){
-  for (const it of LAYERS){
-    const grp = layerGroups[it.name];
-    try{
-      const gj = await loadGeoJSONSmart(it.url);
-      const fc = normalizeFC(gj);
-      const layer = L.geoJSON(fc, {
-        style: styleByGeom,
-        pointToLayer: (feat, latlng)=> L.circleMarker(latlng, styleByGeom(feat)),
-        onEachFeature
-      });
-      grp.clearLayers(); grp.addLayer(layer);
-    }catch(err){
-      console.warn(`ERR ${it.name}:`, err);
-    }
-  }
-})();
+/* ===================== 5) Chargement à la demande ===================== */
+const loaded = new Set();
+let maskBounds = null;
 
-/* ===================== 6) Mesures manuelles (boutons 📏 et ▱) ===================== */
+const layerGroupsLoad = {};
+for (const n in layerGroups) layerGroupsLoad[n] = false;
+
+async function ensureLayerLoaded(name){
+  if (loaded.has(name)) return;
+  const it = LAYERS.find(l => l.name===name);
+  if (!it) return;
+  const grp = layerGroups[it.name];
+  try{
+    const gj = await loadGeoJSONSmart(it.url);
+    const fc = normalizeFC(gj);
+    const layer = L.geoJSON(fc, {
+      style: styleByGeom,
+      pointToLayer: (feat, latlng)=> L.circleMarker(latlng, styleByGeom(feat)),
+      onEachFeature
+    });
+    grp.clearLayers(); grp.addLayer(layer);
+    loaded.add(name);
+    if (name==='DPT40Masque'){
+      try{ maskBounds = layer.getBounds(); }catch(_){}
+    }
+  }catch(err){
+    console.warn(`ERR ${name}:`, err);
+  }
+}
+
+ensureLayerLoaded('DPT40Masque');
+
+map.on('overlayadd', async (e)=>{
+  const name = Object.keys(layerGroups).find(k => layerGroups[k]===e.layer);
+  if (name) await ensureLayerLoaded(name);
+  try{
+    if (e?.layer?.getBounds){
+      const b = e.layer.getBounds();
+      if (b && b.isValid()) map.fitBounds(b, {padding:[20,20]});
+    }
+  }catch(_){}
+});
+
+/* ===================== 6) Mesures manuelles (déjà en place si besoin) ===================== */
 const ManualMeasure = L.Control.extend({
   options:{ position:'topleft' },
   onAdd: function(){
@@ -274,15 +308,19 @@ const ManualMeasure = L.Control.extend({
     btnDist.href='#'; btnDist.title='Mesurer une distance (manuel)'; btnDist.innerHTML='📏';
     const btnArea = L.DomUtil.create('a','',wrap);
     btnArea.href='#'; btnArea.title='Mesurer une surface (manuel)'; btnArea.innerHTML='▱';
+    const btnSave = L.DomUtil.create('a','',wrap);
+    btnSave.href='#'; btnSave.title='Exporter le tracé (GeoJSON)'; btnSave.innerHTML='💾';
+
     L.DomEvent.disableClickPropagation(wrap);
     L.DomEvent.on(btnDist,'click',L.DomEvent.stop).on(btnDist,'click',()=>startManual('dist',btnDist,btnArea));
     L.DomEvent.on(btnArea,'click',L.DomEvent.stop).on(btnArea,'click',()=>startManual('area',btnArea,btnDist));
+    L.DomEvent.on(btnSave,'click',L.DomEvent.stop).on(btnSave,'click',()=>exportCurrentMeasure());
     return wrap;
   }
 });
 map.addControl(new ManualMeasure());
 
-let manualState = null; // {mode:'dist'|'area', pts:[], line, poly, label, btn}
+let manualState = null;
 function resetManual(){
   if(!manualState) return;
   if (manualState.line) map.removeLayer(manualState.line);
@@ -296,9 +334,9 @@ function resetManual(){
   map.off('contextmenu', finishManual);
   manualState = null;
 }
-function startManual(mode, btnOn, btnOther){
+function startManual(mode, btnOn){
   if (manualState?.mode===mode){ resetManual(); return; }
-  resetManual(); stopGPS(); // exclusif
+  resetManual(); stopGPS();
   btnOn.classList.add('active');
   manualState = {mode, pts:[], line:null, poly:null, label:null, btn:btnOn};
   map.getContainer().style.cursor='crosshair';
@@ -333,7 +371,7 @@ function updateManualLabel(latlng, text){
     .setLatLng(latlng).setContent(text).addTo(map);
 }
 
-/* ===================== 7) Mesures GPS (boutons 📍📏 et 📍▱) ===================== */
+/* ===================== 7) Mesures GPS (déjà en place) ===================== */
 const GPSMeasure = L.Control.extend({
   options:{ position:'topleft' },
   onAdd: function(){
@@ -342,15 +380,19 @@ const GPSMeasure = L.Control.extend({
     btnGDist.href='#'; btnGDist.title='Mesurer distance en suivant la géolocalisation'; btnGDist.innerHTML='📍📏';
     const btnGArea = L.DomUtil.create('a','',wrap);
     btnGArea.href='#'; btnGArea.title='Mesurer surface en suivant la géolocalisation'; btnGArea.innerHTML='📍▱';
+    const btnSave = L.DomUtil.create('a','',wrap);
+    btnSave.href='#'; btnSave.title='Exporter le tracé (GeoJSON)'; btnSave.innerHTML='💾';
+
     L.DomEvent.disableClickPropagation(wrap);
     L.DomEvent.on(btnGDist,'click',L.DomEvent.stop).on(btnGDist,'click',()=>startGPS('dist',btnGDist,btnGArea));
     L.DomEvent.on(btnGArea,'click',L.DomEvent.stop).on(btnGArea,'click',()=>startGPS('area',btnGArea,btnGDist));
+    L.DomEvent.on(btnSave,'click',L.DomEvent.stop).on(btnSave,'click',()=>exportCurrentMeasure());
     return wrap;
   }
 });
 map.addControl(new GPSMeasure());
 
-let gpsState = null; // {mode:'dist'|'area', pts:[], line, poly, label, btn, watchId}
+let gpsState = null;
 function stopGPS(){
   if(!gpsState) return;
   if (gpsState.watchId!=null) navigator.geolocation.clearWatch(gpsState.watchId);
@@ -361,66 +403,169 @@ function stopGPS(){
   gpsState = null;
   map.off('contextmenu', stopGPS);
 }
-function startGPS(mode, btnOn, btnOther){
+function startGPS(mode, btnOn){
   if (gpsState?.mode===mode){ stopGPS(); return; }
-  stopGPS(); resetManual(); // exclusif
+  stopGPS(); resetManual();
   gpsState = {mode, pts:[], line:null, poly:null, label:null, btn:btnOn, watchId:null};
   btnOn.classList.add('active');
-
-  if (!('geolocation' in navigator)){
-    alert('Géolocalisation non disponible sur cet appareil.');
-    stopGPS(); return;
-  }
+  if (!('geolocation' in navigator)){ alert('Géolocalisation non disponible.'); stopGPS(); return; }
   try{
     gpsState.watchId = navigator.geolocation.watchPosition(onGPS, onGPSError, {
       enableHighAccuracy: true, maximumAge: 1000, timeout: 20000
     });
-    map.on('contextmenu', stopGPS); // appui long/clic droit = stop
-  }catch(e){
-    alert('Impossible de démarrer la géolocalisation.');
-    stopGPS();
-  }
+    map.on('contextmenu', stopGPS);
+  }catch(e){ alert('Impossible de démarrer la géolocalisation.'); stopGPS(); }
 }
 function onGPS(pos){
   const { latitude, longitude } = pos.coords;
   const ll = L.latLng(latitude, longitude);
-
   const s = gpsState; if(!s) return;
-  // anti bruit : on ajoute si on a > 3 m de déplacement ou aucun point
   if (s.pts.length){
     const last = s.pts[s.pts.length-1];
     const d = turf.distance([last.lng,last.lat], [ll.lng,ll.lat], {units:'meters'});
-    if (d < 3) return; // ignore petit bruit GPS
+    if (d < 3) return;
   }
   s.pts.push(ll);
-
   if (s.mode==='dist'){
     if (!s.line){ s.line = L.polyline([ll], {color:'#1f78b4', weight:3, dashArray:'6,4'}).addTo(map); }
     else { s.line.addLatLng(ll); }
     updateGPSLabel(ll, fmtLength(computeLengthMeters(s.pts)));
   } else {
-    if (s.pts.length===1){
-      s.line = L.polyline([ll], {color:'#33a02c', weight:3, dashArray:'6,4'}).addTo(map);
-    } else if (s.pts.length===2){
-      s.line.addLatLng(ll);
-    } else {
-      if (!s.poly){ s.poly = L.polygon(s.pts, {color:'#33a02c', weight:2, fillOpacity:.15}).addTo(map); }
-      else { s.poly.setLatLngs([s.pts]); }
-      updateGPSLabel(ll, fmtArea(computeAreaM2(s.pts)));
-    }
+    if (!s.poly){ s.poly = L.polygon(s.pts, {color:'#33a02c', weight:2, fillOpacity:.15}).addTo(map); }
+    else { s.poly.setLatLngs([s.pts]); }
+    updateGPSLabel(ll, fmtArea(computeAreaM2(s.pts)));
   }
 }
-function onGPSError(err){
-  alert('Erreur géolocalisation : ' + (err?.message || err));
-  stopGPS();
-}
+function onGPSError(err){ alert('Erreur géolocalisation : ' + (err?.message || err)); stopGPS(); }
 function updateGPSLabel(latlng, text){
   if (gpsState?.label) map.removeLayer(gpsState.label);
   gpsState.label = L.tooltip({permanent:true, direction:'top', offset:[0,-10], className:'measure-label'})
     .setLatLng(latlng).setContent(text).addTo(map);
 }
 
-/* ===================== 8) Outils communs (calculs) ===================== */
+/* ===================== 8) Export mesure courante ===================== */
+function exportCurrentMeasure(){
+  let pts = null, mode = null;
+  if (manualState){ pts = manualState.pts; mode = manualState.mode; }
+  else if (gpsState){ pts = gpsState.pts; mode = gpsState.mode; }
+  if (!pts || pts.length < (mode==='area'?3:2)){ alert('Aucun tracé à exporter.'); return; }
+  let gj;
+  if (mode==='dist'){
+    gj = { type:'FeatureCollection', features:[{ type:'Feature',
+      properties:{ type:'measure_distance', date:new Date().toISOString() },
+      geometry:{ type:'LineString', coordinates: pts.map(ll=>[ll.lng, ll.lat]) }
+    }]};
+  } else {
+    const ring = [...pts.map(ll=>[ll.lng,ll.lat]), [pts[0].lng, pts[0].lat]];
+    gj = { type:'FeatureCollection', features:[{ type:'Feature',
+      properties:{ type:'measure_area', date:new Date().toISOString() },
+      geometry:{ type:'Polygon', coordinates:[ring] }
+    }]};
+  }
+  const blob = new Blob([JSON.stringify(gj)], {type:'application/geo+json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = (mode==='dist'?'mesure_distance':'mesure_surface')+'.geojson';
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
+/* ===================== 9) ANNOTATIONS (points, lignes, polygones) ===================== */
+const annotations = new L.FeatureGroup().addTo(map);
+layersControl.addOverlay(annotations, 'Annotations (dessins)');
+
+const drawControl = new L.Control.Draw({
+  position:'topleft',
+  edit: {
+    featureGroup: annotations,
+    poly: { allowIntersection:false },
+    remove: true
+  },
+  draw: {
+    marker: { repeatMode:true },                 // Points
+    polyline: {                                 // Segments
+      shapeOptions: { color:'#ff7f00', weight:3 }
+    },
+    polygon: {                                  // Polygones
+      allowIntersection:false, showArea:true,
+      shapeOptions: { color:'#ff7f00', weight:2, fillOpacity:.2 }
+    },
+    rectangle: false,
+    circle: false,
+    circlemarker: false
+  }
+});
+map.addControl(drawControl);
+
+// Sauvegarde locale auto (persistance) + export
+const ANNOS_KEY = 'sd40:annotations';
+function saveAnnotations(){
+  const gj = annotations.toGeoJSON();
+  try{ localStorage.setItem(ANNOS_KEY, JSON.stringify(gj)); }catch(_){}
+}
+function loadAnnotations(){
+  try{
+    const raw = localStorage.getItem(ANNOS_KEY);
+    if(!raw) return;
+    const gj = JSON.parse(raw);
+    L.geoJSON(gj, {
+      style: f => ({color:'#ff7f00', weight:2, fillOpacity:.2}),
+      pointToLayer: (feat, latlng)=> L.marker(latlng)
+    }).eachLayer(l => annotations.addLayer(l));
+  }catch(_){}
+}
+loadAnnotations();
+
+map.on(L.Draw.Event.CREATED, e => { annotations.addLayer(e.layer); saveAnnotations(); });
+map.on(L.Draw.Event.EDITED,  () => saveAnnotations());
+map.on(L.Draw.Event.DELETED, () => saveAnnotations());
+
+// Boutons export/clear pour les annotations
+const AnnoExport = L.Control.extend({
+  options:{ position:'topleft' },
+  onAdd: function(){
+    const wrap = L.DomUtil.create('div','leaflet-bar tool-btn');
+    const btnSave = L.DomUtil.create('a','',wrap);
+    btnSave.href='#'; btnSave.title='Exporter les annotations (GeoJSON)'; btnSave.innerHTML='📝💾';
+    const btnClear = L.DomUtil.create('a','',wrap);
+    btnClear.href='#'; btnClear.title='Vider toutes les annotations'; btnClear.innerHTML='🧹';
+
+    L.DomEvent.disableClickPropagation(wrap);
+    L.DomEvent.on(btnSave,'click',L.DomEvent.stop).on(btnSave,'click',()=>{
+      if (annotations.getLayers().length===0){ alert('Aucune annotation.'); return; }
+      const gj = annotations.toGeoJSON();
+      const blob = new Blob([JSON.stringify(gj)], {type:'application/geo+json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download='annotations.geojson';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    });
+    L.DomEvent.on(btnClear,'click',L.DomEvent.stop).on(btnClear,'click',()=>{
+      if (!confirm('Supprimer toutes les annotations ?')) return;
+      annotations.clearLayers(); saveAnnotations();
+    });
+    return wrap;
+  }
+});
+map.addControl(new AnnoExport());
+
+/* ===================== 10) Bouton “🏠 Landes” ===================== */
+const HomeControl = L.Control.extend({
+  options:{ position:'topright' },
+  onAdd: function(){
+    const d = L.DomUtil.create('div','leaflet-bar tool-btn');
+    const a = L.DomUtil.create('a','',d);
+    a.href='#'; a.title='Recentrer sur Landes'; a.innerHTML='🏠';
+    L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>{
+      if (maskBounds && maskBounds.isValid()) map.fitBounds(maskBounds, {padding:[20,20]});
+      else map.setView([43.85, -0.7], 9);
+    });
+    return d;
+  }
+});
+map.addControl(new HomeControl());
+
+/* ===================== 11) Outils communs ===================== */
+proj4.defs('EPSG:2154', '+proj=lcc +lat_1=49 +lat_2=44 +lat_0=46.5 +lon_0=3 +x_0=700000 +y_0=6600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs');
+
 function computeLengthMeters(latlngs){
   if (latlngs.length<2) return 0;
   const coords = latlngs.map(ll => [ll.lng, ll.lat]);
@@ -432,7 +577,7 @@ function computeAreaM2(latlngs){
   if (latlngs.length<3) return 0;
   const ring = [...latlngs.map(ll => [ll.lng,ll.lat]), [latlngs[0].lng, latlngs[0].lat]];
   const poly = turf.polygon([ring]);
-  return turf.area(poly); // m²
+  return turf.area(poly);
 }
 function fmtLength(m){
   if (m<1000) return `${m.toFixed(1)} m`;
@@ -446,16 +591,6 @@ function fmtArea(m2){
   const km2 = m2/1e6;
   return `${km2.toFixed(3)} km²`;
 }
-
-/* ===================== 9) Fit auto sur une couche quand on l’active ===================== */
-map.on('overlayadd', (e)=>{
-  try{
-    if (e?.layer?.getBounds){
-      const b = e.layer.getBounds();
-      if (b && b.isValid()) map.fitBounds(b, {padding:[20,20]});
-    }
-  }catch(_){}
-});
 </script>
 </body>
 </html>
