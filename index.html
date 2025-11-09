@@ -96,25 +96,13 @@
 <body>
 <div id="map"></div>
 
-<!-- JS libs -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/proj4leaflet@1.0.2/src/proj4leaflet.min.js"></script>
-<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-
 <!-- ===================== UI Procédure : drawer + onglets ===================== -->
 <div id="proc" class="proc-drawer" hidden>
   <div class="proc-header">
     <span>🗂️ Procédure terrain</span>
     <div style="display:flex;gap:8px">
-      <button id="btnRules" style="border:0;background:#fff;color:#0b2239;border-radius:8px;padding:6px 8px;cursor:pointer">⚙️ Règles IOTA</button>
-      <button id="btnProcClose" style="border:0;background:#fff;color:#0b2239;border-radius:8px;padding:6px 8px;cursor:pointer">Fermer</button>
+      <button id="btnRules" style="border:0;background:#fff;color:#0b2239;border-radius:8px;padding:6px 8px;cursor:pointer" title="Éditer les règles IOTA (JSON)">⚙️ Règles IOTA</button>
+      <button id="btnProcClose" style="border:0;background:#fff;color:#0b2239;border-radius:8px;padding:6px 8px;cursor:pointer" title="Fermer le panneau">Fermer</button>
     </div>
   </div>
 
@@ -133,7 +121,7 @@
         <input id="iotaSearch" placeholder="Rechercher rubrique (ex : 3.2.3.0, ‘plans d’eau’)" />
       </div>
       <div id="iotaList"></div>
-      <div class="note">Astuce : clique une rubrique pour la copier dans la fiche et dans le validateur.</div>
+      <div class="note">Cliquer une rubrique la copie dans la fiche et dans le validateur. Long-press (appui long) sur ⚙️ pour réinitialiser les règles par défaut.</div>
     </div>
 
     <!-- BCAE -->
@@ -170,7 +158,7 @@
         <span id="valResult" class="pill">—</span>
       </div>
       <div id="valTrace" class="mono"></div>
-      <div class="note">Moteur de règles paramétrable (⚙️). Résultat indicatif → toujours vérifier le texte en vigueur.</div>
+      <div class="note">Le moteur de règles est paramétrable (⚙️). Résultat indicatif, à confronter aux textes en vigueur.</div>
     </div>
 
     <hr>
@@ -199,694 +187,709 @@
   <button id="btnProcOpen" class="layer-toggle-btn"><span class="icon">🗂️</span><span class="label">Procédure</span></button>
 </div>
 
-<script>
-/* === Procédure : ouverture/fermeture robuste === */
-const PROC_KEY='sd40:procVisible';
-const procEl = document.getElementById('proc');
-const btnOpen = document.getElementById('btnProcOpen');
-const btnClose = document.getElementById('btnProcClose');
-
-function openProc(){ if (procEl) { procEl.hidden = false; try{ localStorage.setItem(PROC_KEY,'1'); }catch(_){}} }
-function closeProc(){ if (procEl) { procEl.hidden = true;  try{ localStorage.setItem(PROC_KEY,'0'); }catch(_){}} }
-
-btnOpen?.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); openProc(); });
-btnClose?.addEventListener('click',(e)=>{ e.preventDefault(); e.stopPropagation(); closeProc(); });
-
-// Clic hors panneau → fermeture
-document.addEventListener('click', (e)=>{
-  if (!procEl || procEl.hidden) return;
-  const clickedInside = procEl.contains(e.target) || e.target.closest('#btnProcOpen');
-  if (!clickedInside) closeProc();
-});
-// ESC → fermeture
-document.addEventListener('keydown',(e)=>{ if (e.key === 'Escape') closeProc(); });
-
-// Restaure l’état précédent
-try{ if (localStorage.getItem(PROC_KEY) === '1') openProc(); }catch(_){}
-</script>
+<!-- JS libs -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/proj4leaflet@1.0.2/src/proj4leaflet.min.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <script>
-/* ===================== 1) COUCHES ===================== */
-const LAYERS = [
-  { name:"Axe_realimentes_Institution_Adour", url:"couches/Axe_realimentes_Institution_Adour.geojson" },
-  { name:"BDT_3_5_Bassin_Versant", url:"couches/BDT_3_5_Bassin_Versant.geojson" },
-  { name:"BDT_3_5_Plan_d_eau", url:"couches/BDT_3_5_Plan_d_eau.geojson" },
-  { name:"BDT_3_5_Reservoir", url:"couches/BDT_3_5_Reservoir.geojson" },
-  { name:"Cadastre_parcelles_Flux", url:"couches/Cadastre_parcelles_Flux.geojson" },
-  { name:"DCE_2022_2027_masses_deau_cotiere_Adour_Garonne", url:"couches/DCE_2022_2027_masses_deau_cotiere_Adour_Garonne.geojson" },
-  { name:"DCE_2022_2027_masses_deau_de_transition_Adour_Garonne", url:"couches/DCE_2022_2027_masses_deau_de_transition_Adour_Garonne.geojson" },
-  { name:"DCE__2022_2027__BV_specifique__AG", url:"couches/DCE__2022_2027__BV_specifique__AG.geojson" },
-  { name:"DCE__2022_2027__plans_deau__adour_garonne", url:"couches/DCE__2022_2027__plans_deau__adour_garonne.geojson" },
-  { name:"DDT40_Carto_Cours_d_Eau_validee", url:"couches/DDT40_Carto_Cours_d_Eau_validee.geojson" },
-  { name:"DDT40_Plan_d_Eau_loi_Eau", url:"couches/DDT40_Plan_d_Eau_loi_Eau.geojson" },
-  { name:"DDT40_retenue_d_eau", url:"couches/DDT40_retenue_d_eau.geojson" },
-  { name:"DPT40Masque", url:"couches/DPT40Masque.geojson" },
-  { name:"DREAL_points_nodaux", url:"couches/DREAL_points_nodaux.geojson" },
-  { name:"IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux", url:"couches/IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux.geojson" },
-  { name:"INRAe_carte_sols", url:"couches/INRAe_carte_sols.geojson" },
-  { name:"Isochrones_nappe_alluviale_adour_IA", url:"couches/Isochrones_nappe_alluviale_adour_IA.geojson" },
-  { name:"ONF_Foret", url:"couches/ONF_Foret.geojson" },
-  /* GZIP */
-  { name:"DCE_2022-2027_cours_deau_Adour-Garonne", url:"couches/DCE_2022-2027_cours_deau_Adour-Garonne.geojson.gz" },
-  { name:"DCE_2022_2027__masses_deau_souterraine", url:"couches/DCE_2022_2027__masses_deau_souterraine.geojson.gz" },
-  { name:"BDT_3_5_Surface_hydrographique", url:"couches/BDT_3_5_Surface_hydrographique.geojson.gz" },
-  { name:"IGN_BDHaies_V2_2024", url:"couches/IGN_BDHaies_V2_2024.geojson.gz" },
-  { name:"Nappes_des_sables", url:"couches/Nappes_des_sables.geojson.gz" },
-  { name:"Zones_Restriction_Prelevements_flux", url:"couches/Zones_Restriction_Prelevements_flux.geojson.gz" },
-  { name:"ZAS_sup_40_2024", url:"couches/ZAS_sup_40_2024.geojson" },
-  { name:"ZRE_-_2013", url:"couches/ZRE_-_2013.geojson" },
-  { name:"Zones_port_es_par_les_arr_t_s", url:"couches/Zones_port_es_par_les_arr_t_s.geojson" },
-  { name:"Zones_portes_arretes", url:"couches/Zones_portes_arretes.geojson" },
-  { name:"axes_raliments_l_cde_retenues_l93_institution_adour", url:"couches/axes_raliments_l_cde_retenues_l93_institution_adour.geojson" },
-  { name:"pe_aci_adour", url:"couches/pe_aci_adour.geojson" },
-  { name:"sortie", url:"couches/sortie.geojson" }
-];
+/* =============================================================================
+   TOUT LE JS DANS UNE UNIQUE CLOSURE → PAS DE COLLISIONS GLOBALES
+============================================================================= */
+(function(){
+  'use strict';
 
-/* ===================== 2) MAP + Basemaps (OSM + Satellite) ===================== */
-const map = L.map('map', { zoomControl:true, preferCanvas:true }).setView([43.85,-0.7], 9);
+  /* ------------ Helpers DOM ------------ */
+  const $ = (s, r=document)=> r.querySelector(s);
+  const $$ = (s, r=document)=> Array.from(r.querySelectorAll(s));
 
-// Basemaps
-const baseOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 20, attribution: '© OpenStreetMap'
-}).addTo(map);
+  /* ------------ Panneau Procédure : ouverture/fermeture robuste ------------ */
+  const PROC_KEY='sd40:procVisible';
+  const procEl = $('#proc');
+  const btnOpen = $('#btnProcOpen');
+  const btnClose = $('#btnProcClose');
 
-const baseSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-  maxZoom: 20,
-  attribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'
-});
+  function openProc(){ procEl.hidden = false; try{ localStorage.setItem(PROC_KEY,'1'); }catch(e){} }
+  function closeProc(){ procEl.hidden = true;  try{ localStorage.setItem(PROC_KEY,'0'); }catch(e){} }
 
-L.control.scale({metric:true, imperial:false, position:'bottomleft'}).addTo(map);
+  btnOpen.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); openProc(); });
+  btnClose.addEventListener('click',(e)=>{ e.preventDefault(); e.stopPropagation(); closeProc(); });
+  document.addEventListener('click', (e)=>{
+    if (procEl.hidden) return;
+    const inside = procEl.contains(e.target) || e.target.closest('#btnProcOpen');
+    if (!inside) closeProc();
+  });
+  document.addEventListener('keydown',(e)=>{ if (e.key === 'Escape') closeProc(); });
+  try{ if (localStorage.getItem(PROC_KEY) === '1') openProc(); }catch(e){}
 
-try{
-  L.control.locate({ position:'topleft', strings:{ title:'Me localiser' }, keepCurrentZoomLevel:true, flyTo:true, drawCircle:true, showPopup:true, cacheLocation:true }).addTo(map);
-}catch(e){ console.warn('LocateControl non chargé:', e); }
+  /* ------------ COUCHES ------------ */
+  const LAYERS = [
+    { name:"Axe_realimentes_Institution_Adour", url:"couches/Axe_realimentes_Institution_Adour.geojson" },
+    { name:"BDT_3_5_Bassin_Versant", url:"couches/BDT_3_5_Bassin_Versant.geojson" },
+    { name:"BDT_3_5_Plan_d_eau", url:"couches/BDT_3_5_Plan_d_eau.geojson" },
+    { name:"BDT_3_5_Reservoir", url:"couches/BDT_3_5_Reservoir.geojson" },
+    { name:"Cadastre_parcelles_Flux", url:"couches/Cadastre_parcelles_Flux.geojson" },
+    { name:"DCE_2022_2027_masses_deau_cotiere_Adour_Garonne", url:"couches/DCE_2022_2027_masses_deau_cotiere_Adour_Garonne.geojson" },
+    { name:"DCE_2022_2027_masses_deau_de_transition_Adour_Garonne", url:"couches/DCE_2022_2027_masses_deau_de_transition_Adour_Garonne.geojson" },
+    { name:"DCE__2022_2027__BV_specifique__AG", url:"couches/DCE__2022_2027__BV_specifique__AG.geojson" },
+    { name:"DCE__2022_2027__plans_deau__adour_garonne", url:"couches/DCE__2022_2027__plans_deau__adour_garonne.geojson" },
+    { name:"DDT40_Carto_Cours_d_Eau_validee", url:"couches/DDT40_Carto_Cours_d_Eau_validee.geojson" },
+    { name:"DDT40_Plan_d_Eau_loi_Eau", url:"couches/DDT40_Plan_d_Eau_loi_Eau.geojson" },
+    { name:"DDT40_retenue_d_eau", url:"couches/DDT40_retenue_d_eau.geojson" },
+    { name:"DPT40Masque", url:"couches/DPT40Masque.geojson" },
+    { name:"DREAL_points_nodaux", url:"couches/DREAL_points_nodaux.geojson" },
+    { name:"IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux", url:"couches/IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux.geojson" },
+    { name:"INRAe_carte_sols", url:"couches/INRAe_carte_sols.geojson" },
+    { name:"Isochrones_nappe_alluviale_adour_IA", url:"couches/Isochrones_nappe_alluviale_adour_IA.geojson" },
+    { name:"ONF_Foret", url:"couches/ONF_Foret.geojson" },
+    /* GZIP */
+    { name:"DCE_2022-2027_cours_deau_Adour-Garonne", url:"couches/DCE_2022-2027_cours_deau_Adour-Garonne.geojson.gz" },
+    { name:"DCE_2022_2027__masses_deau_souterraine", url:"couches/DCE_2022_2027__masses_deau_souterraine.geojson.gz" },
+    { name:"BDT_3_5_Surface_hydrographique", url:"couches/BDT_3_5_Surface_hydrographique.geojson.gz" },
+    { name:"IGN_BDHaies_V2_2024", url:"couches/IGN_BDHaies_V2_2024.geojson.gz" },
+    { name:"Nappes_des_sables", url:"couches/Nappes_des_sables.geojson.gz" },
+    { name:"Zones_Restriction_Prelevements_flux", url:"couches/Zones_Restriction_Prelevements_flux.geojson.gz" },
+    { name:"ZAS_sup_40_2024", url:"couches/ZAS_sup_40_2024.geojson" },
+    { name:"ZRE_-_2013", url:"couches/ZRE_-_2013.geojson" },
+    { name:"Zones_port_es_par_les_arr_t_s", url:"couches/Zones_port_es_par_les_arr_t_s.geojson" },
+    { name:"Zones_portes_arretes", url:"couches/Zones_portes_arretes.geojson" },
+    { name:"axes_raliments_l_cde_retenues_l93_institution_adour", url:"couches/axes_raliments_l_cde_retenues_l93_institution_adour.geojson" },
+    { name:"pe_aci_adour", url:"couches/pe_aci_adour.geojson" },
+    { name:"sortie", url:"couches/sortie.geojson" }
+  ];
 
-// Layers control (basemaps + overlays)
-const baseMaps = { "Plan (OSM)": baseOSM, "Satellite (Esri)": baseSat };
-const layersControl = L.control.layers(baseMaps, {}, {collapsed:false}).addTo(map);
+  /* ------------ MAP + Basemaps ------------ */
+  const map = L.map('map', { zoomControl:true, preferCanvas:true }).setView([43.85,-0.7], 9);
 
-// Overlays s’enregistrent ensuite
-const layerGroups = {};
-for (const it of LAYERS){ const grp = L.layerGroup(); layerGroups[it.name] = grp; layersControl.addOverlay(grp, it.name); }
+  const baseOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom:20, attribution:'© OpenStreetMap'
+  }).addTo(map);
 
-/* Bouton “☰ Couches” */
-const LayerToggleBig = L.Control.extend({
-  options:{ position:'topright' },
-  onAdd: function(){
-    const wrap = L.DomUtil.create('div','layer-toggle-wrap leaflet-control');
-    const btn = L.DomUtil.create('button','layer-toggle-btn',wrap);
-    btn.type='button';
-    btn.innerHTML = `<span class="icon">☰</span><span class="label">Couches</span>`;
-    btn.title = 'Afficher/masquer la liste des couches';
-    L.DomEvent.on(btn,'click', L.DomEvent.stop).on(btn,'click', ()=>{
-      const el = document.querySelector('.leaflet-control-layers');
-      if (!el) return;
-      el.style.display = (el.style.display==='none' ? '' : 'none');
-    });
-    return wrap;
-  }
-});
-map.addControl(new LayerToggleBig());
+  const baseSat = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {maxZoom:20, attribution:'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics'}
+  );
 
-/* Styles & popups */
-function styleByGeom(feature){
-  const t = feature?.geometry?.type || '';
-  if (t==='Point' || t==='MultiPoint') return {radius:5, fillColor:'#e31a1c', color:'#ffffff', weight:1, opacity:1, fillOpacity:.85};
-  if (t.includes('Line')) return {color:'#1f78b4', weight:2, opacity:.95};
-  return {color:'#33a02c', weight:1, opacity:.95, fillOpacity:.25};
-}
-function toTitle(s){ return s.replace(/_/g,' ').replace(/\s+/g,' ').toLowerCase().replace(/(^|\s)\S/g, t=>t.toUpperCase()); }
-const PRIORITY_FIELDS = ['NOM','NOM_OUVRAG','name','nom','libelle','LIBELLE','titre'];
-function buildPopupHTML(props){
-  const keys = Object.keys(props||{});
-  if (!keys.length) return '<em>Aucun attribut</em>';
-  const titleKey = PRIORITY_FIELDS.find(k => k in props);
-  const title = titleKey ? String(props[titleKey]) : null;
-  const ordered = [...PRIORITY_FIELDS.filter(k => k in props), ...keys.filter(k => !PRIORITY_FIELDS.includes(k))];
-  let rows = '';
-  for (const k of ordered){
-    const v = props[k];
-    if (v===null || v===undefined || String(v).trim()==='') continue;
-    rows += `<tr><th>${toTitle(k)}</th><td>${v}</td></tr>`;
-  }
-  return `<div class="popup-card">${title?`<div class="popup-title">${title}</div>`:''}<table class="popup-table">${rows}</table></div>`;
-}
-function onEachFeature(feature, layer){ layer.bindPopup(buildPopupHTML(feature.properties||{}), {maxWidth:380,minWidth:220,autoPan:true}); }
-
-/* Loader + cache */
-const {get:cacheGet, set:cacheSet} = idbKeyval;
-const CACHE_VERSION = 'v1';
-async function loadGeoJSONSmart(url){
+  L.control.scale({metric:true, imperial:false, position:'bottomleft'}).addTo(map);
   try{
-    const res = await fetch(url, {cache:'no-store'}); if (!res.ok) throw new Error(res.status+' '+res.statusText);
-    try{ const j = await res.clone().json(); await cacheSet(CACHE_VERSION+':'+url, j); return j; }catch(_){}
-    const buf = await res.arrayBuffer(); const u8 = new Uint8Array(buf);
-    if (u8.length===0) throw new Error('Fichier vide');
-    const isGzip = (u8[0]===0x1f && u8[1]===0x8b); const looksHTML = (u8[0]===0x3C);
-    if (isGzip){
-      let text;
-      if ('DecompressionStream' in window){ const res2 = await fetch(url,{cache:'no-store'}); const ds = new DecompressionStream('gzip'); const stream = res2.body.pipeThrough(ds); text = await new Response(stream).text(); }
-      else if (window.pako){ text = pako.ungzip(u8, {to:'string'}); }
-      else throw new Error('GZIP détecté mais pas de décompresseur');
-      const j = JSON.parse(text); await cacheSet(CACHE_VERSION+':'+url, j); return j;
+    L.control.locate({ position:'topleft', strings:{ title:'Me localiser' }, keepCurrentZoomLevel:true, flyTo:true, drawCircle:true, showPopup:true, cacheLocation:true }).addTo(map);
+  }catch(e){ console.warn('LocateControl non chargé:', e); }
+
+  const baseMaps = { "Plan (OSM)": baseOSM, "Satellite (Esri)": baseSat };
+  const layersControl = L.control.layers(baseMaps, {}, {collapsed:false}).addTo(map);
+  const layerGroups = {};
+  for (const it of LAYERS){ const grp=L.layerGroup(); layerGroups[it.name]=grp; layersControl.addOverlay(grp, it.name); }
+
+  /* Bouton “☰ Couches” */
+  const LayerToggleBig = L.Control.extend({
+    options:{ position:'topright' },
+    onAdd: function(){
+      const wrap = L.DomUtil.create('div','layer-toggle-wrap leaflet-control');
+      const btn = L.DomUtil.create('button','layer-toggle-btn',wrap);
+      btn.type='button';
+      btn.innerHTML = `<span class="icon">☰</span><span class="label">Couches</span>`;
+      btn.title = 'Afficher/masquer la liste des couches';
+      L.DomEvent.on(btn,'click', L.DomEvent.stop).on(btn,'click', ()=>{
+        const el = document.querySelector('.leaflet-control-layers');
+        if (el) el.style.display = (el.style.display==='none' ? '' : 'none');
+      });
+      return wrap;
     }
-    if (looksHTML) throw new Error('HTML/404 — mauvais chemin/nom');
-    throw new Error('Non-JSON ou tronqué');
-  }catch(err){ const cached = await cacheGet(CACHE_VERSION+':'+url); if (cached) return cached; throw err; }
-}
-function normalizeFC(gj){
-  const out={type:'FeatureCollection', features:[]};
-  const feats = Array.isArray(gj?.features)?gj.features:[];
-  for (const f of feats){ const g=f?.geometry; if(!g) continue;
-    if (g.type==='GeometryCollection' && Array.isArray(g.geometries) && g.geometries.length){
-      for (const gg of g.geometries){ if(!gg) continue; out.features.push({type:'Feature',properties:f.properties||{},geometry:gg}); }
-    } else out.features.push(f);
+  });
+  map.addControl(new LayerToggleBig());
+
+  /* Styles & popups */
+  function styleByGeom(feature){
+    const t = feature?.geometry?.type || '';
+    if (t==='Point' || t==='MultiPoint') return {radius:5, fillColor:'#e31a1c', color:'#ffffff', weight:1, opacity:1, fillOpacity:.85};
+    if (t.includes('Line')) return {color:'#1f78b4', weight:2, opacity:.95};
+    return {color:'#33a02c', weight:1, opacity:.95, fillOpacity:.25};
   }
-  return out;
-}
-
-/* Chargement à la demande */
-const loaded = new Set(); let maskBounds=null;
-async function ensureLayerLoaded(name){
-  if (loaded.has(name)) return;
-  const it = LAYERS.find(l => l.name===name); if (!it) return;
-  const grp = layerGroups[it.name];
-  try{ const gj = await loadGeoJSONSmart(it.url); const fc = normalizeFC(gj);
-    const layer = L.geoJSON(fc,{ style:styleByGeom, pointToLayer:(feat,latlng)=>L.circleMarker(latlng, styleByGeom(feat)), onEachFeature});
-    grp.clearLayers(); grp.addLayer(layer); loaded.add(name);
-    if (name==='DPT40Masque'){ try{ maskBounds = layer.getBounds(); }catch(_){ } }
-  }catch(err){ console.warn(`ERR ${name}:`, err); }
-}
-ensureLayerLoaded('DPT40Masque');
-map.on('overlayadd', async (e)=>{ const name = Object.keys(layerGroups).find(k => layerGroups[k]===e.layer); if (name) await ensureLayerLoaded(name);
-  try{ if (e?.layer?.getBounds){ const b=e.layer.getBounds(); if (b && b.isValid()) map.fitBounds(b,{padding:[20,20]}); } }catch(_){}
-});
-
-/* ===================== 3) OUTILS mesures/annotations ===================== */
-const ManualMeasure = L.Control.extend({
-  options:{ position:'topleft' },
-  onAdd: function(){
-    const wrap = L.DomUtil.create('div','leaflet-bar tool-btn');
-    const d = L.DomUtil.create('a','',wrap); d.href='#'; d.title='Mesurer distance (manuel)'; d.innerHTML='📏';
-    const a = L.DomUtil.create('a','',wrap); a.href='#'; a.title='Mesurer surface (manuel)'; a.innerHTML='▱';
-    const e = L.DomUtil.create('a','',wrap); e.href='#'; e.title='Exporter la mesure (GeoJSON)'; e.innerHTML='📤';
-    L.DomEvent.disableClickPropagation(wrap);
-    L.DomEvent.on(d,'click',L.DomEvent.stop).on(d,'click',()=>startManual('dist',d));
-    L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>startManual('area',a));
-    L.DomEvent.on(e,'click',L.DomEvent.stop).on(e,'click',()=>exportCurrentMeasure());
-    return wrap;
-  }
-}); const manualCtrl = new ManualMeasure(); map.addControl(manualCtrl);
-
-let manualState = null;
-function resetManual(){ if(!manualState) return;
-  if (manualState.line) map.removeLayer(manualState.line);
-  if (manualState.poly) map.removeLayer(manualState.poly);
-  if (manualState.label) map.removeLayer(manualState.label);
-  if (manualState.btn) manualState.btn.classList.remove('active');
-  map.getContainer().style.cursor=''; map.doubleClickZoom.enable();
-  map.off('click', onClickManual); map.off('dblclick', finishManual); map.off('contextmenu', finishManual);
-  manualState=null;
-}
-function startManual(mode, btnOn){
-  if (manualState?.mode===mode){ resetManual(); return; }
-  resetManual(); stopGPS();
-  btnOn.classList.add('active'); manualState={mode, pts:[], line:null, poly:null, label:null, btn:btnOn};
-  map.getContainer().style.cursor='crosshair'; map.doubleClickZoom.disable();
-  map.on('click', onClickManual); map.on('dblclick', finishManual); map.on('contextmenu', finishManual);
-}
-function onClickManual(e){
-  const s=manualState; if(!s) return; s.pts.push(e.latlng);
-  if (s.mode==='dist'){
-    if (!s.line){ s.line=L.polyline([e.latlng],{color:'#1f78b4',weight:3,dashArray:'6,4'}).addTo(map); } else { s.line.addLatLng(e.latlng); }
-    updateManualLabel(e.latlng, fmtLength(computeLengthMeters(s.pts)));
-  }else{
-    if (s.pts.length===1){ s.line=L.polyline([e.latlng],{color:'#33a02c',weight:3,dashArray:'6,4'}).addTo(map); }
-    else if (s.pts.length===2){ s.line.addLatLng(e.latlng); }
-    else{ if (!s.poly){ s.poly=L.polygon(s.pts,{color:'#33a02c',weight:2,fillOpacity:.15}).addTo(map); } else { s.poly.setLatLngs([s.pts]); }
-      updateManualLabel(e.latlng, fmtArea(computeAreaM2(s.pts))); }
-  }
-}
-function finishManual(){ resetManual(); }
-
-// ======== Lien mesures ↔ validateur IOTA ========
-let lastMeasure = { mode:null, length_m:0, area_m2:0 };
-function setValidatorParam(id, value){
-  const el = document.querySelector('#param_'+id);
-  if (el) el.value = (Math.round(Number(value||0)*100)/100).toString();
-}
-function pushMeasureToValidator(autoEval=true){
-  const code = (document.getElementById('valRubrique')?.value||'').trim();
-  if (!code) return;
-  if (lastMeasure.area_m2>0)  setValidatorParam('surface_m2', lastMeasure.area_m2);
-  if (lastMeasure.length_m>0) setValidatorParam('longueur_m', lastMeasure.length_m);
-  if (autoEval) document.getElementById('btnEval')?.click();
-}
-function updateManualLabel(latlng, text){
-  if (manualState?.label) map.removeLayer(manualState.label);
-  manualState.label = L.tooltip({permanent:true, direction:'top', offset:[0,-10], className:'measure-label'})
-    .setLatLng(latlng).setContent(text).addTo(map);
-
-  if (manualState){
-    if (manualState.mode==='dist'){
-      lastMeasure.length_m = computeLengthMeters(manualState.pts);
-      lastMeasure.area_m2 = 0;
-    } else {
-      lastMeasure.area_m2  = computeAreaM2(manualState.pts);
-      lastMeasure.length_m = computeLengthMeters(manualState.pts);
+  function toTitle(s){ return s.replace(/_/g,' ').replace(/\s+/g,' ').toLowerCase().replace(/(^|\s)\S/g, t=>t.toUpperCase()); }
+  const PRIORITY_FIELDS = ['NOM','NOM_OUVRAG','name','nom','libelle','LIBELLE','titre'];
+  function buildPopupHTML(props){
+    const keys = Object.keys(props||{});
+    if (!keys.length) return '<em>Aucun attribut</em>';
+    const titleKey = PRIORITY_FIELDS.find(k => k in props);
+    const title = titleKey ? String(props[titleKey]) : null;
+    const ordered = [...PRIORITY_FIELDS.filter(k => k in props), ...keys.filter(k => !PRIORITY_FIELDS.includes(k))];
+    let rows = '';
+    for (const k of ordered){
+      const v = props[k];
+      if (v===null || v===undefined || String(v).trim()==='') continue;
+      rows += `<tr><th>${toTitle(k)}</th><td>${v}</td></tr>`;
     }
-    pushMeasureToValidator(true);
+    return `<div class="popup-card">${title?`<div class="popup-title">${title}</div>`:''}<table class="popup-table">${rows}</table></div>`;
   }
-}
+  function onEachFeature(feature, layer){ layer.bindPopup(buildPopupHTML(feature.properties||{}), {maxWidth:380,minWidth:220,autoPan:true}); }
 
-/* GPS measures */
-const GPSMeasure = L.Control.extend({
-  options:{ position:'topleft' },
-  onAdd: function(){
-    const w = L.DomUtil.create('div','leaflet-bar tool-btn');
-    const d = L.DomUtil.create('a','',w); d.href='#'; d.title='Mesurer distance (GPS)'; d.innerHTML='📍📏';
-    const a = L.DomUtil.create('a','',w); a.href='#'; a.title='Mesurer surface (GPS)'; a.innerHTML='📍▱';
-    const e = L.DomUtil.create('a','',w); e.href='#'; e.title='Exporter la mesure (GeoJSON)'; e.innerHTML='📤';
-    L.DomEvent.disableClickPropagation(w);
-    L.DomEvent.on(d,'click',L.DomEvent.stop).on(d,'click',()=>startGPS('dist',d));
-    L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>startGPS('area',a));
-    L.DomEvent.on(e,'click',L.DomEvent.stop).on(e,'click',()=>exportCurrentMeasure());
-    return w;
+  /* Loader + cache */
+  const {get:cacheGet, set:cacheSet} = idbKeyval;
+  const CACHE_VERSION = 'v1';
+  async function loadGeoJSONSmart(url){
+    try{
+      const res = await fetch(url, {cache:'no-store'}); if (!res.ok) throw new Error(res.status+' '+res.statusText);
+      try{ const j = await res.clone().json(); await cacheSet(CACHE_VERSION+':'+url, j); return j; }catch(_){}
+      const buf = await res.arrayBuffer(); const u8 = new Uint8Array(buf);
+      if (u8.length===0) throw new Error('Fichier vide');
+      const isGzip = (u8[0]===0x1f && u8[1]===0x8b); const looksHTML = (u8[0]===0x3C);
+      if (isGzip){
+        let text;
+        if ('DecompressionStream' in window){ const res2 = await fetch(url,{cache:'no-store'}); const ds = new DecompressionStream('gzip'); const stream = res2.body.pipeThrough(ds); text = await new Response(stream).text(); }
+        else if (window.pako){ text = pako.ungzip(u8, {to:'string'}); }
+        else throw new Error('GZIP détecté mais pas de décompresseur');
+        const j = JSON.parse(text); await cacheSet(CACHE_VERSION+':'+url, j); return j;
+      }
+      if (looksHTML) throw new Error('HTML/404 — mauvais chemin/nom');
+      throw new Error('Non-JSON ou tronqué');
+    }catch(err){ const cached = await cacheGet(CACHE_VERSION+':'+url); if (cached) return cached; throw err; }
   }
-}); const gpsCtrl=new GPSMeasure(); map.addControl(gpsCtrl);
-
-let gpsState=null;
-function stopGPS(){ if(!gpsState) return;
-  if (gpsState.watchId!=null) navigator.geolocation.clearWatch(gpsState.watchId);
-  if (gpsState.line) map.removeLayer(gpsState.line);
-  if (gpsState.poly) map.removeLayer(gpsState.poly);
-  if (gpsState.label) map.removeLayer(gpsState.label);
-  if (gpsState.btn) gpsState.btn.classList.remove('active');
-  gpsState=null; map.off('contextmenu', stopGPS);
-}
-function startGPS(mode,btnOn){
-  if (gpsState?.mode===mode){ stopGPS(); return; }
-  stopGPS(); resetManual();
-  gpsState={mode, pts:[], line:null, poly:null, label:null, btn:btnOn, watchId:null}; btnOn.classList.add('active');
-  if (!('geolocation' in navigator)){ alert('Géolocalisation non disponible.'); stopGPS(); return; }
-  try{ gpsState.watchId = navigator.geolocation.watchPosition(onGPS, onGPSError, { enableHighAccuracy:true, maximumAge:1000, timeout:20000 });
-    map.on('contextmenu', stopGPS);
-  }catch(e){ alert('Impossible de démarrer la géolocalisation.'); stopGPS(); }
-}
-function onGPS(pos){
-  const { latitude, longitude } = pos.coords; const ll=L.latLng(latitude,longitude); const s=gpsState; if(!s) return;
-  if (s.pts.length){ const last=s.pts[s.pts.length-1]; const d=turf.distance([last.lng,last.lat],[ll.lng,ll.lat],{units:'meters'}); if (d<3) return; }
-  s.pts.push(ll);
-  if (s.mode==='dist'){
-    if (!s.line){ s.line=L.polyline([ll],{color:'#1f78b4',weight:3,dashArray:'6,4'}).addTo(map); } else { s.line.addLatLng(ll); }
-    updateGPSLabel(ll, fmtLength(computeLengthMeters(s.pts)));
-  }else{
-    if (!s.poly){ s.poly=L.polygon(s.pts,{color:'#33a02c',weight:2,fillOpacity:.15}).addTo(map); } else { s.poly.setLatLngs([s.pts]); }
-    updateGPSLabel(ll, fmtArea(computeAreaM2(s.pts)));
-  }
-}
-function onGPSError(err){ alert('Erreur géolocalisation : ' + (err?.message || err)); stopGPS(); }
-function updateGPSLabel(latlng, text){
-  if (gpsState?.label) map.removeLayer(gpsState.label);
-  gpsState.label = L.tooltip({permanent:true, direction:'top', offset:[0,-10], className:'measure-label'})
-    .setLatLng(latlng).setContent(text).addTo(map);
-
-  if (gpsState){
-    if (gpsState.mode==='dist'){
-      lastMeasure.length_m = computeLengthMeters(gpsState.pts);
-      lastMeasure.area_m2 = 0;
-    } else {
-      lastMeasure.area_m2  = computeAreaM2(gpsState.pts);
-      lastMeasure.length_m = computeLengthMeters(gpsState.pts);
+  function normalizeFC(gj){
+    const out={type:'FeatureCollection', features:[]};
+    const feats = Array.isArray(gj?.features)?gj.features:[];
+    for (const f of feats){ const g=f?.geometry; if(!g) continue;
+      if (g.type==='GeometryCollection' && Array.isArray(g.geometries) && g.geometries.length){
+        for (const gg of g.geometries){ if(!gg) continue; out.features.push({type:'Feature',properties:f.properties||{},geometry:gg}); }
+      } else out.features.push(f);
     }
-    pushMeasureToValidator(true);
+    return out;
   }
-}
-function exportCurrentMeasure(){
-  let pts=null, mode=null;
-  if (manualState){ pts=manualState.pts; mode=manualState.mode; }
-  else if (gpsState){ pts=gpsState.pts; mode=gpsState.mode; }
-  if (!pts || pts.length < (mode==='area'?3:2)){ alert('Aucune mesure à exporter.'); return; }
-  let gj;
-  if (mode==='dist'){
-    gj={ type:'FeatureCollection', features:[{ type:'Feature', properties:{ type:'measure_distance', date:new Date().toISOString() }, geometry:{ type:'LineString', coordinates: pts.map(ll=>[ll.lng,ll.lat]) } }]};
-  }else{
-    const ring=[...pts.map(ll=>[ll.lng,ll.lat]), [pts[0].lng,pts[0].lat]];
-    gj={ type:'FeatureCollection', features:[{ type:'Feature', properties:{ type:'measure_area', date:new Date().toISOString() }, geometry:{ type:'Polygon', coordinates:[ring] } }]};
+
+  const loaded = new Set(); let maskBounds=null;
+  async function ensureLayerLoaded(name){
+    if (loaded.has(name)) return;
+    const it = LAYERS.find(l => l.name===name); if (!it) return;
+    const grp = layerGroups[it.name];
+    try{
+      const gj = await loadGeoJSONSmart(it.url); const fc = normalizeFC(gj);
+      const layer = L.geoJSON(fc,{ style:styleByGeom, pointToLayer:(feat,latlng)=>L.circleMarker(latlng, styleByGeom(feat)), onEachFeature});
+      grp.clearLayers(); grp.addLayer(layer); loaded.add(name);
+      if (name==='DPT40Masque'){ try{ maskBounds = layer.getBounds(); }catch(_){ } }
+    }catch(err){ console.warn(`ERR ${name}:`, err); }
   }
-  const blob=new Blob([JSON.stringify(gj)],{type:'application/geo+json'}); const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download = (mode==='dist'?'mesure_distance':'mesure_surface')+'.geojson'; a.click(); URL.revokeObjectURL(url);
-}
-
-/* Annotations + export/clear */
-const annotations = new L.FeatureGroup().addTo(map);
-layersControl.addOverlay(annotations, 'Annotations (dessins)');
-const drawControl = new L.Control.Draw({
-  position:'topleft',
-  edit: { featureGroup: annotations, poly:{allowIntersection:false}, remove:true },
-  draw: { marker:{ repeatMode:true }, polyline:{ shapeOptions:{ color:'#ff7f00', weight:3 } },
-          polygon:{ allowIntersection:false, showArea:true, shapeOptions:{ color:'#ff7f00', weight:2, fillOpacity:.2 } },
-          rectangle:false, circle:false, circlemarker:false }
-});
-map.addControl(drawControl);
-const ANNOS_KEY='sd40:annotations';
-function saveAnnotations(){ try{ localStorage.setItem(ANNOS_KEY, JSON.stringify(annotations.toGeoJSON())); }catch(_){ } }
-function loadAnnotations(){ try{ const raw=localStorage.getItem(ANNOS_KEY); if(!raw) return;
-  const gj=JSON.parse(raw); L.geoJSON(gj,{ style:()=>({color:'#ff7f00',weight:2,fillOpacity:.2}), pointToLayer:(_f,latlng)=>L.marker(latlng)}).eachLayer(l=>annotations.addLayer(l)); }catch(_){ } }
-loadAnnotations();
-
-map.on(L.Draw.Event.CREATED, e => {
-  annotations.addLayer(e.layer);
-  saveAnnotations();
-  try{
-    const g = e.layer.toGeoJSON().geometry || {};
-    if (g.type === 'Polygon' || g.type === 'MultiPolygon'){
-      const gj = e.layer.toGeoJSON();
-      lastMeasure.area_m2 = turf.area(gj);
-      const ring = gj.geometry.type==='Polygon' ? gj.geometry.coordinates[0] : gj.geometry.coordinates[0][0];
-      lastMeasure.length_m = turf.length(turf.lineString(ring), {units:'kilometers'})*1000;
-      pushMeasureToValidator(true);
-    } else if (g.type === 'LineString' || g.type === 'MultiLineString'){
-      const gj = e.layer.toGeoJSON();
-      lastMeasure.length_m = turf.length(gj, {units:'kilometers'})*1000;
-      lastMeasure.area_m2 = 0;
-      pushMeasureToValidator(true);
-    }
-  }catch(_){}
-});
-
-map.on(L.Draw.Event.EDITED,  () => saveAnnotations());
-map.on(L.Draw.Event.DELETED, () => saveAnnotations());
-
-const AnnoExport = L.Control.extend({
-  options:{ position:'topleft' },
-  onAdd:function(){
-    const w=L.DomUtil.create('div','leaflet-bar tool-btn');
-    const s=L.DomUtil.create('a','',w); s.href='#'; s.title='Exporter annotations (GeoJSON)'; s.innerHTML='💾';
-    const c=L.DomUtil.create('a','',w); c.href='#'; c.title='Vider toutes les annotations'; c.innerHTML='🧹';
-    L.DomEvent.disableClickPropagation(w);
-    L.DomEvent.on(s,'click',L.DomEvent.stop).on(s,'click',()=>{ if (annotations.getLayers().length===0){ alert('Aucune annotation.'); return; }
-      const gj=annotations.toGeoJSON(); const blob=new Blob([JSON.stringify(gj)],{type:'application/geo+json'}); const url=URL.createObjectURL(blob);
-      const a=document.createElement('a'); a.href=url; a.download='annotations.geojson'; a.click(); URL.revokeObjectURL(url); });
-    L.DomEvent.on(c,'click',L.DomEvent.stop).on(c,'click',()=>{ if (!confirm('Supprimer toutes les annotations ?')) return; annotations.clearLayers(); saveAnnotations(); });
-    return w;
-  }
-}); const annoCtrl=new AnnoExport(); map.addControl(annoCtrl);
-
-/* Home Landes */
-const HomeControl = L.Control.extend({
-  options:{ position:'topright' },
-  onAdd:function(){ const d=L.DomUtil.create('div','leaflet-bar tool-btn'); const a=L.DomUtil.create('a','',d);
-    a.href='#'; a.title='Recentrer sur Landes'; a.innerHTML='🏠';
-    L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>{ if (maskBounds && maskBounds.isValid()) map.fitBounds(maskBounds,{padding:[20,20]}); else map.setView([43.85,-0.7],9); });
-    return d; }
-}); map.addControl(new HomeControl());
-
-/* Switch global outils */
-const ToolsToggle = L.Control.extend({
-  options:{ position:'topleft' },
-  onAdd:function(){ const w=L.DomUtil.create('div','tools-toggle leaflet-control'); const b=L.DomUtil.create('button','',w); b.type='button'; b.title='Afficher/masquer les outils'; b.innerHTML='🧰 Outils';
-    L.DomEvent.on(b,'click',L.DomEvent.stop).on(b,'click',()=>{ document.body.classList.toggle('tools-hidden'); });
-    return w; }
-}); map.addControl(new ToolsToggle());
-
-/* ===================== 4) PROCÉDURE – DATASETS & UI ===================== */
-const $ = (s)=>document.querySelector(s); const $$ = (s)=>document.querySelectorAll(s);
-let IOTA=[], NATINF=[];
-const DEMO_IOTA=[ {code:"3.2.3.0", titre:"Plans d’eau (permanents ou non)"},
-                  {code:"3.1.4.0", titre:"Consolidation/protection de berges (techniques non végétales)"},
-                  {code:"3.3.1.0", titre:"Zones humides : assèchement, mise en eau, remblais"} ];
-const DEMO_NATINF=[ {natinf:"32673", intitule:"Non-respect d'une prescription attachée à une déclaration IOTA", type:"C5"},
-                    {natinf:"35151", intitule:"Exploitation non autorisée d’une installation/ouvrage nuisible à l’eau avec atteinte grave", type:"DÉLIT"},
-                    {natinf:"32877", intitule:"Utilisation professionnelle sans certificat individuel (phyto)", type:"C5"} ];
-
-async function loadJSON(u){ const r=await fetch(u); if(!r.ok) throw new Error(u); return r.json(); }
-(async()=>{
-  try{
-    [IOTA,NATINF] = await Promise.all([
-      loadJSON('data/iota_rubriques_2025-11-09.json').catch(()=>DEMO_IOTA),
-      loadJSON('data/natinf_env_2023-10.json').catch(()=>DEMO_NATINF)
-    ]);
-  }catch(e){ IOTA=DEMO_IOTA; NATINF=DEMO_NATINF; console.warn('Datasets manquants, mode DEMO:', e); }
-  initProc();
-})();
-
-/* NATINF suggéré selon IOTA */
-function normG(s){ return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
-function natinfSuggestForIota(iotaCode){
-  const fam = String(iotaCode||'').split('.')[0];
-  let kw = ['iota','declaration','autorisation','prescription','opposition'];
-  if (fam==='1'){ kw = kw.concat(['prelev','pompage','ouvrage','eau']); }
-  else if (fam==='2'){ kw = kw.concat(['rejet','effluent','assainissement','eaux pluviales']); }
-  else if (fam==='3'){ kw = kw.concat(['installation','ouvrage','nuisible','cours','plan','berge','continuite']); }
-  else if (fam==='4'){ kw = kw.concat(['marin','dragage','port']); }
-  const scored = (Array.isArray(NATINF)? NATINF : []).map(n=>{
-    const t = normG(n.intitule)+' '+normG(n.type||'');
-    let s = 0; kw.forEach(k=>{ if (t.includes(k)) s++; });
-    if (t.includes('iota')) s+=2;
-    return { n, score:s };
-  }).filter(x=>x.score>0);
-  scored.sort((a,b)=> b.score - a.score);
-  return scored.slice(0,8).map(x=>({natinf:x.n.natinf, intitule:x.n.intitule}));
-}
-function addNatinfToFieldUnique(codes){
-  const f = document.getElementById('ftRefNatinf'); if (!f) return;
-  const cur = f.value.split(/[,; \n]+/).filter(Boolean);
-  const set = new Set(cur);
-  codes.forEach(c=> set.add(String(c)));
-  f.value = Array.from(set).join(', ');
-}
-function addSuggestedNatinfFromIota(iotaCode, take=3){
-  const sugg = natinfSuggestForIota(iotaCode).slice(0,take).map(x=>x.natinf);
-  if (sugg.length) addNatinfToFieldUnique(sugg);
-}
-
-function initProc(){
-  // Onglets
-  $$('.proc-tabs button').forEach(b=>{
-    b.onclick = ()=>{
-      $$('.proc-tabs button').forEach(x=>x.classList.remove('active'));
-      b.classList.add('active');
-      const tab=b.dataset.tab;
-      $$('.tab').forEach(x=>x.hidden=(x.id!=='tab-'+tab));
-    };
+  ensureLayerLoaded('DPT40Masque');
+  map.on('overlayadd', async (e)=>{ const name = Object.keys(layerGroups).find(k => layerGroups[k]===e.layer); if (name) await ensureLayerLoaded(name);
+    try{ if (e?.layer?.getBounds){ const b=e.layer.getBounds(); if (b && b.isValid()) map.fitBounds(b,{padding:[20,20]}); } }catch(_){}
   });
 
-  // IOTA search
-  const iotaList = $('#iotaList');
-  function renderIota(q=''){
-    q=q.trim().toLowerCase();
-    const out = IOTA.filter(x=> x.code?.includes(q) || x.titre?.toLowerCase().includes(q));
-    iotaList.innerHTML = out.map(x=>`<div class="row" style="padding:4px 0">
-      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
-        <input type="radio" name="iotaPick" value="${x.code}">
-        <div><b>${x.code}</b> — ${x.titre}</div>
-      </label>
-    </div>`).join('') || '<em>Aucune rubrique</em>';
-    iotaList.querySelectorAll('input[name=iotaPick]').forEach(r=>{
-      r.onchange = ()=>{
-        $('#ftRefIota').value = r.value;
-        $('#valRubrique').value = r.value;
-        buildValParams();
-        addSuggestedNatinfFromIota(r.value); // suggestions auto
-        // Basculer sur l’onglet validateur si tu veux :
-        // document.querySelector('[data-tab="validator"]')?.click();
-      };
-    });
-  }
-  renderIota();
-  $('#iotaSearch').oninput = (e)=>renderIota(e.target.value);
-
-  // NATINF helpers
-  function norm(s){ return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
-  function pickNatinf(listEl, arr){
-    listEl.innerHTML = arr.slice(0,200).map(n=>`<div class="row" style="padding:4px 0">
-      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
-        <input type="radio" name="${listEl.id}-pick" value="${n.natinf}">
-        <div><b>${n.natinf}</b> — ${n.intitule} ${n.type?`<span class="badge">${n.type}</span>`:''}</div>
-      </label>
-    </div>`).join('') || '<em>Aucun résultat</em>';
-    listEl.querySelectorAll('input[type=radio]').forEach(r=>{
-      r.onchange = ()=>{ $('#ftRefNatinf').value = r.value; };
-    });
-  }
-  // BCAE
-  const BCAE_KEYS = ['bcae','zone humide','drainage','nitrates','programme d\'action','bande tampon','haie','prairie'];
-  const bcaeList = $('#bcaeList');
-  function filterBCAE(q){ const n=norm(q); return NATINF.filter(nf=>{ const t=norm(nf.intitule); return BCAE_KEYS.some(k=>t.includes(norm(k))) || t.includes(n); }); }
-  $('#bcaeSearch').oninput = (e)=> pickNatinf(bcaeList, filterBCAE(e.target.value)); pickNatinf(bcaeList, filterBCAE('zone humide'));
-
-  // Phyto
-  const PHYTO_KEYS = ['phytopharmaceutique','phytosanitaire','certificat individuel','neonicotinoide','amm','znt','biocide'];
-  const phytoList = $('#phytoList');
-  function filterPHYTO(q){ const n=norm(q); return NATINF.filter(nf=>{ const t=norm(nf.intitule); return PHYTO_KEYS.some(k=>t.includes(norm(k))) || t.includes(n); }); }
-  $('#phytoSearch').oninput = (e)=> pickNatinf(phytoList, filterPHYTO(e.target.value)); pickNatinf(phytoList, filterPHYTO('phytopharmaceutique'));
-
-  // Autre
-  const autreList = $('#autreList');
-  $('#autreSearch').oninput = (e)=>{ const q=norm(e.target.value); const out=NATINF.filter(nf=> norm(nf.intitule).includes(q) || (nf.natinf||'').includes(q)); pickNatinf(autreList, out); };
-
-  // Badge lat/lng
-  function updateLatLngBadge(ll){ $('#ftLatLng').textContent = ll ? `Lat ${ll.lat.toFixed(5)} / Lng ${ll.lng.toFixed(5)}` : '—'; }
-  map.on('click', (e)=> updateLatLngBadge(e.latlng));
-  try{ updateLatLngBadge(map.getCenter()); }catch(_){}
-
-  // Complétude rudimentaire
-  function evalScore(){ const f=[ $('#ftTitre').value, $('#ftDesc').value, $('#ftRefIota').value, $('#ftRefNatinf').value ]; const n=f.filter(x=>String(x||'').trim().length>0).length;
-    $('#ftScore').textContent = (n>=4? 'OK (4/4)': n+'/4'); }
-  ['#ftTitre','#ftDesc','#ftRefIota','#ftRefNatinf'].forEach(sel=> $(sel).addEventListener('input', evalScore)); evalScore();
-
-  // Exports fiche
-  $('#btnProcGJ').onclick = ()=>{
-    const ll = map.getCenter();
-    const props = { titre:$('#ftTitre').value, lieu:$('#ftLieu').value, desc:$('#ftDesc').value, iota:$('#ftRefIota').value, natinf:$('#ftRefNatinf').value, date:new Date().toISOString() };
-    const gj = { type:'FeatureCollection', features:[{ type:'Feature', properties:props, geometry:{ type:'Point', coordinates:[ll.lng,ll.lat] } }]};
-    const blob = new Blob([JSON.stringify(gj)], {type:'application/geo+json'});
-    const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href = url; a.download = 'fiche-terrain.geojson'; a.click(); URL.revokeObjectURL(url);
-  };
-
-  $('#btnProcPDF').onclick = async ()=>{
-    const { jsPDF } = window.jspdf; const pdf = new jsPDF({unit:'pt', format:'a4'});
-    pdf.setFontSize(14); pdf.text('FICHE TERRAIN – Procédure', 40, 40);
-    pdf.setFontSize(11);
-    const lines = [
-      `Titre : ${$('#ftTitre').value || ''}`,
-      `Lieu  : ${$('#ftLieu').value || ''}`,
-      `IOTA  : ${$('#ftRefIota').value || ''}`,
-      `NATINF: ${$('#ftRefNatinf').value || ''}`,
-      `Date  : ${new Date().toLocaleString()}`
-    ];
-    lines.forEach((t,i)=> pdf.text(t, 40, 70 + i*16));
-    const res = $('#valResult').textContent || '—';
-    const trace = $('#valTrace').textContent || '';
-    pdf.text(`Validateur IOTA : ${res}`, 40, 170);
-    pdf.setFont('courier','normal'); pdf.setFontSize(9);
-    pdf.text((trace||'').substring(0,2200), 40, 186, { maxWidth:520, lineHeightFactor:1.2 });
-    pdf.setFont('helvetica','normal'); pdf.setFontSize(11);
-    const desc = $('#ftDesc').value || '';
-    const wrapped = pdf.splitTextToSize(desc, 520);
-    pdf.text('Constats :', 40, 320);
-    pdf.text(wrapped, 40, 338);
-    try{
-      const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, scale:1});
-      const img = canvas.toDataURL('image/jpeg', 0.85);
-      const w = 520, h = w * (canvas.height/canvas.width);
-      pdf.addPage(); pdf.text('Localisation – aperçu carte', 40, 40);
-      pdf.addImage(img, 'JPEG', 40, 60, w, Math.min(h, 680));
-    }catch(_){ }
-    pdf.save('fiche-terrain.pdf');
-  };
-
-  /* ===== VALIDATEUR IOTA ===== */
-  const RULES_KEY='sd40:iota_rules_v1';
-  const DEFAULT_RULES = {
-    "3.2.3.0": {
-      "label": "Plans d’eau",
-      "params": [
-        {"id":"surface_m2","label":"Surface du plan d’eau (m²)","type":"number"},
-        {"id":"volume_m3","label":"Volume (m³)","type":"number"}
-      ],
-      "logic": [
-        {"if":"surface_m2 >= 10000 || volume_m3 >= 10000","regime":"A","ref":"Seuils EXEMPLE à configurer"},
-        {"if":"surface_m2 >= 1000 || volume_m3 >= 1000","regime":"D","ref":"Seuils EXEMPLE"},
-        {"else":"HN"}
-      ]
-    },
-    "3.1.4.0": {
-      "label":"Consolidation/protection de berges (non végétal)",
-      "params":[ {"id":"longueur_m","label":"Longueur traitée (m)","type":"number"} ],
-      "logic":[
-        {"if":"longueur_m >= 200","regime":"A","ref":"EXEMPLE"},
-        {"if":"longueur_m >= 20","regime":"D","ref":"EXEMPLE"},
-        {"else":"HN"}
-      ]
-    },
-    "3.3.1.0": {
-      "label":"Zones humides : assèchement / mise en eau / remblais",
-      "params":[ {"id":"surface_m2","label":"Surface affectée (m²)","type":"number"} ],
-      "logic":[
-        {"if":"surface_m2 >= 10000","regime":"A","ref":"EXEMPLE"},
-        {"if":"surface_m2 >= 1000","regime":"D","ref":"EXEMPLE"},
-        {"else":"HN"}
-      ]
-    },
-    "1.2.1.0": {
-      "label":"Prélèvements en cours d’eau / plan alimenté",
-      "params":[ {"id":"debit_l_s","label":"Débit maximal (L/s)","type":"number"} ],
-      "logic":[
-        {"if":"debit_l_s >= 80","regime":"A","ref":"EXEMPLE"},
-        {"if":"debit_l_s >= 8","regime":"D","ref":"EXEMPLE"},
-        {"else":"HN"}
-      ]
+  /* ------------ OUTILS mesures/annotations ------------ */
+  const ManualMeasure = L.Control.extend({
+    options:{ position:'topleft' },
+    onAdd: function(){
+      const wrap = L.DomUtil.create('div','leaflet-bar tool-btn');
+      const d = L.DomUtil.create('a','',wrap); d.href='#'; d.title='Mesurer distance (manuel)'; d.innerHTML='📏';
+      const a = L.DomUtil.create('a','',wrap); a.href='#'; a.title='Mesurer surface (manuel)'; a.innerHTML='▱';
+      const e = L.DomUtil.create('a','',wrap); e.href='#'; e.title='Exporter la mesure (GeoJSON)'; e.innerHTML='📤';
+      L.DomEvent.disableClickPropagation(wrap);
+      L.DomEvent.on(d,'click',L.DomEvent.stop).on(d,'click',()=>startManual('dist',d));
+      L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>startManual('area',a));
+      L.DomEvent.on(e,'click',L.DomEvent.stop).on(e,'click',()=>exportCurrentMeasure());
+      return wrap;
     }
-  };
-  function getRules(){ try{ const raw=localStorage.getItem(RULES_KEY); if (raw) return JSON.parse(raw); }catch(_){ } return DEFAULT_RULES; }
-  function setRules(obj){ try{ localStorage.setItem(RULES_KEY, JSON.stringify(obj)); }catch(_){ } }
+  }); map.addControl(new ManualMeasure());
 
-  function buildValParams(){
-    const code = ($('#valRubrique').value||'').trim();
-    const rules = getRules();
-    const def = rules[code];
-    const cont = $('#valParams');
-    cont.innerHTML = '';
-    if (!def){ cont.innerHTML = '<em>Aucune règle définie pour cette rubrique. Clique “⚙️ Règles IOTA”.</em>'; return; }
-    def.params?.forEach(p=>{
-      const wrap=document.createElement('div');
-      const lab=document.createElement('label'); lab.textContent=p.label; lab.style.fontSize='13px';
-      const inp=document.createElement('input'); inp.type=p.type||'text'; inp.id='param_'+p.id; inp.placeholder=p.label;
-      wrap.appendChild(lab); wrap.appendChild(inp); cont.appendChild(wrap);
-    });
+  let manualState = null;
+  function resetManual(){ if(!manualState) return;
+    if (manualState.line) map.removeLayer(manualState.line);
+    if (manualState.poly) map.removeLayer(manualState.poly);
+    if (manualState.label) map.removeLayer(manualState.label);
+    if (manualState.btn) manualState.btn.classList.remove('active');
+    map.getContainer().style.cursor=''; map.doubleClickZoom.enable();
+    map.off('click', onClickManual); map.off('dblclick', finishManual); map.off('contextmenu', finishManual);
+    manualState=null;
   }
-  $('#valRubrique').addEventListener('input', buildValParams);
-  $('#valGeom').addEventListener('change', ()=>{});
-  buildValParams();
+  function startManual(mode, btnOn){
+    if (manualState?.mode===mode){ resetManual(); return; }
+    resetManual(); stopGPS();
+    btnOn.classList.add('active'); manualState={mode, pts:[], line:null, poly:null, label:null, btn:btnOn};
+    map.getContainer().style.cursor='crosshair'; map.doubleClickZoom.disable();
+    map.on('click', onClickManual); map.on('dblclick', finishManual); map.on('contextmenu', finishManual);
+  }
+  function onClickManual(e){
+    const s=manualState; if(!s) return; s.pts.push(e.latlng);
+    if (s.mode==='dist'){
+      if (!s.line){ s.line=L.polyline([e.latlng],{color:'#1f78b4',weight:3,dashArray:'6,4'}).addTo(map); } else { s.line.addLatLng(e.latlng); }
+      updateManualLabel(e.latlng, fmtLength(computeLengthMeters(s.pts)));
+    }else{
+      if (s.pts.length===1){ s.line=L.polyline([e.latlng],{color:'#33a02c',weight:3,dashArray:'6,4'}).addTo(map); }
+      else if (s.pts.length===2){ s.line.addLatLng(e.latlng); }
+      else{ if (!s.poly){ s.poly=L.polygon(s.pts,{color:'#33a02c',weight:2,fillOpacity:.15}).addTo(map); } else { s.poly.setLatLngs([s.pts]); }
+        updateManualLabel(e.latlng, fmtArea(computeAreaM2(s.pts))); }
+    }
+  }
+  function finishManual(){ resetManual(); }
 
-  function evalLogic(expr, ctx){
-    const safe = expr.replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, (id)=> (id in ctx ? String(ctx[id]??0) : id))
-                     .replace(/[^0-9<>=!&|().+*\-\/ %]/g,'');
-    try{ return !!eval(safe); }catch(_){ return false; }
+  // Lien mesures ↔ validateur
+  let lastMeasure = { mode:null, length_m:0, area_m2:0 };
+  function setValidatorParam(id, value){
+    const el = $('#param_'+id); if (el) el.value = (Math.round(Number(value||0)*100)/100).toString();
   }
-  $('#btnEval').onclick = ()=>{
-    const code = ($('#valRubrique').value||'').trim();
-    const rules = getRules(); const def = rules[code];
-    if (!def){ $('#valResult').textContent='Règle manquante'; $('#valTrace').textContent=''; return; }
-    const ctx={};
-    (def.params||[]).forEach(p=>{
-      const v=parseFloat(($('#param_'+p.id)?.value||'').replace(',','.'));
-      ctx[p.id] = isFinite(v)? v : 0;
-    });
-    let decision='HN', ref=''; const trace=[];
-    for (const rule of def.logic||[]){
-      if (rule.if){
-        const ok=evalLogic(rule.if, ctx);
-        trace.push(`IF ${rule.if} → ${ok?'VRAI':'FAUX'}`);
-        if (ok){ decision=rule.regime||'HN'; ref=rule.ref||''; break; }
-      }else if (rule.else){
-        decision=rule.else; ref=rule.ref||''; trace.push('ELSE'); break;
+  function pushMeasureToValidator(autoEval=true){
+    const code = ($('#valRubrique')?.value||'').trim();
+    if (!code) return;
+    if (lastMeasure.area_m2>0)  setValidatorParam('surface_m2', lastMeasure.area_m2);
+    if (lastMeasure.length_m>0) setValidatorParam('longueur_m', lastMeasure.length_m);
+    if (autoEval) $('#btnEval')?.click();
+  }
+  function updateManualLabel(latlng, text){
+    if (manualState?.label) map.removeLayer(manualState.label);
+    manualState.label = L.tooltip({permanent:true, direction:'top', offset:[0,-10], className:'measure-label'})
+      .setLatLng(latlng).setContent(text).addTo(map);
+
+    if (manualState){
+      if (manualState.mode==='dist'){
+        lastMeasure.length_m = computeLengthMeters(manualState.pts);
+        lastMeasure.area_m2 = 0;
+      } else {
+        lastMeasure.area_m2  = computeAreaM2(manualState.pts);
+        lastMeasure.length_m = computeLengthMeters(manualState.pts);
       }
+      pushMeasureToValidator(true);
     }
-    $('#valResult').textContent = decision;
-    $('#valTrace').textContent = `${def.label||code}\n${trace.join('\n')}${ref?'\nREF: '+ref:''}`;
-    if (!$('#ftRefIota').value) $('#ftRefIota').value = code;
-    addSuggestedNatinfFromIota(code, 2); // suggestions post-éval
-  };
+  }
 
-  // Éditeur de règles
-  $('#btnRules').onclick = ()=>{
-    const now = JSON.stringify(getRules(), null, 2);
-    const txt = prompt('Édite les règles (JSON)\nATTENTION : résultat indicatif – vérifier avec R.214-1.\n\nExemple: "if": "surface_m2 >= 1000", "regime":"D"', now);
-    if (!txt) return;
-    try{ const obj=JSON.parse(txt); setRules(obj); alert('Règles enregistrées.'); buildValParams(); }
-    catch(e){ alert('JSON invalide : '+e.message); }
-  };
-}
+  // GPS
+  const GPSMeasure = L.Control.extend({
+    options:{ position:'topleft' },
+    onAdd: function(){
+      const w = L.DomUtil.create('div','leaflet-bar tool-btn');
+      const d = L.DomUtil.create('a','',w); d.href='#'; d.title='Mesurer distance (GPS)'; d.innerHTML='📍📏';
+      const a = L.DomUtil.create('a','',w); a.href='#'; a.title='Mesurer surface (GPS)'; a.innerHTML='📍▱';
+      const e = L.DomUtil.create('a','',w); e.href='#'; e.title='Exporter la mesure (GeoJSON)'; e.innerHTML='📤';
+      L.DomEvent.disableClickPropagation(w);
+      L.DomEvent.on(d,'click',L.DomEvent.stop).on(d,'click',()=>startGPS('dist',d));
+      L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>startGPS('area',a));
+      L.DomEvent.on(e,'click',L.DomEvent.stop).on(e,'click',()=>exportCurrentMeasure());
+      return w;
+    }
+  }); map.addControl(new GPSMeasure());
 
-/* ===================== 5) Utils ===================== */
-proj4.defs('EPSG:2154', '+proj=lcc +lat_1=49 +lat_2=44 +lat_0=46.5 +lon_0=3 +x_0=700000 +y_0=6600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs');
-function computeLengthMeters(latlngs){ if (latlngs.length<2) return 0; const line=turf.lineString(latlngs.map(ll=>[ll.lng,ll.lat])); return turf.length(line,{units:'kilometers'})*1000; }
-function computeAreaM2(latlngs){ if (latlngs.length<3) return 0; const ring=[...latlngs.map(ll=>[ll.lng,ll.lat]), [latlngs[0].lng,latlngs[0].lat]]; return turf.area(turf.polygon([ring])); }
-function fmtLength(m){ return m<1000 ? `${m.toFixed(1)} m` : `${(m/1000).toFixed(3)} km`; }
-function fmtArea(m2){ if (m2<10000) return `${m2.toFixed(0)} m²`; const ha=m2/10000; if (ha<100) return `${ha.toFixed(2)} ha`; return `${(m2/1e6).toFixed(3)} km²`; }
+  let gpsState=null;
+  function stopGPS(){ if(!gpsState) return;
+    if (gpsState.watchId!=null) navigator.geolocation.clearWatch(gpsState.watchId);
+    if (gpsState.line) map.removeLayer(gpsState.line);
+    if (gpsState.poly) map.removeLayer(gpsState.poly);
+    if (gpsState.label) map.removeLayer(gpsState.label);
+    if (gpsState.btn) gpsState.btn.classList.remove('active');
+    gpsState=null; map.off('contextmenu', stopGPS);
+  }
+  function startGPS(mode,btnOn){
+    if (gpsState?.mode===mode){ stopGPS(); return; }
+    stopGPS(); resetManual();
+    gpsState={mode, pts:[], line:null, poly:null, label:null, btn:btnOn, watchId:null}; btnOn.classList.add('active');
+    if (!('geolocation' in navigator)){ alert('Géolocalisation non disponible.'); stopGPS(); return; }
+    try{ gpsState.watchId = navigator.geolocation.watchPosition(onGPS, onGPSError, { enableHighAccuracy:true, maximumAge:1000, timeout:20000 });
+      map.on('contextmenu', stopGPS);
+    }catch(e){ alert('Impossible de démarrer la géolocalisation.'); stopGPS(); }
+  }
+  function onGPS(pos){
+    const { latitude, longitude } = pos.coords; const ll=L.latLng(latitude,longitude); const s=gpsState; if(!s) return;
+    if (s.pts.length){ const last=s.pts[s.pts.length-1]; const d=turf.distance([last.lng,last.lat],[ll.lng,ll.lat],{units:'meters'}); if (d<3) return; }
+    s.pts.push(ll);
+    if (s.mode==='dist'){
+      if (!s.line){ s.line=L.polyline([ll],{color:'#1f78b4',weight:3,dashArray:'6,4'}).addTo(map); } else { s.line.addLatLng(ll); }
+      updateGPSLabel(ll, fmtLength(computeLengthMeters(s.pts)));
+    }else{
+      if (!s.poly){ s.poly=L.polygon(s.pts,{color:'#33a02c',weight:2,fillOpacity:.15}).addTo(map); } else { s.poly.setLatLngs([s.pts]); }
+      updateGPSLabel(ll, fmtArea(computeAreaM2(s.pts)));
+    }
+  }
+  function onGPSError(err){ alert('Erreur géolocalisation : ' + (err?.message || err)); stopGPS(); }
+  function updateGPSLabel(latlng, text){
+    if (gpsState?.label) map.removeLayer(gpsState.label);
+    gpsState.label = L.tooltip({permanent:true, direction:'top', offset:[0,-10], className:'measure-label'})
+      .setLatLng(latlng).setContent(text).addTo(map);
+
+    if (gpsState){
+      if (gpsState.mode==='dist'){
+        lastMeasure.length_m = computeLengthMeters(gpsState.pts);
+        lastMeasure.area_m2 = 0;
+      } else {
+        lastMeasure.area_m2  = computeAreaM2(gpsState.pts);
+        lastMeasure.length_m = computeLengthMeters(gpsState.pts);
+      }
+      pushMeasureToValidator(true);
+    }
+  }
+  function exportCurrentMeasure(){
+    let pts=null, mode=null;
+    if (manualState){ pts=manualState.pts; mode=manualState.mode; }
+    else if (gpsState){ pts=gpsState.pts; mode=gpsState.mode; }
+    if (!pts || pts.length < (mode==='area'?3:2)){ alert('Aucune mesure à exporter.'); return; }
+    let gj;
+    if (mode==='dist'){
+      gj={ type:'FeatureCollection', features:[{ type:'Feature', properties:{ type:'measure_distance', date:new Date().toISOString() }, geometry:{ type:'LineString', coordinates: pts.map(ll=>[ll.lng,ll.lat]) } }]};
+    }else{
+      const ring=[...pts.map(ll=>[ll.lng,ll.lat]), [pts[0].lng,pts[0].lat]];
+      gj={ type:'FeatureCollection', features:[{ type:'Feature', properties:{ type:'measure_area', date:new Date().toISOString() }, geometry:{ type:'Polygon', coordinates:[ring] } }]};
+    }
+    const blob=new Blob([JSON.stringify(gj)],{type:'application/geo+json'}); const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download = (mode==='dist'?'mesure_distance':'mesure_surface')+'.geojson'; a.click(); URL.revokeObjectURL(url);
+  }
+
+  // Annotations + export/clear
+  const annotations = new L.FeatureGroup().addTo(map);
+  layersControl.addOverlay(annotations, 'Annotations (dessins)');
+  const drawControl = new L.Control.Draw({
+    position:'topleft',
+    edit: { featureGroup: annotations, poly:{allowIntersection:false}, remove:true },
+    draw: { marker:{ repeatMode:true }, polyline:{ shapeOptions:{ color:'#ff7f00', weight:3 } },
+            polygon:{ allowIntersection:false, showArea:true, shapeOptions:{ color:'#ff7f00', weight:2, fillOpacity:.2 } },
+            rectangle:false, circle:false, circlemarker:false }
+  });
+  map.addControl(drawControl);
+  const ANNOS_KEY='sd40:annotations';
+  function saveAnnotations(){ try{ localStorage.setItem(ANNOS_KEY, JSON.stringify(annotations.toGeoJSON())); }catch(_){ } }
+  function loadAnnotations(){ try{ const raw=localStorage.getItem(ANNOS_KEY); if(!raw) return;
+    const gj=JSON.parse(raw); L.geoJSON(gj,{ style:()=>({color:'#ff7f00',weight:2,fillOpacity:.2}), pointToLayer:(_f,latlng)=>L.marker(latlng)}).eachLayer(l=>annotations.addLayer(l)); }catch(_){ } }
+  loadAnnotations();
+
+  map.on(L.Draw.Event.CREATED, e => {
+    annotations.addLayer(e.layer);
+    saveAnnotations();
+    try{
+      const g = e.layer.toGeoJSON().geometry || {};
+      if (g.type === 'Polygon' || g.type === 'MultiPolygon'){
+        const gj = e.layer.toGeoJSON();
+        lastMeasure.area_m2 = turf.area(gj);
+        const ring = gj.geometry.type==='Polygon' ? gj.geometry.coordinates[0] : gj.geometry.coordinates[0][0];
+        lastMeasure.length_m = turf.length(turf.lineString(ring), {units:'kilometers'})*1000;
+        pushMeasureToValidator(true);
+      } else if (g.type === 'LineString' || g.type === 'MultiLineString'){
+        const gj = e.layer.toGeoJSON();
+        lastMeasure.length_m = turf.length(gj, {units:'kilometers'})*1000;
+        lastMeasure.area_m2 = 0;
+        pushMeasureToValidator(true);
+      }
+    }catch(_){}
+  });
+  map.on(L.Draw.Event.EDITED,  () => saveAnnotations());
+  map.on(L.Draw.Event.DELETED, () => saveAnnotations());
+
+  const AnnoExport = L.Control.extend({
+    options:{ position:'topleft' },
+    onAdd:function(){
+      const w=L.DomUtil.create('div','leaflet-bar tool-btn');
+      const s=L.DomUtil.create('a','',w); s.href='#'; s.title='Exporter annotations (GeoJSON)'; s.innerHTML='💾';
+      const c=L.DomUtil.create('a','',w); c.href='#'; c.title='Vider toutes les annotations'; c.innerHTML='🧹';
+      L.DomEvent.disableClickPropagation(w);
+      L.DomEvent.on(s,'click',L.DomEvent.stop).on(s,'click',()=>{ if (annotations.getLayers().length===0){ alert('Aucune annotation.'); return; }
+        const gj=annotations.toGeoJSON(); const blob=new Blob([JSON.stringify(gj)],{type:'application/geo+json'}); const url=URL.createObjectURL(blob);
+        const a=document.createElement('a'); a.href=url; a.download='annotations.geojson'; a.click(); URL.revokeObjectURL(url); });
+      L.DomEvent.on(c,'click',L.DomEvent.stop).on(c,'click',()=>{ if (!confirm('Supprimer toutes les annotations ?')) return; annotations.clearLayers(); saveAnnotations(); });
+      return w;
+    }
+  }); map.addControl(new AnnoExport());
+
+  // Home Landes
+  const HomeControl = L.Control.extend({
+    options:{ position:'topright' },
+    onAdd:function(){ const d=L.DomUtil.create('div','leaflet-bar tool-btn'); const a=L.DomUtil.create('a','',d);
+      a.href='#'; a.title='Recentrer sur Landes'; a.innerHTML='🏠';
+      L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>{ if (maskBounds && maskBounds.isValid()) map.fitBounds(maskBounds,{padding:[20,20]}); else map.setView([43.85,-0.7],9); });
+      return d; }
+  }); map.addControl(new HomeControl());
+
+  // Switch global outils
+  const ToolsToggle = L.Control.extend({
+    options:{ position:'topleft' },
+    onAdd:function(){ const w=L.DomUtil.create('div','tools-toggle leaflet-control'); const b=L.DomUtil.create('button','',w); b.type='button'; b.title='Afficher/masquer les outils'; b.innerHTML='🧰 Outils';
+      L.DomEvent.on(b,'click',L.DomEvent.stop).on(b,'click',()=>{ document.body.classList.toggle('tools-hidden'); });
+      return w; }
+  }); map.addControl(new ToolsToggle());
+
+  /* ------------ PROCÉDURE – DATASETS & UI ------------ */
+  let IOTA=[], NATINF=[];
+  const DEMO_IOTA=[ {code:"3.2.3.0", titre:"Plans d’eau (permanents ou non)"},
+                    {code:"3.1.4.0", titre:"Consolidation/protection de berges (techniques non végétales)"},
+                    {code:"3.3.1.0", titre:"Zones humides : assèchement, mise en eau, remblais"} ];
+  const DEMO_NATINF=[ {natinf:"32673", intitule:"Non-respect d'une prescription attachée à une déclaration IOTA", type:"C5"},
+                      {natinf:"35151", intitule:"Exploitation non autorisée d’une installation/ouvrage nuisible à l’eau avec atteinte grave", type:"DÉLIT"},
+                      {natinf:"32877", intitule:"Utilisation professionnelle sans certificat individuel (phyto)", type:"C5"} ];
+
+  async function loadJSON(u){ const r=await fetch(u); if(!r.ok) throw new Error(u); return r.json(); }
+  (async()=>{
+    try{
+      [IOTA,NATINF] = await Promise.all([
+        loadJSON('data/iota_rubriques_2025-11-09.json').catch(()=>DEMO_IOTA),
+        loadJSON('data/natinf_env_2023-10.json').catch(()=>DEMO_NATINF)
+      ]);
+    }catch(e){ IOTA=DEMO_IOTA; NATINF=DEMO_NATINF; console.warn('Datasets manquants, mode DEMO:', e); }
+    initProc();
+  })();
+
+  function normG(s){ return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
+  function natinfSuggestForIota(iotaCode){
+    const fam = String(iotaCode||'').split('.')[0];
+    let kw = ['iota','declaration','autorisation','prescription','opposition'];
+    if (fam==='1'){ kw = kw.concat(['prelev','pompage','ouvrage','eau']); }
+    else if (fam==='2'){ kw = kw.concat(['rejet','effluent','assainissement','eaux pluviales']); }
+    else if (fam==='3'){ kw = kw.concat(['installation','ouvrage','nuisible','cours','plan','berge','continuite']); }
+    else if (fam==='4'){ kw = kw.concat(['marin','dragage','port']); }
+    const scored = (Array.isArray(NATINF)? NATINF : []).map(n=>{
+      const t = normG(n.intitule)+' '+normG(n.type||'');
+      let s = 0; kw.forEach(k=>{ if (t.includes(k)) s++; });
+      if (t.includes('iota')) s+=2;
+      return { n, score:s };
+    }).filter(x=>x.score>0).sort((a,b)=> b.score - a.score);
+    return scored.slice(0,8).map(x=>({natinf:x.n.natinf, intitule:x.n.intitule}));
+  }
+  function addNatinfToFieldUnique(codes){
+    const f = $('#ftRefNatinf'); if (!f) return;
+    const cur = f.value.split(/[,; \n]+/).filter(Boolean);
+    const set = new Set(cur); codes.forEach(c=> set.add(String(c)));
+    f.value = Array.from(set).join(', ');
+  }
+  function addSuggestedNatinfFromIota(iotaCode, take=3){
+    const sugg = natinfSuggestForIota(iotaCode).slice(0,take).map(x=>x.natinf);
+    if (sugg.length) addNatinfToFieldUnique(sugg);
+  }
+
+  function initProc(){
+    // Onglets
+    $$('.proc-tabs button').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        $$('.proc-tabs button').forEach(x=>x.classList.remove('active'));
+        b.classList.add('active');
+        const tab=b.dataset.tab;
+        $$('.tab').forEach(x=>x.hidden=(x.id!=='tab-'+tab));
+      });
+    });
+
+    // IOTA search
+    const iotaList = $('#iotaList');
+    function renderIota(q=''){
+      q=q.trim().toLowerCase();
+      const out = IOTA.filter(x=> x.code?.includes(q) || x.titre?.toLowerCase().includes(q));
+      iotaList.innerHTML = out.map(x=>`<div class="row" style="padding:4px 0">
+        <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
+          <input type="radio" name="iotaPick" value="${x.code}">
+          <div><b>${x.code}</b> — ${x.titre}</div>
+        </label>
+      </div>`).join('') || '<em>Aucune rubrique</em>';
+      $$('input[name=iotaPick]', iotaList).forEach(r=>{
+        r.addEventListener('change', ()=>{
+          $('#ftRefIota').value = r.value;
+          $('#valRubrique').value = r.value;
+          buildValParams();
+          addSuggestedNatinfFromIota(r.value);
+          // document.querySelector('[data-tab="validator"]')?.click(); // à activer si souhaité
+        });
+      });
+    }
+    renderIota();
+    $('#iotaSearch').addEventListener('input', (e)=>renderIota(e.target.value));
+
+    // NATINF helpers
+    function pickNatinf(listEl, arr){
+      listEl.innerHTML = arr.slice(0,200).map(n=>`<div class="row" style="padding:4px 0">
+        <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
+          <input type="radio" name="${listEl.id}-pick" value="${n.natinf}">
+          <div><b>${n.natinf}</b> — ${n.intitule} ${n.type?`<span class="badge">${n.type}</span>`:''}</div>
+        </label>
+      </div>`).join('') || '<em>Aucun résultat</em>';
+      $$('input[type=radio]', listEl).forEach(r=>{
+        r.addEventListener('change', ()=>{ $('#ftRefNatinf').value = r.value; });
+      });
+    }
+    // BCAE
+    const BCAE_KEYS = ['bcae','zone humide','drainage','nitrates','programme d\'action','bande tampon','haie','prairie'];
+    const bcaeList = $('#bcaeList');
+    function filterBCAE(q){ const n=normG(q); return NATINF.filter(nf=>{ const t=normG(nf.intitule); return BCAE_KEYS.some(k=>t.includes(normG(k))) || t.includes(n); }); }
+    $('#bcaeSearch').addEventListener('input', (e)=> pickNatinf(bcaeList, filterBCAE(e.target.value))); pickNatinf(bcaeList, filterBCAE('zone humide'));
+
+    // Phyto
+    const PHYTO_KEYS = ['phytopharmaceutique','phytosanitaire','certificat individuel','neonicotinoide','amm','znt','biocide'];
+    const phytoList = $('#phytoList');
+    function filterPHYTO(q){ const n=normG(q); return NATINF.filter(nf=>{ const t=normG(nf.intitule); return PHYTO_KEYS.some(k=>t.includes(normG(k))) || t.includes(n); }); }
+    $('#phytoSearch').addEventListener('input', (e)=> pickNatinf(phytoList, filterPHYTO(e.target.value))); pickNatinf(phytoList, filterPHYTO('phytopharmaceutique'));
+
+    // Autre
+    const autreList = $('#autreList');
+    $('#autreSearch').addEventListener('input', (e)=>{ const q=normG(e.target.value); const out=NATINF.filter(nf=> normG(nf.intitule).includes(q) || (nf.natinf||'').includes(q)); pickNatinf(autreList, out); });
+
+    // Badge lat/lng
+    function updateLatLngBadge(ll){ $('#ftLatLng').textContent = ll ? `Lat ${ll.lat.toFixed(5)} / Lng ${ll.lng.toFixed(5)}` : '—'; }
+    map.on('click', (e)=> updateLatLngBadge(e.latlng));
+    updateLatLngBadge(map.getCenter());
+
+    // Complétude
+    function evalScore(){ const f=[ $('#ftTitre').value, $('#ftDesc').value, $('#ftRefIota').value, $('#ftRefNatinf').value ]; const n=f.filter(x=>String(x||'').trim().length>0).length;
+      $('#ftScore').textContent = (n>=4? 'OK (4/4)': n+'/4'); }
+    ['#ftTitre','#ftDesc','#ftRefIota','#ftRefNatinf'].forEach(sel=> $(sel).addEventListener('input', evalScore)); evalScore();
+
+    // Exports fiche
+    $('#btnProcGJ').addEventListener('click', ()=>{
+      const ll = map.getCenter();
+      const props = { titre:$('#ftTitre').value, lieu:$('#ftLieu').value, desc:$('#ftDesc').value, iota:$('#ftRefIota').value, natinf:$('#ftRefNatinf').value, date:new Date().toISOString() };
+      const gj = { type:'FeatureCollection', features:[{ type:'Feature', properties:props, geometry:{ type:'Point', coordinates:[ll.lng,ll.lat] } }]};
+      const blob = new Blob([JSON.stringify(gj)], {type:'application/geo+json'});
+      const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href = url; a.download = 'fiche-terrain.geojson'; a.click(); URL.revokeObjectURL(url);
+    });
+
+    $('#btnProcPDF').addEventListener('click', async ()=>{
+      const { jsPDF } = window.jspdf; const pdf = new jsPDF({unit:'pt', format:'a4'});
+      pdf.setFontSize(14); pdf.text('FICHE TERRAIN – Procédure', 40, 40);
+      pdf.setFontSize(11);
+      const lines = [
+        `Titre : ${$('#ftTitre').value || ''}`,
+        `Lieu  : ${$('#ftLieu').value || ''}`,
+        `IOTA  : ${$('#ftRefIota').value || ''}`,
+        `NATINF: ${$('#ftRefNatinf').value || ''}`,
+        `Date  : ${new Date().toLocaleString()}`
+      ];
+      lines.forEach((t,i)=> pdf.text(t, 40, 70 + i*16));
+      const res = $('#valResult').textContent || '—';
+      const trace = $('#valTrace').textContent || '';
+      pdf.text(`Validateur IOTA : ${res}`, 40, 170);
+      pdf.setFont('courier','normal'); pdf.setFontSize(9);
+      pdf.text((trace||'').substring(0,2200), 40, 186, { maxWidth:520, lineHeightFactor:1.2 });
+      pdf.setFont('helvetica','normal'); pdf.setFontSize(11);
+      const desc = $('#ftDesc').value || '';
+      const wrapped = pdf.splitTextToSize(desc, 520);
+      pdf.text('Constats :', 40, 320);
+      pdf.text(wrapped, 40, 338);
+      try{
+        const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, scale:1});
+        const img = canvas.toDataURL('image/jpeg', 0.85);
+        const w = 520, h = w * (canvas.height/canvas.width);
+        pdf.addPage(); pdf.text('Localisation – aperçu carte', 40, 40);
+        pdf.addImage(img, 'JPEG', 40, 60, w, Math.min(h, 680));
+      }catch(_){ }
+      pdf.save('fiche-terrain.pdf');
+    });
+
+    /* ===== VALIDATEUR IOTA ===== */
+    const RULES_KEY='sd40:iota_rules_v1';
+    const DEFAULT_RULES = {
+      "3.2.3.0": {
+        "label": "Plans d’eau",
+        "params": [
+          {"id":"surface_m2","label":"Surface du plan d’eau (m²)","type":"number"},
+          {"id":"volume_m3","label":"Volume (m³)","type":"number"}
+        ],
+        "logic": [
+          {"if":"surface_m2 >= 10000 || volume_m3 >= 10000","regime":"A","ref":"Seuils EXEMPLE à configurer"},
+          {"if":"surface_m2 >= 1000 || volume_m3 >= 1000","regime":"D","ref":"Seuils EXEMPLE"},
+          {"else":"HN"}
+        ]
+      },
+      "3.1.4.0": {
+        "label":"Consolidation/protection de berges (non végétal)",
+        "params":[ {"id":"longueur_m","label":"Longueur traitée (m)","type":"number"} ],
+        "logic":[
+          {"if":"longueur_m >= 200","regime":"A","ref":"EXEMPLE"},
+          {"if":"longueur_m >= 20","regime":"D","ref":"EXEMPLE"},
+          {"else":"HN"}
+        ]
+      },
+      "3.3.1.0": {
+        "label":"Zones humides : assèchement / mise en eau / remblais",
+        "params":[ {"id":"surface_m2","label":"Surface affectée (m²)","type":"number"} ],
+        "logic":[
+          {"if":"surface_m2 >= 10000","regime":"A","ref":"EXEMPLE"},
+          {"if":"surface_m2 >= 1000","regime":"D","ref":"EXEMPLE"},
+          {"else":"HN"}
+        ]
+      },
+      "1.2.1.0": {
+        "label":"Prélèvements en cours d’eau / plan alimenté",
+        "params":[ {"id":"debit_l_s","label":"Débit maximal (L/s)","type":"number"} ],
+        "logic":[
+          {"if":"debit_l_s >= 80","regime":"A","ref":"EXEMPLE"},
+          {"if":"debit_l_s >= 8","regime":"D","ref":"EXEMPLE"},
+          {"else":"HN"}
+        ]
+      }
+    };
+    function getRules(){ try{ const raw=localStorage.getItem(RULES_KEY); if (raw) return JSON.parse(raw); }catch(_){ } return DEFAULT_RULES; }
+    function setRules(obj){ try{ localStorage.setItem(RULES_KEY, JSON.stringify(obj)); }catch(_){ } }
+    function resetRules(){ try{ localStorage.removeItem(RULES_KEY);}catch(_){} }
+
+    function buildValParams(){
+      const code = ($('#valRubrique').value||'').trim();
+      const rules = getRules();
+      const def = rules[code];
+      const cont = $('#valParams');
+      cont.innerHTML = '';
+      if (!def){ cont.innerHTML = '<em>Aucune règle définie pour cette rubrique. Clique “⚙️ Règles IOTA”.</em>'; return; }
+      def.params?.forEach(p=>{
+        const wrap=document.createElement('div');
+        const lab=document.createElement('label'); lab.textContent=p.label; lab.style.fontSize='13px';
+        const inp=document.createElement('input'); inp.type=p.type||'text'; inp.id='param_'+p.id; inp.placeholder=p.label;
+        wrap.appendChild(lab); wrap.appendChild(inp); cont.appendChild(wrap);
+      });
+    }
+    $('#valRubrique').addEventListener('input', buildValParams);
+    $('#valGeom').addEventListener('change', ()=>{});
+    buildValParams();
+
+    function evalLogic(expr, ctx){
+      const safe = expr.replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, (id)=> (id in ctx ? String(ctx[id]??0) : id))
+                       .replace(/[^0-9<>=!&|().+*\-\/ %]/g,'');
+      try{ return !!eval(safe); }catch(_){ return false; }
+    }
+    $('#btnEval').addEventListener('click', ()=>{
+      const code = ($('#valRubrique').value||'').trim();
+      const rules = getRules(); const def = rules[code];
+      if (!def){ $('#valResult').textContent='Règle manquante'; $('#valTrace').textContent=''; return; }
+      const ctx={};
+      (def.params||[]).forEach(p=>{
+        const v=parseFloat(($('#param_'+p.id)?.value||'').replace(',','.'));
+        ctx[p.id] = isFinite(v)? v : 0;
+      });
+      let decision='HN', ref=''; const trace=[];
+      for (const rule of def.logic||[]){
+        if (rule.if){
+          const ok=evalLogic(rule.if, ctx);
+          trace.push(`IF ${rule.if} → ${ok?'VRAI':'FAUX'}`);
+          if (ok){ decision=rule.regime||'HN'; ref=rule.ref||''; break; }
+        }else if (rule.else){
+          decision=rule.else; ref=rule.ref||''; trace.push('ELSE'); break;
+        }
+      }
+      $('#valResult').textContent = decision;
+      $('#valTrace').textContent = `${def.label||code}\n${trace.join('\n')}${ref?'\nREF: '+ref:''}`;
+      if (!$('#ftRefIota').value) $('#ftRefIota').value = code;
+      addSuggestedNatinfFromIota(code, 2);
+    });
+
+    // Éditeur de règles + reset (appui long)
+    $('#btnRules').addEventListener('click', ()=>{
+      const now = JSON.stringify(getRules(), null, 2);
+      const txt = prompt('Édite les règles (JSON strict : guillemets doubles, pas de virgule traînante)\nExemple: {"if":"surface_m2 >= 1000","regime":"D"}', now);
+      if (txt==null) return;
+      try{ const obj=JSON.parse(txt); setRules(obj); alert('Règles enregistrées.'); buildValParams(); }
+      catch(e){ alert('JSON invalide : '+e.message); }
+    });
+    let rulesPressTimer=null;
+    $('#btnRules').addEventListener('mousedown', ()=>{ rulesPressTimer = setTimeout(()=>{ resetRules(); alert('Règles réinitialisées.'); buildValParams(); }, 800); });
+    ['mouseup','mouseleave'].forEach(ev=> $('#btnRules').addEventListener(ev, ()=>{ if (rulesPressTimer){ clearTimeout(rulesPressTimer); rulesPressTimer=null; } }));
+  }
+
+  /* ------------ Utils ------------ */
+  proj4.defs('EPSG:2154', '+proj=lcc +lat_1=49 +lat_2=44 +lat_0=46.5 +lon_0=3 +x_0=700000 +y_0=6600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs');
+  function computeLengthMeters(latlngs){ if (latlngs.length<2) return 0; const line=turf.lineString(latlngs.map(ll=>[ll.lng,ll.lat])); return turf.length(line,{units:'kilometers'})*1000; }
+  function computeAreaM2(latlngs){ if (latlngs.length<3) return 0; const ring=[...latlngs.map(ll=>[ll.lng,ll.lat]), [latlngs[0].lng,latlngs[0].lat]]; return turf.area(turf.polygon([ring])); }
+  function fmtLength(m){ return m<1000 ? `${m.toFixed(1)} m` : `${(m/1000).toFixed(3)} km`; }
+  function fmtArea(m2){ if (m2<10000) return `${m2.toFixed(0)} m²`; const ha=m2/10000; if (ha<100) return `${ha.toFixed(2)} ha`; return `${(m2/1e6).toFixed(3)} km²`; }
+
+  /* ------------ Bouton Outils ------------ */
+  const ToolsToggle = L.Control.extend({
+    options:{ position:'topleft' },
+    onAdd:function(){ const w=L.DomUtil.create('div','tools-toggle leaflet-control'); const b=L.DomUtil.create('button','',w); b.type='button'; b.title='Afficher/masquer les outils'; b.innerHTML='🧰 Outils';
+      L.DomEvent.on(b,'click',L.DomEvent.stop).on(b,'click',()=>{ document.body.classList.toggle('tools-hidden'); });
+      return w; }
+  }); map.addControl(new ToolsToggle());
+
+})();
 </script>
 </body>
 </html>
