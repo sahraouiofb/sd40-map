@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="fr">
 <head>
-<meta charset="utf-8">
-<title>SD40 – Carte (mesures + annotations)</title>
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="utf-8" />
+<title>SD40 – Carte + Procédure terrain (IOTA/BCAE/Phyto + NATINF + Validateur)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <!-- Leaflet & plugins CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -12,73 +12,79 @@
 
 <style>
   html,body,#map{height:100%;margin:0}
-
-  /* ===== Liste des couches : plus lisible au doigt ===== */
-  .leaflet-control-layers{min-width:260px}
+  /* ===== Panneaux & contrôles ===== */
   .leaflet-control-layers-expanded{max-height:70vh;overflow:auto}
-  .leaflet-control-layers-overlays label{
-    display:flex;align-items:center;gap:8px;
-    padding:6px 8px;font-size:14px;box-sizing:border-box;
+  .leaflet-control-layers .leaflet-control-layers-list label{
+    display:flex; align-items:center; gap:10px; line-height:1.3;
+    padding:6px 8px; font-size:14px;
   }
-  .leaflet-control-layers-overlays input[type="checkbox"]{
-    width:18px;height:18px;margin:0;flex:0 0 auto;
+  .leaflet-control-layers-overlays input[type="checkbox"]{width:18px;height:18px}
+  @media (max-width:820px){
+    .leaflet-control-layers{position:fixed; top:56px; right:8px; left:8px; z-index:1000; width:auto; max-width:none;
+      box-shadow:0 8px 24px rgba(0,0,0,.35)}
+    .leaflet-control-layers-overlays input[type="checkbox"]{width:22px;height:22px}
+    .leaflet-control-layers .leaflet-control-layers-list label{font-size:16px}
   }
 
-  /* ===== Barre d’outils (gauche) : boutons confort doigt ===== */
-  .leaflet-top.leaflet-left .leaflet-bar{margin-top:10px}
-  .tool-btn.leaflet-bar a{
-    display:inline-flex;align-items:center;justify-content:center;
-    width:40px;height:40px;font:20px/1.1 system-ui,Segoe UI,Roboto,Arial;
-    text-decoration:none;cursor:pointer;user-select:none;
-  }
-  .tool-btn.leaflet-bar a.active{background:#1f78b4;color:#fff}
-
-  /* ===== Bouton “☰ Couches” (droite) ===== */
   .layer-toggle-wrap.leaflet-control{
     background:#111827;color:#fff;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.35);
     overflow:hidden;border:1px solid #0b1220
   }
-  .layer-toggle-btn{
-    display:flex;align-items:center;gap:10px;
-    padding:10px 14px;font:600 14px system-ui,Segoe UI,Roboto,Arial;
-    text-decoration:none;color:#fff;background:#111827;cursor:pointer;
-    line-height:1;letter-spacing:.2px
-  }
-  .layer-toggle-btn .icon{font-size:18px}
+  .layer-toggle-btn{display:flex;align-items:center;gap:10px;padding:10px 14px;font:600 14px system-ui; color:#fff;background:#111827;border:0;cursor:pointer}
   .layer-toggle-btn:hover{background:#0f172a}
 
-  /* ===== Popups type “fiche” ===== */
+  .tool-btn.leaflet-bar a{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:40px;height:40px;font:20px/1.1 system-ui; text-decoration:none; user-select:none;
+  }
+  .tool-btn.leaflet-bar a.active{background:#1f78b4;color:#fff}
+
+  /* ===== Popups ===== */
   .popup-card{font:14px/1.35 system-ui,Segoe UI,Roboto,Arial;max-width:360px}
   .popup-title{font-weight:700;margin:0 0 .25rem}
   .popup-table{width:100%;border-collapse:collapse;font-size:13px}
   .popup-table th{white-space:nowrap;text-align:left;color:#22313f;font-weight:600;padding:.25rem .5rem .25rem 0;border-bottom:1px solid #eef}
   .popup-table td{padding:.25rem 0;border-bottom:1px solid #f2f4f7;word-break:break-word}
-
-  /* Etiquettes de mesure */
   .measure-label{
     background:#0b2239;color:#fff;padding:4px 6px;border-radius:4px;
-    font:12px/1.2 system-ui,Segoe UI,Roboto,Arial;box-shadow:0 2px 8px rgba(0,0,0,.25);
+    font:12px/1.2 system-ui; box-shadow:0 2px 8px rgba(0,0,0,.25);
+  }
+  @media (max-width:480px){
+    .popup-card{max-width:90vw}
   }
 
-  /* ===== Optimisations smartphone (Android, petit écran) ===== */
-  @media (max-width: 820px), (pointer:coarse) {
-    /* Le panneau des couches devient large et fixe, pour voir les cases à cocher */
-    .leaflet-control-layers{
-      position:fixed;top:56px;right:8px;left:8px;z-index:1000;
-      width:auto;max-width:none;min-width:unset;
-      box-shadow:0 8px 24px rgba(0,0,0,.35);
-    }
-    .leaflet-control-layers-expanded{max-height:60vh}
-    .leaflet-control-layers-overlays label{font-size:16px;padding:10px 8px}
-    .leaflet-control-layers-overlays input[type="checkbox"]{width:22px;height:22px}
-
-    .layer-toggle-btn{padding:12px 14px;font-size:15px}
-
-    /* Popups plus compactes, scroll si longue fiche */
-    .popup-card{max-width:86vw;font-size:13.5px}
-    .leaflet-popup-content{max-height:55vh;overflow:auto;margin:8px 12px}
-    .popup-table{font-size:13px}
+  /* ===== Masquage global des outils ===== */
+  body.tools-hidden .leaflet-draw,
+  body.tools-hidden .tool-btn { display:none !important; }
+  .tools-toggle.leaflet-control{
+    background:#111827;color:#fff;border:1px solid #0b1220;border-radius:10px;
+    box-shadow:0 6px 18px rgba(0,0,0,.35); overflow:hidden
   }
+  .tools-toggle button{
+    display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;
+    background:#111827;color:#fff;border:0;cursor:pointer;font:600 14px system-ui
+  }
+  .tools-toggle button:hover{background:#0f172a}
+
+  /* ===== Procédure drawer ===== */
+  .proc-drawer{position:absolute;right:10px;top:70px;z-index:1000;
+    width:min(480px,94vw); max-height:80vh; display:flex; flex-direction:column;
+    background:#fff; border:1px solid #d0d7e1; border-radius:12px; box-shadow:0 12px 28px rgba(0,0,0,.25); overflow:hidden}
+  .proc-header{display:flex;gap:8px;align-items:center;justify-content:space-between;
+    padding:10px 12px;background:#0b2239;color:#fff;font:600 14px system-ui}
+  .proc-tabs{display:flex;gap:6px;padding:8px 10px;border-bottom:1px solid #eef; flex-wrap:wrap}
+  .proc-tabs button{border:1px solid #d0d7e1;background:#f8fafc;padding:6px 10px;border-radius:8px;cursor:pointer}
+  .proc-tabs button.active{background:#0b2239;color:#fff;border-color:#0b2239}
+  .proc-body{padding:10px;overflow:auto}
+  .proc-row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+  .proc-row > *{flex:1 1 160px}
+  .proc-actions{display:flex;gap:8px;justify-content:flex-end;padding:10px;border-top:1px solid #eef}
+  .badge{display:inline-block;padding:2px 6px;border-radius:6px;background:#e8eef6;color:#0b2239;font-weight:600;font-size:12px}
+  .note{font-size:12px;color:#475569}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#eef6ff;color:#0b2239;font-weight:700}
+  .kv{display:grid;grid-template-columns:180px 1fr;gap:6px;font-size:13px}
+  .kv b{color:#0b2239}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px}
 </style>
 </head>
 <body>
@@ -93,9 +99,102 @@
 <script src="https://cdn.jsdelivr.net/npm/proj4leaflet@1.0.2/src/proj4leaflet.min.js"></script>
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+<!-- ===================== UI Procédure : drawer + onglets ===================== -->
+<div id="proc" class="proc-drawer" hidden>
+  <div class="proc-header">
+    <span>🗂️ Procédure terrain</span>
+    <div style="display:flex;gap:8px">
+      <button id="btnRules" style="border:0;background:#fff;color:#0b2239;border-radius:8px;padding:6px 8px;cursor:pointer">⚙️ Règles IOTA</button>
+      <button id="btnProcClose" style="border:0;background:#fff;color:#0b2239;border-radius:8px;padding:6px 8px;cursor:pointer">Fermer</button>
+    </div>
+  </div>
+
+  <div class="proc-tabs">
+    <button data-tab="iota" class="active">IOTA</button>
+    <button data-tab="bcae">BCAE</button>
+    <button data-tab="phyto">Phyto</button>
+    <button data-tab="autre">Autre</button>
+    <button data-tab="validator">Validateur IOTA</button>
+  </div>
+
+  <div class="proc-body">
+    <!-- IOTA -->
+    <div class="tab" id="tab-iota">
+      <div class="proc-row">
+        <input id="iotaSearch" placeholder="Rechercher rubrique (ex : 3.2.3.0, ‘plans d’eau’)" />
+      </div>
+      <div id="iotaList"></div>
+      <div class="note">Astuce : clique une rubrique pour la copier dans la fiche et dans le validateur.</div>
+    </div>
+
+    <!-- BCAE -->
+    <div class="tab" id="tab-bcae" hidden>
+      <div class="proc-row">
+        <input id="bcaeSearch" placeholder="Mot-clé (ex: ‘zone humide’, ‘drainage’, ‘nitrates’)" />
+      </div>
+      <div id="bcaeList"></div>
+    </div>
+
+    <!-- Phyto -->
+    <div class="tab" id="tab-phyto" hidden>
+      <div class="proc-row">
+        <input id="phytoSearch" placeholder="Mot-clé (ex: ‘phytopharmaceutique’, ‘certificat’, ‘néonicotinoïdes’)" />
+      </div>
+      <div id="phytoList"></div>
+    </div>
+
+    <!-- Autre -->
+    <div class="tab" id="tab-autre" hidden>
+      <div class="proc-row"><input id="autreSearch" placeholder="Recherche NATINF (mot-clé ou code)"/></div>
+      <div id="autreList"></div>
+    </div>
+
+    <!-- VALIDATEUR IOTA -->
+    <div class="tab" id="tab-validator" hidden>
+      <div class="proc-row">
+        <input id="valRubrique" placeholder="Rubrique IOTA (ex : 3.2.3.0)" />
+        <select id="valGeom"><option value="point">Point</option><option value="line">Ligne</option><option value="polygon">Polygone</option></select>
+      </div>
+      <div id="valParams" class="proc-row"></div>
+      <div class="proc-row">
+        <button id="btnEval">Évaluer le régime</button>
+        <span id="valResult" class="pill">—</span>
+      </div>
+      <div id="valTrace" class="mono"></div>
+      <div class="note">Le moteur de règles est paramétrable : clique “⚙️ Règles IOTA”. Résultat indicatif → toujours confronter au texte en vigueur.</div>
+    </div>
+
+    <hr>
+    <!-- Fiche terrain commune -->
+    <div class="proc-row"><input id="ftTitre" placeholder="Titre de l’intervention" /></div>
+    <div class="proc-row"><input id="ftLieu" placeholder="Lieu / commune" /></div>
+    <div class="proc-row"><textarea id="ftDesc" rows="4" placeholder="Constats, mesures, éléments matériels, témoins…"></textarea></div>
+    <div class="proc-row">
+      <input id="ftRefIota" placeholder="Rubrique IOTA retenue" />
+      <input id="ftRefNatinf" placeholder="NATINF retenu" />
+    </div>
+    <div class="kv">
+      <b>Coordonnées :</b> <span class="badge" id="ftLatLng">—</span>
+      <b>Complétude :</b> <span class="badge" id="ftScore">—</span>
+    </div>
+  </div>
+
+  <div class="proc-actions">
+    <button id="btnProcPDF">Exporter PDF</button>
+    <button id="btnProcGJ">Exporter GeoJSON</button>
+  </div>
+</div>
+
+<!-- Boutons flottants -->
+<div class="layer-toggle-wrap leaflet-control" style="position:absolute;right:10px;top:10px;z-index:1000;">
+  <button id="btnProcOpen" class="layer-toggle-btn"><span class="icon">🗂️</span><span class="label">Procédure</span></button>
+</div>
 
 <script>
-/* ===================== 1) Couches ===================== */
+/* ===================== 1) LAYERS ===================== */
 const LAYERS = [
   { name:"Axe_realimentes_Institution_Adour", url:"layers/Axe_realimentes_Institution_Adour.geojson" },
   { name:"BDT_3_5_Bassin_Versant", url:"layers/BDT_3_5_Bassin_Versant.geojson" },
@@ -115,7 +214,6 @@ const LAYERS = [
   { name:"INRAe_carte_sols", url:"layers/INRAe_carte_sols.geojson" },
   { name:"Isochrones_nappe_alluviale_adour_IA", url:"layers/Isochrones_nappe_alluviale_adour_IA.geojson" },
   { name:"ONF_Foret", url:"layers/ONF_Foret.geojson" },
-
   /* GZIP */
   { name:"DCE_2022-2027_cours_deau_Adour-Garonne", url:"layers/DCE_2022-2027_cours_deau_Adour-Garonne.geojson.gz" },
   { name:"DCE_2022_2027__masses_deau_souterraine", url:"layers/DCE_2022_2027__masses_deau_souterraine.geojson.gz" },
@@ -123,7 +221,6 @@ const LAYERS = [
   { name:"IGN_BDHaies_V2_2024", url:"layers/IGN_BDHaies_V2_2024.geojson.gz" },
   { name:"Nappes_des_sables", url:"layers/Nappes_des_sables.geojson.gz" },
   { name:"Zones_Restriction_Prelevements_flux", url:"layers/Zones_Restriction_Prelevements_flux.geojson.gz" },
-
   { name:"ZAS_sup_40_2024", url:"layers/ZAS_sup_40_2024.geojson" },
   { name:"ZRE_-_2013", url:"layers/ZRE_-_2013.geojson" },
   { name:"Zones_port_es_par_les_arr_t_s", url:"layers/Zones_port_es_par_les_arr_t_s.geojson" },
@@ -133,29 +230,20 @@ const LAYERS = [
   { name:"sortie", url:"layers/sortie.geojson" }
 ];
 
-/* ===================== 2) Carte & contrôles ===================== */
+/* ===================== 2) MAP ===================== */
 const map = L.map('map', { zoomControl:true, preferCanvas:true }).setView([43.85,-0.7], 9);
-
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:20, attribution:'© OpenStreetMap' }).addTo(map);
 L.control.scale({metric:true, imperial:false, position:'bottomleft'}).addTo(map);
 
 try{
-  L.control.locate({
-    position:'topleft',
-    strings:{ title:'Me localiser' },
-    keepCurrentZoomLevel:true, flyTo:true,
-    drawCircle:true, showPopup:true, cacheLocation:true
-  }).addTo(map);
+  L.control.locate({ position:'topleft', strings:{ title:'Me localiser' }, keepCurrentZoomLevel:true, flyTo:true, drawCircle:true, showPopup:true, cacheLocation:true }).addTo(map);
 }catch(e){ console.warn('LocateControl non chargé:', e); }
 
 const layersControl = L.control.layers({}, {}, {collapsed:false}).addTo(map);
 const layerGroups = {};
-for (const it of LAYERS){
-  const grp = L.layerGroup(); layerGroups[it.name] = grp;
-  layersControl.addOverlay(grp, it.name);
-}
+for (const it of LAYERS){ const grp = L.layerGroup(); layerGroups[it.name] = grp; layersControl.addOverlay(grp, it.name); }
 
-/* Bouton “☰ Couches” pour masquer/afficher la liste */
+/* Bouton “☰ Couches” */
 const LayerToggleBig = L.Control.extend({
   options:{ position:'topright' },
   onAdd: function(){
@@ -174,13 +262,11 @@ const LayerToggleBig = L.Control.extend({
 });
 map.addControl(new LayerToggleBig());
 
-/* ===================== 3) Styles & popups ===================== */
+/* Styles & popups */
 function styleByGeom(feature){
   const t = feature?.geometry?.type || '';
-  if (t==='Point' || t==='MultiPoint')
-    return {radius:5, fillColor:'#e31a1c', color:'#ffffff', weight:1, opacity:1, fillOpacity:.85};
-  if (t.includes('Line'))
-    return {color:'#1f78b4', weight:2, opacity:.95};
+  if (t==='Point' || t==='MultiPoint') return {radius:5, fillColor:'#e31a1c', color:'#ffffff', weight:1, opacity:1, fillOpacity:.85};
+  if (t.includes('Line')) return {color:'#1f78b4', weight:2, opacity:.95};
   return {color:'#33a02c', weight:1, opacity:.95, fillOpacity:.25};
 }
 function toTitle(s){ return s.replace(/_/g,' ').replace(/\s+/g,' ').toLowerCase().replace(/(^|\s)\S/g, t=>t.toUpperCase()); }
@@ -201,51 +287,31 @@ function buildPopupHTML(props){
 }
 function onEachFeature(feature, layer){ layer.bindPopup(buildPopupHTML(feature.properties||{}), {maxWidth:380,minWidth:220,autoPan:true}); }
 
-/* ===================== 4) Loader + cache ===================== */
+/* Loader + cache */
 const {get:cacheGet, set:cacheSet} = idbKeyval;
 const CACHE_VERSION = 'v1';
-
 async function loadGeoJSONSmart(url){
   try{
-    const res = await fetch(url, {cache:'no-store'});
-    if (!res.ok) throw new Error(res.status+' '+res.statusText);
-    try{
-      const j = await res.clone().json();
-      await cacheSet(CACHE_VERSION+':'+url, j);
-      return j;
-    }catch(_){}
-    const buf = await res.arrayBuffer();
-    const u8 = new Uint8Array(buf);
+    const res = await fetch(url, {cache:'no-store'}); if (!res.ok) throw new Error(res.status+' '+res.statusText);
+    try{ const j = await res.clone().json(); await cacheSet(CACHE_VERSION+':'+url, j); return j; }catch(_){}
+    const buf = await res.arrayBuffer(); const u8 = new Uint8Array(buf);
     if (u8.length===0) throw new Error('Fichier vide');
-    const isGzip = (u8[0]===0x1f && u8[1]===0x8b);
-    const looksHTML = (u8[0]===0x3C);
+    const isGzip = (u8[0]===0x1f && u8[1]===0x8b); const looksHTML = (u8[0]===0x3C);
     if (isGzip){
       let text;
-      if ('DecompressionStream' in window){
-        const res2 = await fetch(url,{cache:'no-store'});
-        const ds = new DecompressionStream('gzip');
-        const stream = res2.body.pipeThrough(ds);
-        text = await new Response(stream).text();
-      } else if (window.pako){
-        text = pako.ungzip(u8, {to:'string'});
-      } else throw new Error('GZIP détecté mais pas de décompresseur');
-      const j = JSON.parse(text);
-      await cacheSet(CACHE_VERSION+':'+url, j);
-      return j;
+      if ('DecompressionStream' in window){ const res2 = await fetch(url,{cache:'no-store'}); const ds = new DecompressionStream('gzip'); const stream = res2.body.pipeThrough(ds); text = await new Response(stream).text(); }
+      else if (window.pako){ text = pako.ungzip(u8, {to:'string'}); }
+      else throw new Error('GZIP détecté mais pas de décompresseur');
+      const j = JSON.parse(text); await cacheSet(CACHE_VERSION+':'+url, j); return j;
     }
     if (looksHTML) throw new Error('HTML/404 — mauvais chemin/nom');
     throw new Error('Non-JSON ou tronqué');
-  }catch(err){
-    const cached = await cacheGet(CACHE_VERSION+':'+url);
-    if (cached) return cached;
-    throw err;
-  }
+  }catch(err){ const cached = await cacheGet(CACHE_VERSION+':'+url); if (cached) return cached; throw err; }
 }
 function normalizeFC(gj){
   const out={type:'FeatureCollection', features:[]};
   const feats = Array.isArray(gj?.features)?gj.features:[];
-  for (const f of feats){
-    const g=f?.geometry; if(!g) continue;
+  for (const f of feats){ const g=f?.geometry; if(!g) continue;
     if (g.type==='GeometryCollection' && Array.isArray(g.geometries) && g.geometries.length){
       for (const gg of g.geometries){ if(!gg) continue; out.features.push({type:'Feature',properties:f.properties||{},geometry:gg}); }
     } else out.features.push(f);
@@ -253,354 +319,457 @@ function normalizeFC(gj){
   return out;
 }
 
-/* ===================== 5) Chargement à la demande ===================== */
-const loaded = new Set();
-let maskBounds = null;
-
+/* Chargement à la demande */
+const loaded = new Set(); let maskBounds=null;
 async function ensureLayerLoaded(name){
   if (loaded.has(name)) return;
-  const it = LAYERS.find(l => l.name===name);
-  if (!it) return;
+  const it = LAYERS.find(l => l.name===name); if (!it) return;
   const grp = layerGroups[it.name];
-  try{
-    const gj = await loadGeoJSONSmart(it.url);
-    const fc = normalizeFC(gj);
-    const layer = L.geoJSON(fc, {
-      style: styleByGeom,
-      pointToLayer: (feat, latlng)=> L.circleMarker(latlng, styleByGeom(feat)),
-      onEachFeature
-    });
-    grp.clearLayers(); grp.addLayer(layer);
-    loaded.add(name);
-    if (name==='DPT40Masque'){ try{ maskBounds = layer.getBounds(); }catch(_){} }
+  try{ const gj = await loadGeoJSONSmart(it.url); const fc = normalizeFC(gj);
+    const layer = L.geoJSON(fc,{ style:styleByGeom, pointToLayer:(feat,latlng)=>L.circleMarker(latlng, styleByGeom(feat)), onEachFeature});
+    grp.clearLayers(); grp.addLayer(layer); loaded.add(name);
+    if (name==='DPT40Masque'){ try{ maskBounds = layer.getBounds(); }catch(_){ } }
   }catch(err){ console.warn(`ERR ${name}:`, err); }
 }
 ensureLayerLoaded('DPT40Masque');
-
-map.on('overlayadd', async (e)=>{
-  const name = Object.keys(layerGroups).find(k => layerGroups[k]===e.layer);
-  if (name) await ensureLayerLoaded(name);
-  try{
-    if (e?.layer?.getBounds){
-      const b = e.layer.getBounds();
-      if (b && b.isValid()) map.fitBounds(b,{padding:[20,20]});
-    }
-  }catch(_){}
+map.on('overlayadd', async (e)=>{ const name = Object.keys(layerGroups).find(k => layerGroups[k]===e.layer); if (name) await ensureLayerLoaded(name);
+  try{ if (e?.layer?.getBounds){ const b=e.layer.getBounds(); if (b && b.isValid()) map.fitBounds(b,{padding:[20,20]}); } }catch(_){}
 });
 
-/* ===================== 6) Mesures MANUELLES (📏 ▱ + export 📤) ===================== */
+/* ===================== 3) OUTILS mesures/annotations ===================== */
 const ManualMeasure = L.Control.extend({
   options:{ position:'topleft' },
   onAdd: function(){
     const wrap = L.DomUtil.create('div','leaflet-bar tool-btn');
-    const btnDist = L.DomUtil.create('a','',wrap);
-    btnDist.href='#'; btnDist.title='Mesurer une distance (manuel)'; btnDist.innerHTML='📏';
-    const btnArea = L.DomUtil.create('a','',wrap);
-    btnArea.href='#'; btnArea.title='Mesurer une surface (manuel)'; btnArea.innerHTML='▱';
-    const btnExport = L.DomUtil.create('a','',wrap);
-    btnExport.href='#'; btnExport.title='Exporter la mesure (GeoJSON)'; btnExport.innerHTML='📤';
-
+    const d = L.DomUtil.create('a','',wrap); d.href='#'; d.title='Mesurer distance (manuel)'; d.innerHTML='📏';
+    const a = L.DomUtil.create('a','',wrap); a.href='#'; a.title='Mesurer surface (manuel)'; a.innerHTML='▱';
+    const e = L.DomUtil.create('a','',wrap); e.href='#'; e.title='Exporter la mesure (GeoJSON)'; e.innerHTML='📤';
     L.DomEvent.disableClickPropagation(wrap);
-    L.DomEvent.on(btnDist,'click',L.DomEvent.stop).on(btnDist,'click',()=>startManual('dist',btnDist));
-    L.DomEvent.on(btnArea,'click',L.DomEvent.stop).on(btnArea,'click',()=>startManual('area',btnArea));
-    L.DomEvent.on(btnExport,'click',L.DomEvent.stop).on(btnExport,'click',()=>exportCurrentMeasure());
+    L.DomEvent.on(d,'click',L.DomEvent.stop).on(d,'click',()=>startManual('dist',d));
+    L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>startManual('area',a));
+    L.DomEvent.on(e,'click',L.DomEvent.stop).on(e,'click',()=>exportCurrentMeasure());
     return wrap;
   }
-});
-const manualCtrl = new ManualMeasure();
-map.addControl(manualCtrl);
+}); const manualCtrl = new ManualMeasure(); map.addControl(manualCtrl);
 
 let manualState = null;
-function resetManual(){
-  if(!manualState) return;
+function resetManual(){ if(!manualState) return;
   if (manualState.line) map.removeLayer(manualState.line);
   if (manualState.poly) map.removeLayer(manualState.poly);
   if (manualState.label) map.removeLayer(manualState.label);
   if (manualState.btn) manualState.btn.classList.remove('active');
-  map.getContainer().style.cursor='';
-  map.doubleClickZoom.enable();
-  map.off('click', onClickManual);
-  map.off('dblclick', finishManual);
-  map.off('contextmenu', finishManual);
-  manualState = null;
+  map.getContainer().style.cursor=''; map.doubleClickZoom.enable();
+  map.off('click', onClickManual); map.off('dblclick', finishManual); map.off('contextmenu', finishManual);
+  manualState=null;
 }
 function startManual(mode, btnOn){
   if (manualState?.mode===mode){ resetManual(); return; }
   resetManual(); stopGPS();
-  btnOn.classList.add('active');
-  manualState = {mode, pts:[], line:null, poly:null, label:null, btn:btnOn};
-  map.getContainer().style.cursor='crosshair';
-  map.doubleClickZoom.disable();
-  map.on('click', onClickManual);
-  map.on('dblclick', finishManual);
-  map.on('contextmenu', finishManual);
+  btnOn.classList.add('active'); manualState={mode, pts:[], line:null, poly:null, label:null, btn:btnOn};
+  map.getContainer().style.cursor='crosshair'; map.doubleClickZoom.disable();
+  map.on('click', onClickManual); map.on('dblclick', finishManual); map.on('contextmenu', finishManual);
 }
 function onClickManual(e){
-  const s = manualState; if(!s) return;
-  s.pts.push(e.latlng);
+  const s=manualState; if(!s) return; s.pts.push(e.latlng);
   if (s.mode==='dist'){
-    if (!s.line){ s.line = L.polyline([e.latlng], {color:'#1f78b4', weight:3, dashArray:'6,4'}).addTo(map); }
-    else { s.line.addLatLng(e.latlng); }
+    if (!s.line){ s.line=L.polyline([e.latlng],{color:'#1f78b4',weight:3,dashArray:'6,4'}).addTo(map); } else { s.line.addLatLng(e.latlng); }
     updateManualLabel(e.latlng, fmtLength(computeLengthMeters(s.pts)));
-  } else {
-    if (s.pts.length===1){
-      s.line = L.polyline([e.latlng], {color:'#33a02c', weight:3, dashArray:'6,4'}).addTo(map);
-    } else if (s.pts.length===2){
-      s.line.addLatLng(e.latlng);
-    } else {
-      if (!s.poly){ s.poly = L.polygon(s.pts, {color:'#33a02c', weight:2, fillOpacity:.15}).addTo(map); }
-      else { s.poly.setLatLngs([s.pts]); }
-      updateManualLabel(e.latlng, fmtArea(computeAreaM2(s.pts)));
-    }
+  }else{
+    if (s.pts.length===1){ s.line=L.polyline([e.latlng],{color:'#33a02c',weight:3,dashArray:'6,4'}).addTo(map); }
+    else if (s.pts.length===2){ s.line.addLatLng(e.latlng); }
+    else{ if (!s.poly){ s.poly=L.polygon(s.pts,{color:'#33a02c',weight:2,fillOpacity:.15}).addTo(map); } else { s.poly.setLatLngs([s.pts]); }
+      updateManualLabel(e.latlng, fmtArea(computeAreaM2(s.pts))); }
   }
 }
 function finishManual(){ resetManual(); }
 function updateManualLabel(latlng, text){
   if (manualState?.label) map.removeLayer(manualState.label);
-  manualState.label = L.tooltip({permanent:true, direction:'top', offset:[0,-10], className:'measure-label'})
-    .setLatLng(latlng).setContent(text).addTo(map);
+  manualState.label = L.tooltip({permanent:true, direction:'top', offset:[0,-10], className:'measure-label'}).setLatLng(latlng).setContent(text).addTo(map);
 }
 
-/* ===================== 7) Mesures GPS (📍📏 / 📍▱ + export 📤) ===================== */
+/* GPS measures */
 const GPSMeasure = L.Control.extend({
   options:{ position:'topleft' },
   onAdd: function(){
-    const wrap = L.DomUtil.create('div','leaflet-bar tool-btn');
-    const btnGDist = L.DomUtil.create('a','',wrap);
-    btnGDist.href='#'; btnGDist.title='Mesurer distance en suivant la géolocalisation'; btnGDist.innerHTML='📍📏';
-    const btnGArea = L.DomUtil.create('a','',wrap);
-    btnGArea.href='#'; btnGArea.title='Mesurer surface en suivant la géolocalisation'; btnGArea.innerHTML='📍▱';
-    const btnExport = L.DomUtil.create('a','',wrap);
-    btnExport.href='#'; btnExport.title='Exporter la mesure (GeoJSON)'; btnExport.innerHTML='📤';
-
-    L.DomEvent.disableClickPropagation(wrap);
-    L.DomEvent.on(btnGDist,'click',L.DomEvent.stop).on(btnGDist,'click',()=>startGPS('dist',btnGDist));
-    L.DomEvent.on(btnGArea,'click',L.DomEvent.stop).on(btnGArea,'click',()=>startGPS('area',btnGArea));
-    L.DomEvent.on(btnExport,'click',L.DomEvent.stop).on(btnExport,'click',()=>exportCurrentMeasure());
-    return wrap;
+    const w = L.DomUtil.create('div','leaflet-bar tool-btn');
+    const d = L.DomUtil.create('a','',w); d.href='#'; d.title='Mesurer distance (GPS)'; d.innerHTML='📍📏';
+    const a = L.DomUtil.create('a','',w); a.href='#'; a.title='Mesurer surface (GPS)'; a.innerHTML='📍▱';
+    const e = L.DomUtil.create('a','',w); e.href='#'; e.title='Exporter la mesure (GeoJSON)'; e.innerHTML='📤';
+    L.DomEvent.disableClickPropagation(w);
+    L.DomEvent.on(d,'click',L.DomEvent.stop).on(d,'click',()=>startGPS('dist',d));
+    L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>startGPS('area',a));
+    L.DomEvent.on(e,'click',L.DomEvent.stop).on(e,'click',()=>exportCurrentMeasure());
+    return w;
   }
-});
-const gpsCtrl = new GPSMeasure();
-map.addControl(gpsCtrl);
+}); const gpsCtrl=new GPSMeasure(); map.addControl(gpsCtrl);
 
-let gpsState = null;
-function stopGPS(){
-  if(!gpsState) return;
+let gpsState=null;
+function stopGPS(){ if(!gpsState) return;
   if (gpsState.watchId!=null) navigator.geolocation.clearWatch(gpsState.watchId);
   if (gpsState.line) map.removeLayer(gpsState.line);
   if (gpsState.poly) map.removeLayer(gpsState.poly);
   if (gpsState.label) map.removeLayer(gpsState.label);
   if (gpsState.btn) gpsState.btn.classList.remove('active');
-  gpsState = null;
-  map.off('contextmenu', stopGPS);
+  gpsState=null; map.off('contextmenu', stopGPS);
 }
-function startGPS(mode, btnOn){
+function startGPS(mode,btnOn){
   if (gpsState?.mode===mode){ stopGPS(); return; }
   stopGPS(); resetManual();
-  gpsState = {mode, pts:[], line:null, poly:null, label:null, btn:btnOn, watchId:null};
-  btnOn.classList.add('active');
+  gpsState={mode, pts:[], line:null, poly:null, label:null, btn:btnOn, watchId:null}; btnOn.classList.add('active');
   if (!('geolocation' in navigator)){ alert('Géolocalisation non disponible.'); stopGPS(); return; }
-  try{
-    gpsState.watchId = navigator.geolocation.watchPosition(onGPS, onGPSError, {
-      enableHighAccuracy:true, maximumAge:1000, timeout:20000
-    });
+  try{ gpsState.watchId = navigator.geolocation.watchPosition(onGPS, onGPSError, { enableHighAccuracy:true, maximumAge:1000, timeout:20000 });
     map.on('contextmenu', stopGPS);
   }catch(e){ alert('Impossible de démarrer la géolocalisation.'); stopGPS(); }
 }
 function onGPS(pos){
-  const { latitude, longitude } = pos.coords;
-  const ll = L.latLng(latitude, longitude);
-  const s = gpsState; if(!s) return;
-  if (s.pts.length){
-    const last = s.pts[s.pts.length-1];
-    const d = turf.distance([last.lng,last.lat], [ll.lng,ll.lat], {units:'meters'});
-    if (d < 3) return; // lissage
-  }
+  const { latitude, longitude } = pos.coords; const ll=L.latLng(latitude,longitude); const s=gpsState; if(!s) return;
+  if (s.pts.length){ const last=s.pts[s.pts.length-1]; const d=turf.distance([last.lng,last.lat],[ll.lng,ll.lat],{units:'meters'}); if (d<3) return; }
   s.pts.push(ll);
   if (s.mode==='dist'){
-    if (!s.line){ s.line = L.polyline([ll], {color:'#1f78b4', weight:3, dashArray:'6,4'}).addTo(map); }
-    else { s.line.addLatLng(ll); }
+    if (!s.line){ s.line=L.polyline([ll],{color:'#1f78b4',weight:3,dashArray:'6,4'}).addTo(map); } else { s.line.addLatLng(ll); }
     updateGPSLabel(ll, fmtLength(computeLengthMeters(s.pts)));
-  } else {
-    if (!s.poly){ s.poly = L.polygon(s.pts, {color:'#33a02c', weight:2, fillOpacity:.15}).addTo(map); }
-    else { s.poly.setLatLngs([s.pts]); }
+  }else{
+    if (!s.poly){ s.poly=L.polygon(s.pts,{color:'#33a02c',weight:2,fillOpacity:.15}).addTo(map); } else { s.poly.setLatLngs([s.pts]); }
     updateGPSLabel(ll, fmtArea(computeAreaM2(s.pts)));
   }
 }
 function onGPSError(err){ alert('Erreur géolocalisation : ' + (err?.message || err)); stopGPS(); }
 function updateGPSLabel(latlng, text){
   if (gpsState?.label) map.removeLayer(gpsState.label);
-  gpsState.label = L.tooltip({permanent:true, direction:'top', offset:[0,-10], className:'measure-label'})
-    .setLatLng(latlng).setContent(text).addTo(map);
+  gpsState.label = L.tooltip({permanent:true, direction:'top', offset:[0,-10], className:'measure-label'}).setLatLng(latlng).setContent(text).addTo(map);
 }
-
-/* ===================== 8) Export de la mesure courante (📤) ===================== */
 function exportCurrentMeasure(){
-  // Priorité à la mesure en cours (manuel sinon GPS)
-  let pts = null, mode = null;
-  if (manualState){ pts = manualState.pts; mode = manualState.mode; }
-  else if (gpsState){ pts = gpsState.pts; mode = gpsState.mode; }
-  if (!pts || pts.length < (mode==='area'?3:2)){
-    alert('Aucune mesure à exporter.\nCrée d’abord une distance (📏/📍📏) ou une surface (▱/📍▱).');
-    return;
-  }
+  let pts=null, mode=null;
+  if (manualState){ pts=manualState.pts; mode=manualState.mode; }
+  else if (gpsState){ pts=gpsState.pts; mode=gpsState.mode; }
+  if (!pts || pts.length < (mode==='area'?3:2)){ alert('Aucune mesure à exporter.'); return; }
   let gj;
   if (mode==='dist'){
-    gj = { type:'FeatureCollection', features:[{ type:'Feature',
-      properties:{ type:'measure_distance', date:new Date().toISOString() },
-      geometry:{ type:'LineString', coordinates: pts.map(ll=>[ll.lng, ll.lat]) }
-    }]};
-  } else {
-    const ring = [...pts.map(ll=>[ll.lng,ll.lat]), [pts[0].lng, pts[0].lat]];
-    gj = { type:'FeatureCollection', features:[{ type:'Feature',
-      properties:{ type:'measure_area', date:new Date().toISOString() },
-      geometry:{ type:'Polygon', coordinates:[ring] }
-    }]};
+    gj={ type:'FeatureCollection', features:[{ type:'Feature', properties:{ type:'measure_distance', date:new Date().toISOString() }, geometry:{ type:'LineString', coordinates: pts.map(ll=>[ll.lng,ll.lat]) } }]};
+  }else{
+    const ring=[...pts.map(ll=>[ll.lng,ll.lat]), [pts[0].lng,pts[0].lat]];
+    gj={ type:'FeatureCollection', features:[{ type:'Feature', properties:{ type:'measure_area', date:new Date().toISOString() }, geometry:{ type:'Polygon', coordinates:[ring] } }]};
   }
-  const blob = new Blob([JSON.stringify(gj)], {type:'application/geo+json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url;
-  a.download = (mode==='dist'?'mesure_distance':'mesure_surface')+'.geojson';
-  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  const blob=new Blob([JSON.stringify(gj)],{type:'application/geo+json'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download = (mode==='dist'?'mesure_distance':'mesure_surface')+'.geojson'; a.click(); URL.revokeObjectURL(url);
 }
 
-/* ===================== 9) ANNOTATIONS (💾 export unique + 🧹 vider) ===================== */
+/* Annotations + export/clear */
 const annotations = new L.FeatureGroup().addTo(map);
 layersControl.addOverlay(annotations, 'Annotations (dessins)');
-
 const drawControl = new L.Control.Draw({
   position:'topleft',
   edit: { featureGroup: annotations, poly:{allowIntersection:false}, remove:true },
-  draw: {
-    marker: { repeatMode:true },
-    polyline: { shapeOptions:{ color:'#ff7f00', weight:3 } },
-    polygon: { allowIntersection:false, showArea:true, shapeOptions:{ color:'#ff7f00', weight:2, fillOpacity:.2 } },
-    rectangle: false, circle:false, circlemarker:false
-  }
+  draw: { marker:{ repeatMode:true }, polyline:{ shapeOptions:{ color:'#ff7f00', weight:3 } },
+          polygon:{ allowIntersection:false, showArea:true, shapeOptions:{ color:'#ff7f00', weight:2, fillOpacity:.2 } },
+          rectangle:false, circle:false, circlemarker:false }
 });
 map.addControl(drawControl);
-
-// Persistance locale
-const ANNOS_KEY = 'sd40:annotations';
-function saveAnnotations(){
-  try{ localStorage.setItem(ANNOS_KEY, JSON.stringify(annotations.toGeoJSON())); }catch(_){}
-}
-function loadAnnotations(){
-  try{
-    const raw = localStorage.getItem(ANNOS_KEY); if(!raw) return;
-    const gj = JSON.parse(raw);
-    L.geoJSON(gj,{
-      style: ()=>({color:'#ff7f00', weight:2, fillOpacity:.2}),
-      pointToLayer: (_f,latlng)=> L.marker(latlng)
-    }).eachLayer(l => annotations.addLayer(l));
-  }catch(_){}
-}
+const ANNOS_KEY='sd40:annotations';
+function saveAnnotations(){ try{ localStorage.setItem(ANNOS_KEY, JSON.stringify(annotations.toGeoJSON())); }catch(_){ } }
+function loadAnnotations(){ try{ const raw=localStorage.getItem(ANNOS_KEY); if(!raw) return;
+  const gj=JSON.parse(raw); L.geoJSON(gj,{ style:()=>({color:'#ff7f00',weight:2,fillOpacity:.2}), pointToLayer:(_f,latlng)=>L.marker(latlng)}).eachLayer(l=>annotations.addLayer(l)); }catch(_){ } }
 loadAnnotations();
-
 map.on(L.Draw.Event.CREATED, e => { annotations.addLayer(e.layer); saveAnnotations(); });
 map.on(L.Draw.Event.EDITED,  () => saveAnnotations());
 map.on(L.Draw.Event.DELETED, () => saveAnnotations());
 
-// Contrôle export/clear pour ANNOTATIONS — UNIQUEMENT 💾 et 🧹
 const AnnoExport = L.Control.extend({
   options:{ position:'topleft' },
-  onAdd: function(){
-    const wrap = L.DomUtil.create('div','leaflet-bar tool-btn');
-    const btnSave = L.DomUtil.create('a','',wrap);
-    btnSave.href='#'; btnSave.title='Exporter les annotations (GeoJSON)'; btnSave.innerHTML='💾';
-    const btnClear = L.DomUtil.create('a','',wrap);
-    btnClear.href='#'; btnClear.title='Vider toutes les annotations'; btnClear.innerHTML='🧹';
-
-    L.DomEvent.disableClickPropagation(wrap);
-    L.DomEvent.on(btnSave,'click',L.DomEvent.stop).on(btnSave,'click',()=>{
-      if (annotations.getLayers().length===0){ alert('Aucune annotation.'); return; }
-      const gj = annotations.toGeoJSON();
-      const blob = new Blob([JSON.stringify(gj)], {type:'application/geo+json'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href=url; a.download='annotations.geojson';
-      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    });
-    L.DomEvent.on(btnClear,'click',L.DomEvent.stop).on(btnClear,'click',()=>{
-      if (!confirm('Supprimer toutes les annotations ?')) return;
-      annotations.clearLayers(); saveAnnotations();
-    });
-    return wrap;
+  onAdd:function(){
+    const w=L.DomUtil.create('div','leaflet-bar tool-btn');
+    const s=L.DomUtil.create('a','',w); s.href='#'; s.title='Exporter annotations (GeoJSON)'; s.innerHTML='💾';
+    const c=L.DomUtil.create('a','',w); c.href='#'; c.title='Vider toutes les annotations'; c.innerHTML='🧹';
+    L.DomEvent.disableClickPropagation(w);
+    L.DomEvent.on(s,'click',L.DomEvent.stop).on(s,'click',()=>{ if (annotations.getLayers().length===0){ alert('Aucune annotation.'); return; }
+      const gj=annotations.toGeoJSON(); const blob=new Blob([JSON.stringify(gj)],{type:'application/geo+json'}); const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download='annotations.geojson'; a.click(); URL.revokeObjectURL(url); });
+    L.DomEvent.on(c,'click',L.DomEvent.stop).on(c,'click',()=>{ if (!confirm('Supprimer toutes les annotations ?')) return; annotations.clearLayers(); saveAnnotations(); });
+    return w;
   }
-});
-const annoCtrl = new AnnoExport();
-map.addControl(annoCtrl);
+}); const annoCtrl=new AnnoExport(); map.addControl(annoCtrl);
 
-/* ===================== 10) Bouton “🏠 Landes” ===================== */
+/* Home Landes */
 const HomeControl = L.Control.extend({
   options:{ position:'topright' },
-  onAdd: function(){
-    const d = L.DomUtil.create('div','leaflet-bar tool-btn');
-    const a = L.DomUtil.create('a','',d);
+  onAdd:function(){ const d=L.DomUtil.create('div','leaflet-bar tool-btn'); const a=L.DomUtil.create('a','',d);
     a.href='#'; a.title='Recentrer sur Landes'; a.innerHTML='🏠';
-    L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>{
-      if (maskBounds && maskBounds.isValid()) map.fitBounds(maskBounds,{padding:[20,20]});
-      else map.setView([43.85,-0.7],9);
-    });
-    return d;
-  }
-});
-map.addControl(new HomeControl());
+    L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>{ if (maskBounds && maskBounds.isValid()) map.fitBounds(maskBounds,{padding:[20,20]}); else map.setView([43.85,-0.7],9); });
+    return d; }
+}); map.addControl(new HomeControl());
 
-/* ===================== 11) TOGGLE “🧰 Outils” (masquer/afficher mesures + annotations) ===================== */
-const TOOLS = { visible:true, containers:[] };
-function registerTool(ctrl){
-  // enregistre le conteneur d’un contrôle pour le masquer/afficher ensemble
-  if (ctrl && ctrl._container) TOOLS.containers.push(ctrl._container);
-}
-function setToolsVisible(v){
-  TOOLS.visible = v;
-  for (const el of TOOLS.containers){ if (el) el.style.display = v ? '' : 'none'; }
-  try{ localStorage.setItem('sd40:toolsVisible', v ? '1' : '0'); }catch(_){}
-}
+/* Switch global outils */
 const ToolsToggle = L.Control.extend({
-  options:{ position:'topright' },
-  onAdd:function(){
-    const d = L.DomUtil.create('div','leaflet-bar tool-btn');
-    const a = L.DomUtil.create('a','',d);
-    a.href='#'; a.title='Afficher/masquer les outils (mesures + annotations)'; a.innerHTML='🧰';
-    L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>{
-      setToolsVisible(!TOOLS.visible);
-      a.classList.toggle('active', TOOLS.visible);
+  options:{ position:'topleft' },
+  onAdd:function(){ const w=L.DomUtil.create('div','tools-toggle leaflet-control'); const b=L.DomUtil.create('button','',w); b.type='button'; b.title='Afficher/masquer les outils'; b.innerHTML='🧰 Outils';
+    L.DomEvent.on(b,'click',L.DomEvent.stop).on(b,'click',()=>{ document.body.classList.toggle('tools-hidden'); });
+    return w; }
+}); map.addControl(new ToolsToggle());
+
+/* ===================== 4) PROCÉDURE – DATASETS & UI ===================== */
+const $ = (s)=>document.querySelector(s); const $$ = (s)=>document.querySelectorAll(s);
+let IOTA=[], NATINF=[];
+const DEMO_IOTA=[ {code:"3.2.3.0", titre:"Plans d’eau (permanents ou non)"},
+                  {code:"3.1.4.0", titre:"Consolidation/protection de berges (techniques non végétales)"},
+                  {code:"3.3.1.0", titre:"Zones humides : assèchement, mise en eau, remblais"} ];
+const DEMO_NATINF=[ {natinf:"32673", intitule:"Non-respect d'une prescription attachée à une déclaration IOTA", type:"C5"},
+                    {natinf:"35151", intitule:"Exploitation non autorisée d’une installation/ouvrage nuisible à l’eau avec atteinte grave", type:"DÉLIT"},
+                    {natinf:"32877", intitule:"Utilisation professionnelle sans certificat individuel (phyto)", type:"C5"} ];
+
+async function loadJSON(u){ const r=await fetch(u); if(!r.ok) throw new Error(u); return r.json(); }
+(async()=>{
+  try{
+    [IOTA,NATINF] = await Promise.all([
+      loadJSON('data/iota_rubriques_2025-11-09.json').catch(()=>DEMO_IOTA),
+      loadJSON('data/natinf_env_2023-10.json').catch(()=>DEMO_NATINF)
+    ]);
+  }catch(e){ IOTA=DEMO_IOTA; NATINF=DEMO_NATINF; console.warn('Datasets manquants, mode DEMO:', e); }
+  initProc();
+})();
+
+function initProc(){
+  const proc = $('#proc');
+  $('#btnProcOpen').onclick = ()=>{ proc.hidden=false; };
+  $('#btnProcClose').onclick = ()=>{ proc.hidden=true; };
+
+  // Onglets
+  $$('.proc-tabs button').forEach(b=>{
+    b.onclick = ()=>{
+      $$('.proc-tabs button').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      const tab=b.dataset.tab;
+      $$('.tab').forEach(x=>x.hidden=(x.id!=='tab-'+tab));
+    };
+  });
+
+  // IOTA search
+  const iotaList = $('#iotaList');
+  function renderIota(q=''){
+    q=q.trim().toLowerCase();
+    const out = IOTA.filter(x=> x.code?.includes(q) || x.titre?.toLowerCase().includes(q));
+    iotaList.innerHTML = out.map(x=>`<div class="row" style="padding:4px 0">
+      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
+        <input type="radio" name="iotaPick" value="${x.code}">
+        <div><b>${x.code}</b> — ${x.titre}</div>
+      </label>
+    </div>`).join('') || '<em>Aucune rubrique</em>';
+    iotaList.querySelectorAll('input[name=iotaPick]').forEach(r=>{
+      r.onchange = ()=>{
+        $('#ftRefIota').value = r.value;
+        $('#valRubrique').value = r.value;
+        buildValParams(); // refresh validator params
+      };
     });
-    return d;
   }
-});
-const toolsToggleCtrl = new ToolsToggle();
-map.addControl(toolsToggleCtrl);
+  renderIota();
+  $('#iotaSearch').oninput = (e)=>renderIota(e.target.value);
 
-// Enregistrer les contrôles “outils” à masquer/afficher
-registerTool(manualCtrl);
-registerTool(gpsCtrl);
-registerTool(annoCtrl);
-registerTool(drawControl);
+  // NATINF helpers
+  function norm(s){ return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
+  function pickNatinf(listEl, arr){
+    listEl.innerHTML = arr.slice(0,200).map(n=>`<div class="row" style="padding:4px 0">
+      <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
+        <input type="radio" name="${listEl.id}-pick" value="${n.natinf}">
+        <div><b>${n.natinf}</b> — ${n.intitule} ${n.type?`<span class="badge">${n.type}</span>`:''}</div>
+      </label>
+    </div>`).join('') || '<em>Aucun résultat</em>';
+    listEl.querySelectorAll('input[type=radio]').forEach(r=>{
+      r.onchange = ()=>{ $('#ftRefNatinf').value = r.value; };
+    });
+  }
+  // BCAE
+  const BCAE_KEYS = ['bcae','zone humide','drainage','nitrates','programme d\'action','bande tampon','haie','prairie'];
+  const bcaeList = $('#bcaeList');
+  function filterBCAE(q){ const n=norm(q); return NATINF.filter(nf=>{ const t=norm(nf.intitule); return BCAE_KEYS.some(k=>t.includes(norm(k))) || t.includes(n); }); }
+  $('#bcaeSearch').oninput = (e)=> pickNatinf(bcaeList, filterBCAE(e.target.value)); pickNatinf(bcaeList, filterBCAE('zone humide'));
 
-// État initial : sur petit écran → outils masqués par défaut (mémorisé ensuite)
-const initial = (localStorage.getItem('sd40:toolsVisible') ?? (window.matchMedia('(max-width:768px)').matches ? '0' : '1')) === '1';
-setToolsVisible(initial);
+  // Phyto
+  const PHYTO_KEYS = ['phytopharmaceutique','phytosanitaire','certificat individuel','neonicotinoide','amm','znt','biocide'];
+  const phytoList = $('#phytoList');
+  function filterPHYTO(q){ const n=norm(q); return NATINF.filter(nf=>{ const t=norm(nf.intitule); return PHYTO_KEYS.some(k=>t.includes(norm(k))) || t.includes(n); }); }
+  $('#phytoSearch').oninput = (e)=> pickNatinf(phytoList, filterPHYTO(e.target.value)); pickNatinf(phytoList, filterPHYTO('phytopharmaceutique'));
 
-/* ===================== 12) Utils ===================== */
+  // Autre
+  const autreList = $('#autreList');
+  $('#autreSearch').oninput = (e)=>{ const q=norm(e.target.value); const out=NATINF.filter(nf=> norm(nf.intitule).includes(q) || (nf.natinf||'').includes(q)); pickNatinf(autreList, out); };
+
+  // Badge lat/lng
+  function updateLatLngBadge(ll){ $('#ftLatLng').textContent = ll ? `Lat ${ll.lat.toFixed(5)} / Lng ${ll.lng.toFixed(5)}` : '—'; }
+  map.on('click', (e)=> updateLatLngBadge(e.latlng));
+  try{ updateLatLngBadge(map.getCenter()); }catch(_){}
+
+  // Complétude rudimentaire
+  function evalScore(){ const f=[ $('#ftTitre').value, $('#ftDesc').value, $('#ftRefIota').value, $('#ftRefNatinf').value ]; const n=f.filter(x=>String(x||'').trim().length>0).length;
+    $('#ftScore').textContent = (n>=4? 'OK (4/4)': n+'/4'); }
+  ['#ftTitre','#ftDesc','#ftRefIota','#ftRefNatinf'].forEach(sel=> $(sel).addEventListener('input', evalScore)); evalScore();
+
+  // Exports
+  $('#btnProcGJ').onclick = ()=>{
+    const ll = map.getCenter();
+    const props = { titre:$('#ftTitre').value, lieu:$('#ftLieu').value, desc:$('#ftDesc').value, iota:$('#ftRefIota').value, natinf:$('#ftRefNatinf').value, date:new Date().toISOString() };
+    const gj = { type:'FeatureCollection', features:[{ type:'Feature', properties:props, geometry:{ type:'Point', coordinates:[ll.lng,ll.lat] } }]};
+    const blob = new Blob([JSON.stringify(gj)], {type:'application/geo+json'});
+    const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href = url; a.download = 'fiche-terrain.geojson'; a.click(); URL.revokeObjectURL(url);
+  };
+
+  $('#btnProcPDF').onclick = async ()=>{
+    const { jsPDF } = window.jspdf; const pdf = new jsPDF({unit:'pt', format:'a4'});
+    pdf.setFontSize(14); pdf.text('FICHE TERRAIN – Procédure', 40, 40);
+    pdf.setFontSize(11);
+    const lines = [
+      `Titre : ${$('#ftTitre').value || ''}`,
+      `Lieu  : ${$('#ftLieu').value || ''}`,
+      `IOTA  : ${$('#ftRefIota').value || ''}`,
+      `NATINF: ${$('#ftRefNatinf').value || ''}`,
+      `Date  : ${new Date().toLocaleString()}`
+    ];
+    lines.forEach((t,i)=> pdf.text(t, 40, 70 + i*16));
+    // Résultat validateur si dispo
+    const res = $('#valResult').textContent || '—';
+    const trace = $('#valTrace').textContent || '';
+    pdf.text(`Validateur IOTA : ${res}`, 40, 170);
+    pdf.setFont('courier','normal'); pdf.setFontSize(9);
+    pdf.text((trace||'').substring(0,2200), 40, 186, { maxWidth:520, lineHeightFactor:1.2 });
+    pdf.setFont('helvetica','normal'); pdf.setFontSize(11);
+
+    // Bloc constats
+    const desc = $('#ftDesc').value || '';
+    const wrapped = pdf.splitTextToSize(desc, 520);
+    pdf.text('Constats :', 40, 320);
+    pdf.text(wrapped, 40, 338);
+
+    // Capture carte (aperçu)
+    try{
+      const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, scale:1});
+      const img = canvas.toDataURL('image/jpeg', 0.85);
+      const w = 520, h = w * (canvas.height/canvas.width);
+      pdf.addPage(); pdf.text('Localisation – aperçu carte', 40, 40);
+      pdf.addImage(img, 'JPEG', 40, 60, w, Math.min(h, 680));
+    }catch(_){ /* non bloquant */ }
+
+    pdf.save('fiche-terrain.pdf');
+  };
+
+  /* ===== VALIDATEUR IOTA ===== */
+  // Règles par défaut (EXEMPLES — à ajuster). Tu peux les modifier via ⚙️ et c’est stocké en localStorage.
+  const RULES_KEY='sd40:iota_rules_v1';
+  const DEFAULT_RULES = {
+    "3.2.3.0": {
+      "label": "Plans d’eau",
+      "params": [
+        {"id":"surface_m2","label":"Surface du plan d’eau (m²)","type":"number"},
+        {"id":"volume_m3","label":"Volume (m³)","type":"number"}
+      ],
+      "logic": [
+        {"if":"surface_m2 >= 10000 || volume_m3 >= 10000","regime":"A","ref":"Seuils EXEMPLE – à configurer"},
+        {"if":"surface_m2 >= 1000 || volume_m3 >= 1000","regime":"D","ref":"Seuils EXEMPLE"},
+        {"else":"HN"}
+      ]
+    },
+    "3.1.4.0": {
+      "label":"Consolidation/protection de berges (non végétal)",
+      "params":[ {"id":"longueur_m","label":"Longueur traitée (m)","type":"number"} ],
+      "logic":[
+        {"if":"longueur_m >= 200","regime":"A","ref":"EXEMPLE"},
+        {"if":"longueur_m >= 20","regime":"D","ref":"EXEMPLE"},
+        {"else":"HN"}
+      ]
+    },
+    "3.3.1.0": {
+      "label":"Zones humides : assèchement / mise en eau / remblais",
+      "params":[ {"id":"surface_m2","label":"Surface affectée (m²)","type":"number"} ],
+      "logic":[
+        {"if":"surface_m2 >= 10000","regime":"A","ref":"EXEMPLE"},
+        {"if":"surface_m2 >= 1000","regime":"D","ref":"EXEMPLE"},
+        {"else":"HN"}
+      ]
+    },
+    "1.2.1.0": {
+      "label":"Prélèvements en cours d’eau / plan alimenté",
+      "params":[ {"id":"debit_l_s","label":"Débit maximal (L/s)","type":"number"} ],
+      "logic":[
+        {"if":"debit_l_s >= 80","regime":"A","ref":"EXEMPLE"},
+        {"if":"debit_l_s >= 8","regime":"D","ref":"EXEMPLE"},
+        {"else":"HN"}
+      ]
+    }
+  };
+
+  function getRules(){ try{ const raw=localStorage.getItem(RULES_KEY); if (raw) return JSON.parse(raw); }catch(_){ } return DEFAULT_RULES; }
+  function setRules(obj){ try{ localStorage.setItem(RULES_KEY, JSON.stringify(obj)); }catch(_){ } }
+
+  function buildValParams(){
+    const code = ($('#valRubrique').value||'').trim();
+    const rules = getRules();
+    const def = rules[code];
+    const cont = $('#valParams');
+    cont.innerHTML = '';
+    if (!def){ cont.innerHTML = '<em>Aucune règle définie pour cette rubrique. Clique “⚙️ Règles IOTA”.</em>'; return; }
+    def.params?.forEach(p=>{
+      const wrap=document.createElement('div');
+      const lab=document.createElement('label'); lab.textContent=p.label; lab.style.fontSize='13px';
+      const inp=document.createElement('input'); inp.type=p.type||'text'; inp.id='param_'+p.id; inp.placeholder=p.label;
+      wrap.appendChild(lab); wrap.appendChild(inp); cont.appendChild(wrap);
+    });
+  }
+
+  $('#valRubrique').addEventListener('input', buildValParams);
+  $('#valGeom').addEventListener('change', ()=>{}); // hook si besoin plus tard
+  buildValParams();
+
+  function evalLogic(expr, ctx){
+    // Sécurisé : on évalue uniquement expressions arithmétiques/logiques simples
+    // Remplace identifiants par leurs valeurs numériques
+    const safe = expr.replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, (id)=> (id in ctx ? String(ctx[id]??0) : id))
+                     .replace(/[^0-9<>=!&|().+*\-\/ %]/g,''); // garde opérateurs de base
+    try{ /* eslint no-eval: off */ return !!eval(safe); }catch(_){ return false; }
+  }
+
+  $('#btnEval').onclick = ()=>{
+    const code = ($('#valRubrique').value||'').trim();
+    const rules = getRules(); const def = rules[code];
+    if (!def){ $('#valResult').textContent='Règle manquante'; $('#valTrace').textContent=''; return; }
+    const ctx={};
+    (def.params||[]).forEach(p=>{
+      const v=parseFloat(($('#param_'+p.id)?.value||'').replace(',','.'));
+      ctx[p.id] = isFinite(v)? v : 0;
+    });
+    // Ajout des métriques mesurées sur la carte si on a une dernière mesure manuelle/GPS
+    // (ici, simplifié : à implémenter si tu veux récupérer la dernière polyline/polygone)
+    let decision='HN', ref='';
+    const trace=[];
+    for (const rule of def.logic||[]){
+      if (rule.if){
+        const ok=evalLogic(rule.if, ctx);
+        trace.push(`IF ${rule.if} → ${ok?'VRAI':'FAUX'}`);
+        if (ok){ decision=rule.regime||'HN'; ref=rule.ref||''; break; }
+      }else if (rule.else){
+        decision=rule.else; ref=rule.ref||''; trace.push('ELSE');
+        break;
+      }
+    }
+    $('#valResult').textContent = decision;
+    $('#valTrace').textContent = `${def.label||code}\n${trace.join('\n')}${ref?'\nREF: '+ref:''}`;
+    // Recopie dans la fiche
+    if (!$('#ftRefIota').value) $('#ftRefIota').value = code;
+  };
+
+  // Règles – éditeur simple
+  $('#btnRules').onclick = ()=>{
+    const now = JSON.stringify(getRules(), null, 2);
+    const txt = prompt('Édite les règles (JSON)\nATTENTION : résultats indicatifs – vérifier avec R.214-1.\n\nExemple logique : "if": "surface_m2 >= 1000", "regime":"D"', now);
+    if (!txt) return;
+    try{ const obj=JSON.parse(txt); setRules(obj); alert('Règles enregistrées.'); buildValParams(); }
+    catch(e){ alert('JSON invalide : '+e.message); }
+  };
+}
+
+/* ===================== 5) Utils ===================== */
 proj4.defs('EPSG:2154', '+proj=lcc +lat_1=49 +lat_2=44 +lat_0=46.5 +lon_0=3 +x_0=700000 +y_0=6600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs');
-function computeLengthMeters(latlngs){
-  if (latlngs.length<2) return 0;
-  const line = turf.lineString(latlngs.map(ll=>[ll.lng,ll.lat]));
-  return turf.length(line,{units:'kilometers'})*1000;
-}
-function computeAreaM2(latlngs){
-  if (latlngs.length<3) return 0;
-  const ring = [...latlngs.map(ll=>[ll.lng,ll.lat]), [latlngs[0].lng, latlngs[0].lat]];
-  return turf.area(turf.polygon([ring]));
-}
+function computeLengthMeters(latlngs){ if (latlngs.length<2) return 0; const line=turf.lineString(latlngs.map(ll=>[ll.lng,ll.lat])); return turf.length(line,{units:'kilometers'})*1000; }
+function computeAreaM2(latlngs){ if (latlngs.length<3) return 0; const ring=[...latlngs.map(ll=>[ll.lng,ll.lat]), [latlngs[0].lng,latlngs[0].lat]]; return turf.area(turf.polygon([ring])); }
 function fmtLength(m){ return m<1000 ? `${m.toFixed(1)} m` : `${(m/1000).toFixed(3)} km`; }
-function fmtArea(m2){
-  if (m2<10000) return `${m2.toFixed(0)} m²`;
-  const ha=m2/10000; if (ha<100) return `${ha.toFixed(2)} ha`;
-  return `${(m2/1e6).toFixed(3)} km²`;
-}
+function fmtArea(m2){ if (m2<10000) return `${m2.toFixed(0)} m²`; const ha=m2/10000; if (ha<100) return `${ha.toFixed(2)} ha`; return `${(m2/1e6).toFixed(3)} km²`; }
 </script>
 </body>
 </html>
