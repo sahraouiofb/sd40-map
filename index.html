@@ -5,6 +5,7 @@
 <title>SD40 – Carte + Procédure (IOTA/BCAE/Phyto + NATINF + Validateur)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
+<!-- Leaflet & plugins CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
@@ -120,7 +121,7 @@
     <div class="tab" id="tab-iota">
       <div class="proc-row"><input id="iotaSearch" placeholder="Rechercher rubrique (ex : 3.2.3.0, ‘plans d’eau’)" /></div>
       <div id="iotaList"></div>
-      <div class="note">Cliquer une rubrique la copie dans la fiche et dans le validateur. Appui long sur ⚙️ pour réinitialiser les règles.</div>
+      <div class="note">Cliquer une rubrique la copie dans la fiche et dans le validateur. Appui long sur ⚙️ pour réinitialiser les règles (pack officiel).</div>
     </div>
 
     <!-- BCAE -->
@@ -182,6 +183,7 @@
   <button id="btnProcOpen" class="layer-toggle-btn" type="button"><span class="icon">🗂️</span><span class="label">Procédure</span></button>
 </div>
 
+<!-- JS libs -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
@@ -201,6 +203,9 @@
 
   /* ---- Procédure : open/close robuste ---- */
   const PROC_KEY='sd40:procVisible';
+  const RULES_KEY='sd40:iota_rules_v1';
+  let PACK_RULES=null;
+
   const procEl = $('#proc');
   const btnOpen = $('#btnProcOpen');
   const btnClose = $('#btnProcClose');
@@ -338,7 +343,6 @@
     }catch(err){ console.warn(`ERR ${name}:`, err); }
   }
   // ⚠️ pas de préchargement du masque pour éviter un 404 au démarrage
-
   map.on('overlayadd', async (e)=>{ const name = Object.keys(layerGroups).find(k => layerGroups[k]===e.layer); if (name) await ensureLayerLoaded(name);
     try{ if (e?.layer?.getBounds){ const b=e.layer.getBounds(); if (b && b.isValid()) map.fitBounds(b,{padding:[20,20]}); } }catch(_){}
   });
@@ -458,8 +462,8 @@
     gpsState.label = L.tooltip({permanent:true, direction:'top', offset:[0,-10], className:'measure-label'})
       .setLatLng(latlng).setContent(text).addTo(map);
     if (gpsState){
-      if (gpsState.mode==='dist'){ lastMeasure.length_m = computeLengthMeters(gpsState.pts); lastMeasure.area_m2 = 0; }
-      else { lastMeasure.area_m2  = computeAreaM2(gpsState.pts); lastMeasure.length_m = computeLengthMeters(gpsState.pts); }
+      if (gpsState.mode==='dist'){ lastMeasure.length_m = turf.length(turf.lineString(gpsState.pts.map(p=>[p.lng,p.lat])), {units:'kilometers'})*1000; lastMeasure.area_m2 = 0; }
+      else { lastMeasure.area_m2  = computeAreaM2(gpsState.pts); lastMeasure.length_m = turf.length(turf.lineString(gpsState.pts.map(p=>[p.lng,p.lat])), {units:'kilometers'})*1000; }
       pushMeasureToValidator(true);
     }
   }
@@ -555,13 +559,26 @@
                       {natinf:"32877", intitule:"Utilisation professionnelle sans certificat individuel (phyto)", type:"C5"} ];
 
   async function loadJSON(u){ const r=await fetch(u); if(!r.ok) throw new Error(u); return r.json(); }
+
+  // Charge PACK officiel (iota + rules) + NATINF ; sinon fallback démo
   (async()=>{
     try{
-      [IOTA,NATINF] = await Promise.all([
-        loadJSON('data/iota_rubriques_2025-11-09.json').catch(()=>DEMO_IOTA),
+      const [pack, natinf] = await Promise.all([
+        loadJSON('data/iota_rules_officiels.json').catch(()=>null),
         loadJSON('data/natinf_env_2023-10.json').catch(()=>DEMO_NATINF)
       ]);
-    }catch(e){ IOTA=DEMO_IOTA; NATINF=DEMO_NATINF; console.warn('Datasets manquants, mode DEMO:', e); }
+      NATINF = natinf || DEMO_NATINF;
+
+      if (pack){
+        if (Array.isArray(pack.iota)) IOTA = pack.iota; else IOTA = DEMO_IOTA;
+        if (pack.rules){ PACK_RULES = pack.rules; localStorage.setItem(RULES_KEY, JSON.stringify(pack.rules)); }
+      }else{
+        IOTA = DEMO_IOTA;
+      }
+    }catch(e){
+      console.warn('Chargement des packs OFFICIELS impossible, mode DEMO', e);
+      IOTA=DEMO_IOTA; NATINF=DEMO_NATINF;
+    }
     initProc();
   })();
 
@@ -604,7 +621,7 @@
     const iotaList = $('#iotaList');
     function renderIota(q=''){
       q=q.trim().toLowerCase();
-      const out = IOTA.filter(x=> x.code?.includes(q) || x.titre?.toLowerCase().includes(q));
+      const out = IOTA.filter(x=> (x.code||'').includes(q) || (x.titre||'').toLowerCase().includes(q));
       iotaList.innerHTML = out.map(x=>`<div class="row" style="padding:4px 0">
         <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
           <input type="radio" name="iotaPick" value="${x.code}">
@@ -702,75 +719,15 @@
     });
 
     /* ===== VALIDATEUR IOTA ===== */
-    const RULES_KEY='sd40:iota_rules_v1';
-
-    // -- RÈGLES OFFICIelles de base (unités adaptées au validateur)
-    const OFFICIAL_RULES = {
-      "3.2.3.0": {
-        "label": "Plans d’eau (permanents ou non)",
-        "params": [ {"id":"surface_m2","label":"Surface du plan d’eau (m²)","type":"number"} ],
-        "logic": [
-          {"if":"surface_m2 >= 30000","regime":"A","ref":"R.214-1 3.2.3.0 (A ≥ 3 ha)"},
-          {"if":"surface_m2 > 1000 && surface_m2 < 30000","regime":"D","ref":"R.214-1 3.2.3.0 (0,1–3 ha)"},
-          {"else":"HN"}
-        ]
-      },
-      "3.1.4.0": {
-        "label":"Consolidation/protection des berges (techniques non végétales)",
-        "params":[ {"id":"longueur_m","label":"Longueur traitée (m)","type":"number"} ],
-        "logic":[
-          {"if":"longueur_m >= 200","regime":"A","ref":"R.214-1 3.1.4.0 (A ≥ 200 m)"},
-          {"if":"longueur_m >= 20 && longueur_m < 200","regime":"D","ref":"R.214-1 3.1.4.0 (20–200 m)"},
-          {"else":"HN"}
-        ]
-      },
-      "3.3.1.0": {
-        "label":"Zones humides : assèchement / mise en eau / imperméabilisation / remblais",
-        "params":[ {"id":"surface_m2","label":"Surface affectée (m²)","type":"number"} ],
-        "logic":[
-          {"if":"surface_m2 >= 10000","regime":"A","ref":"R.214-1 3.3.1.0 (A ≥ 1 ha)"},
-          {"if":"surface_m2 > 1000 && surface_m2 < 10000","regime":"D","ref":"R.214-1 3.3.1.0 (0,1–1 ha)"},
-          {"else":"HN"}
-        ]
-      },
-      "3.3.2.0": {
-        "label":"Drainage (surface drainée)",
-        "params":[ {"id":"surface_drainee_m2","label":"Surface drainée (m²)","type":"number"} ],
-        "logic":[
-          {"if":"surface_drainee_m2 >= 1000000","regime":"A","ref":"R.214-1 3.3.2.0 (A ≥ 100 ha)"},
-          {"if":"surface_drainee_m2 > 200000 && surface_drainee_m2 < 1000000","regime":"D","ref":"R.214-1 3.3.2.0 (20–100 ha)"},
-          {"else":"HN"}
-        ]
-      },
-      "3.1.3.0": {
-        "label":"Impact sensible sur la luminosité (longueur affectée)",
-        "params":[ {"id":"longueur_m","label":"Longueur (m)","type":"number"} ],
-        "logic":[
-          {"if":"longueur_m >= 100","regime":"A","ref":"R.214-1 3.1.3.0 (A ≥ 100 m)"},
-          {"if":"longueur_m >= 10 && longueur_m < 100","regime":"D","ref":"R.214-1 3.1.3.0 (10–100 m)"},
-          {"else":"HN"}
-        ]
-      },
-      "1.2.1.0": {
-        "label":"Prélèvements en cours d’eau / nappe d’accompagnement / plan/canal alimenté",
-        "params":[
-          {"id":"capacite_m3_h","label":"Capacité maximale (m³/h)","type":"number"},
-          {"id":"part_pct_debit","label":"Part du débit du cours d’eau (%)","type":"number"}
-        ],
-        "logic":[
-          {"if":"capacite_m3_h >= 1000 || part_pct_debit >= 5","regime":"A","ref":"R.214-1 1.2.1.0 (A ≥ 1000 m³/h ou ≥ 5 %)"},
-          {"if":"(capacite_m3_h >= 400 && capacite_m3_h < 1000) || (part_pct_debit >= 2 && part_pct_debit < 5)","regime":"D","ref":"R.214-1 1.2.1.0 (400–1000 m³/h ou 2–5 %)"},
-          {"else":"HN"}
-        ]
-      }
-    };
-
     function getRules(){
       try{ const raw=localStorage.getItem(RULES_KEY); if (raw) return JSON.parse(raw); }catch(_){}
-      return OFFICIAL_RULES;
+      return {}; // si pas de pack : affichera “Aucune règle...”
     }
     function setRules(obj){ try{ localStorage.setItem(RULES_KEY, JSON.stringify(obj)); }catch(_){ } }
-    function resetRules(){ try{ localStorage.removeItem(RULES_KEY);}catch(_){} }
+    function resetRules(){
+      if (PACK_RULES){ setRules(PACK_RULES); }
+      else { try{ localStorage.removeItem(RULES_KEY);}catch(_){} }
+    }
 
     function buildValParams(){
       const code = ($('#valRubrique').value||'').trim();
@@ -821,7 +778,7 @@
       catch(e){ alert('JSON invalide : '+e.message); }
     });
     let rulesPressTimer=null;
-    $('#btnRules').addEventListener('mousedown', ()=>{ rulesPressTimer = setTimeout(()=>{ resetRules(); alert('Règles réinitialisées (officielles).'); buildValParams(); }, 800); });
+    $('#btnRules').addEventListener('mousedown', ()=>{ rulesPressTimer = setTimeout(()=>{ resetRules(); alert('Règles réinstallées (pack officiel).'); buildValParams(); }, 800); });
     ['mouseup','mouseleave'].forEach(ev=> $('#btnRules').addEventListener(ev, ()=>{ if (rulesPressTimer){ clearTimeout(rulesPressTimer); rulesPressTimer=null; } }));
   }
 
@@ -836,4 +793,3 @@
 </script>
 </body>
 </html>
-
