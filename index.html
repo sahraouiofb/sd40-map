@@ -14,13 +14,13 @@
   html,body,#map{height:100%;margin:0}
   [hidden]{display:none !important}
 
-  /* ===== Liste des couches ===== */
+  /* ===== Liste des couches — large et tactile ===== */
   .leaflet-control-layers-expanded{max-height:70vh;overflow:auto}
   .leaflet-control-layers .leaflet-control-layers-list label{
     display:flex; align-items:center; gap:10px; line-height:1.3;
     padding:6px 8px; font-size:14px;
   }
-  .leaflet-control-layers-overlays input[type="checkbox"]{width:18px;height:18px}
+  .leaflet-control-layers-overlays input[type="checkbox"]{width:18px;height:18px;margin-left:0}
   @media (max-width:820px){
     .leaflet-control-layers{
       position:fixed; top:56px; right:8px; left:8px; z-index:2000; width:auto; max-width:none;
@@ -153,7 +153,6 @@
         <span id="valResult" class="pill">—</span>
       </div>
       <div id="valTrace" class="mono"></div>
-      <div class="note">Résultat indicatif, à vérifier avec les textes en vigueur.</div>
     </div>
 
     <hr>
@@ -172,13 +171,14 @@
   </div>
 
   <div class="proc-actions">
+    <button id="btnResetAll" type="button" style="margin-right:auto">Remettre à zéro</button>
     <button id="btnProcPDF" type="button">Exporter PDF</button>
     <button id="btnProcGJ"  type="button">Exporter GeoJSON</button>
   </div>
 </div>
 
-<!-- Bouton flottant Procédure -->
-<div class="layer-toggle-wrap leaflet-control" style="position:absolute;right:10px;top:10px;z-index:3000;">
+<!-- Bouton flottant Procédure (décalé pour ne pas chevaucher “Couches”) -->
+<div class="layer-toggle-wrap leaflet-control" style="position:absolute;right:10px;top:60px;z-index:3000;">
   <button id="btnProcOpen" class="layer-toggle-btn" type="button"><span class="icon">🗂️</span><span class="label">Procédure</span></button>
 </div>
 
@@ -674,7 +674,7 @@
     const t = feature?.geometry?.type || '';
     if (t==='Point' || t==='MultiPoint') return {radius:5, fillColor:'#e31a1c', color:'#ffffff', weight:1, opacity:1, fillOpacity:.85};
     if (t.includes('Line')) return {color:'#1f78b4', weight:2, opacity:.95};
-    return {color:'#33a02c', weight:1, opacity:.95, fillOpacity:.25};
+    return {color:'#33a02c', weight:2, opacity:.95, fillOpacity:.25};
   }
   function toTitle(s){ return s.replace(/_/g,' ').replace(/\s+/g,' ').toLowerCase().replace(/(^|\s)\S/g, t=>t.toUpperCase()); }
   const PRIORITY_FIELDS = ['NOM','NOM_OUVRAG','name','nom','libelle','LIBELLE','titre'];
@@ -726,13 +726,22 @@
     const grp = layerGroups[it.name];
     try{
       const gj = await loadGeoJSONSmart(it.url); const fc = normalizeFC(gj);
-      const layer = L.geoJSON(fc,{ style:styleByGeom, pointToLayer:(feat,latlng)=>L.circleMarker(latlng, styleByGeom(feat)), onEachFeature});
-      grp.clearLayers(); grp.addLayer(layer); loaded.add(name);
+      const layer = L.geoJSON(fc,{
+        style:styleByGeom,
+        pointToLayer:(feat,latlng)=> L.circleMarker(latlng, styleByGeom(feat)),
+        onEachFeature
+      });
+      layer.eachLayer(l=> l.bringToFront());
+      grp.clearLayers(); grp.addLayer(layer);
+      loaded.add(name);
+      console.info('[couche] chargée :', name, 'features=', fc.features.length);
       if (name==='DPT40Masque'){ try{ maskBounds = layer.getBounds(); }catch(_){ } }
     }catch(err){ console.warn(`ERR ${name}:`, err); }
   }
-  // pas de préchargement du masque
-  map.on('overlayadd', async (e)=>{ const name = Object.keys(layerGroups).find(k => layerGroups[k]===e.layer); if (name) await ensureLayerLoaded(name);
+  ensureLayerLoaded('DPT40Masque'); // utile pour bounds
+  map.on('overlayadd', async (e)=>{
+    const name = Object.keys(layerGroups).find(k => layerGroups[k]===e.layer);
+    if (name) await ensureLayerLoaded(name);
     try{ if (e?.layer?.getBounds){ const b=e.layer.getBounds(); if (b && b.isValid()) map.fitBounds(b,{padding:[20,20]}); } }catch(_){}
   });
 
@@ -794,17 +803,12 @@
     }
   }
   function pushMeasureToValidator(autoEval=true){
-    // Garantit les 2 champs standard dispo
     ensureParamInput('surface_m2','Surface (m²)');
     ensureParamInput('longueur_m','Longueur (m)');
-
     const code = ($('#valRubrique')?.value||'').trim(); if (!code) return;
     if (lastMeasure.area_m2>0)  setValidatorParam('surface_m2', lastMeasure.area_m2);
     if (lastMeasure.length_m>0) setValidatorParam('longueur_m', lastMeasure.length_m);
-
-    // cas spécifiques fréquents
     if (code==='3.3.2.0' && lastMeasure.area_m2>0) setValidatorParam('surface_drainee_m2', lastMeasure.area_m2);
-
     if (autoEval) $('#btnEval')?.click();
   }
   function updateManualLabel(latlng, text){
@@ -935,9 +939,11 @@
       const s=L.DomUtil.create('a','',w); s.href='#'; s.title='Exporter annotations (GeoJSON)'; s.innerHTML='💾';
       const c=L.DomUtil.create('a','',w); c.href='#'; c.title='Vider toutes les annotations'; c.innerHTML='🧹';
       L.DomEvent.disableClickPropagation(w);
-      L.DomEvent.on(s,'click',L.DomEvent.stop).on(s,'click',()=>{ if (annotations.getLayers().length===0){ alert('Aucune annotation.'); return; }
+      L.DomEvent.on(s,'click',L.DomEvent.stop).on(s,'click',()=>{
+        if (annotations.getLayers().length===0){ alert('Aucune annotation.'); return; }
         const gj=annotations.toGeoJSON(); const blob=new Blob([JSON.stringify(gj)],{type:'application/geo+json'}); const url=URL.createObjectURL(blob);
-        const a=document.createElement('a'); a.href=url; a.download='annotations.geojson'; a.click(); URL.revokeObjectURL(url); });
+        const a=document.createElement('a'); a.href=url; a.download='annotations.geojson'; a.click(); URL.revokeObjectURL(url);
+      });
       L.DomEvent.on(c,'click',L.DomEvent.stop).on(c,'click',()=>{ if (!confirm('Supprimer toutes les annotations ?')) return; annotations.clearLayers(); saveAnnotations(); });
       return w; }
   }); map.addControl(new AnnoExport());
@@ -982,7 +988,7 @@
       if (pack.rules){ PACK_RULES = pack.rules; setRules(pack.rules); }
     }
 
-    // 2) NATINF (tu gardes ton fichier existant)
+    // 2) NATINF (laisse ton fichier existant)
     try{
       const r = await fetch('data/natinf_env_2023-10.json',{cache:'no-store'});
       NATINF = r.ok ? await r.json() : DEMO_NATINF;
@@ -997,23 +1003,13 @@
     let kw = ['iota','declaration','autorisation','prescription','opposition'];
     if (fam==='1'){ kw = kw.concat(['prelev','pompage','ouvrage','eau']); }
     else if (fam==='2'){ kw = kw.concat(['rejet','effluent','assainissement','eaux pluviales']); }
-    else if (fam==='3'){ kw = kw.concat(['installation','ouvrage','nuisible','cours','plan','berge','continuite']); }
+    else if (fam==='3'){ kw = kw.concat(['installation','ouvrage','cours','plan','berge','continuite','zone humide']); }
     else if (fam==='4'){ kw = kw.concat(['marin','dragage','port']); }
     const scored = (Array.isArray(NATINF)? NATINF : []).map(n=>{
       const t = normG(n.intitule)+' '+normG(n.type||''); let s = 0; kw.forEach(k=>{ if (t.includes(k)) s++; });
       if (t.includes('iota')) s+=2; return { n, score:s };
     }).filter(x=>x.score>0).sort((a,b)=> b.score - a.score);
     return scored.slice(0,8).map(x=>({natinf:x.n.natinf, intitule:x.n.intitule}));
-  }
-  function addNatinfToFieldUnique(codes){
-    const f = $('#ftRefNatinf'); if (!f) return;
-    const cur = f.value.split(/[,; \n]+/).filter(Boolean);
-    const set = new Set(cur); codes.forEach(c=> set.add(String(c)));
-    f.value = Array.from(set).join(', ');
-  }
-  function addSuggestedNatinfFromIota(iotaCode, take=3){
-    const sugg = natinfSuggestForIota(iotaCode).slice(0,take).map(x=>x.natinf);
-    if (sugg.length) addNatinfToFieldUnique(sugg);
   }
 
   function initProc(){
@@ -1042,14 +1038,17 @@
           $('#ftRefIota').value = r.value;
           $('#valRubrique').value = r.value;
           buildValParams();
-          addSuggestedNatinfFromIota(r.value);
+
+          // NATINF : mise à jour (remplace)
+          const suggested = natinfSuggestForIota(r.value).slice(0,3).map(x=>x.natinf);
+          $('#ftRefNatinf').value = suggested.join(', ');
         });
       });
     }
     renderIota();
     $('#iotaSearch').addEventListener('input', (e)=>renderIota(e.target.value));
 
-    // NATINF helpers
+    // NATINF helpers (BCAE/Phyto/Autre)
     function pickNatinf(listEl, arr){
       listEl.innerHTML = arr.slice(0,200).map(n=>`<div class="row" style="padding:4px 0">
         <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
@@ -1061,20 +1060,15 @@
         r.addEventListener('change', ()=>{ $('#ftRefNatinf').value = r.value; });
       });
     }
-    // BCAE
     const BCAE_KEYS = ['bcae','zone humide','drainage','nitrates','programme d\'action','bande tampon','haie','prairie'];
-    const bcaeList = $('#bcaeList');
-    function filterBCAE(q){ const n=normG(q); return NATINF.filter(nf=>{ const t=normG(nf.intitule); return BCAE_KEYS.some(k=>t.includes(normG(k))) || t.includes(n); }); }
-    $('#bcaeSearch').addEventListener('input', (e)=> pickNatinf(bcaeList, filterBCAE(e.target.value))); pickNatinf(bcaeList, filterBCAE('zone humide'));
-
-    // Phyto
     const PHYTO_KEYS = ['phytopharmaceutique','phytosanitaire','certificat individuel','neonicotinoide','amm','znt','biocide'];
-    const phytoList = $('#phytoList');
-    function filterPHYTO(q){ const n=normG(q); return NATINF.filter(nf=>{ const t=normG(nf.intitule); return PHYTO_KEYS.some(k=>t.includes(normG(k))) || t.includes(n); }); }
-    $('#phytoSearch').addEventListener('input', (e)=> pickNatinf(phytoList, filterPHYTO(e.target.value))); pickNatinf(phytoList, filterPHYTO('phytopharmaceutique'));
+    const bcaeList = $('#bcaeList'), phytoList = $('#phytoList'), autreList = $('#autreList');
 
-    // Autre
-    const autreList = $('#autreList');
+    function filterBCAE(q){ const n=normG(q); return NATINF.filter(nf=>{ const t=normG(nf.intitule); return BCAE_KEYS.some(k=>t.includes(normG(k))) || t.includes(n); }); }
+    function filterPHYTO(q){ const n=normG(q); return NATINF.filter(nf=>{ const t=normG(nf.intitule); return PHYTO_KEYS.some(k=>t.includes(normG(k))) || t.includes(n); }); }
+
+    $('#bcaeSearch').addEventListener('input', (e)=> pickNatinf(bcaeList, filterBCAE(e.target.value))); pickNatinf(bcaeList, filterBCAE('zone humide'));
+    $('#phytoSearch').addEventListener('input', (e)=> pickNatinf(phytoList, filterPHYTO(e.target.value))); pickNatinf(phytoList, filterPHYTO('phytopharmaceutique'));
     $('#autreSearch').addEventListener('input', (e)=>{ const q=normG(e.target.value); const out=NATINF.filter(nf=> normG(nf.intitule).includes(q) || (nf.natinf||'').includes(q)); pickNatinf(autreList, out); });
 
     // Badge lat/lng
@@ -1108,7 +1102,7 @@
       ];
       lines.forEach((t,i)=> pdf.text(t, 40, 70 + i*16));
       const res = $('#valResult').textContent || '—';
-      const trace = $('#valTrace').textContent || '';
+      const trace = $('#valTrace').innerText || '';
       pdf.text(`Validateur IOTA : ${res}`, 40, 170);
       pdf.setFont('courier','normal'); pdf.setFontSize(9);
       pdf.text((trace||'').substring(0,2200), 40, 186, { maxWidth:520, lineHeightFactor:1.2 });
@@ -1127,20 +1121,77 @@
       pdf.save('fiche-terrain.pdf');
     });
 
+    // Reset total
+    $('#btnResetAll').addEventListener('click', ()=>{
+      ['#ftTitre','#ftLieu','#ftDesc','#ftRefIota','#ftRefNatinf'].forEach(s=> $(s).value='');
+      $('#ftScore').textContent='—'; $('#ftLatLng').textContent='—';
+      $('#valRubrique').value=''; $('#valParams').innerHTML=''; $('#valResult').textContent='—'; $('#valTrace').innerHTML='';
+      lastMeasure = { mode:null, length_m:0, area_m2:0 };
+      resetManual(); stopGPS();
+      if (typeof annotations !== 'undefined'){ annotations.clearLayers(); try{ localStorage.removeItem('sd40:annotations'); }catch(_){ } }
+      $$('input[name=iotaPick]').forEach(r=> r.checked=false);
+    });
+
     /* ===== VALIDATEUR IOTA ===== */
     function resetRules(){
-      // réinstalle depuis le pack intégré
       const pack = getEmbeddedPack();
       if (pack && pack.rules){ setRules(pack.rules); alert('Règles réinstallées (pack intégré).'); buildValParams(); }
       else { alert('Pack intégré absent.'); }
     }
+
+    // rendu humain
+    function fmtNum(x){ const n=Number(x); if(!isFinite(n)) return String(x||''); return n.toLocaleString('fr-FR'); }
+    function humanizeCond(raw, def){
+      let s = String(raw);
+      (def?.params||[]).forEach(p=>{
+        const re=new RegExp(`\\b${p.id}\\b`,'g'); s=s.replace(re, p.label||p.id);
+      });
+      s = s.replace(/\s*>=\s*/g,' ≥ ')
+           .replace(/\s*<=\s*/g,' ≤ ')
+           .replace(/\s*>\s*/g,' > ')
+           .replace(/\s*<\s*/g,' < ')
+           .replace(/\s*==\s*/g,' = ')
+           .replace(/\s*&&\s*/g,' ET ')
+           .replace(/\s*\|\|\s*/g,' OU ')
+           .replace(/'([^']+)'/g,'$1');
+      return s.trim();
+    }
+    function buildHumanExplanation(def, ctx, logic, hitIndex, decision, ref){
+      let html = `<div style="margin:.25rem 0 .5rem"><b>${def.label||''}</b></div>`;
+      if (def.params?.length){
+        html += `<div class="kv" style="margin-bottom:6px">`;
+        def.params.forEach(p=>{
+          const v = ctx[p.id]; const u = (p.label||'').match(/\(([^)]+)\)/)?.[1] || '';
+          html += `<b>${p.label} :</b> <span>${fmtNum(v)}${u?` ${u.split('/')[0]||''}`:''}</span>`;
+        });
+        html += `</div>`;
+      }
+      if (Array.isArray(logic) && logic.length){
+        html += `<div style="font-weight:600;margin:6px 0 2px">Critères évalués :</div><ul style="margin:.15rem 0 .5rem .9rem">`;
+        logic.forEach((rule, i)=>{
+          if (rule.if){
+            const txt = humanizeCond(rule.if, def);
+            const regime = rule.regime || '';
+            const ok = (i === hitIndex);
+            html += `<li>${txt} <span class="badge" style="margin-left:.35rem">${regime||'—'}</span> — ${ok?'<b>rempli</b>':'non rempli'}</li>`;
+          } else {
+            const r = rule.else || 'HN';
+            const ok = (i === hitIndex);
+            html += `<li>Sinon <span class="badge" style="margin-left:.35rem">${r}</span> — ${ok?'<b>appliqué</b>':'non appliqué'}</li>`;
+          }
+        });
+        html += `</ul>`;
+      }
+      html += `<div style="margin:.25rem 0"><b>Régime :</b> <span class="pill" style="margin-left:.35rem">${decision}</span>${ref?` <span class="note">(${ref})</span>`:''}</div>`;
+      html += `<div class="note" style="margin-top:.25rem">Résultat indicatif, à confronter aux textes en vigueur.</div>`;
+      return html;
+    }
+
     function buildValParams(){
       const code = ($('#valRubrique').value||'').trim();
       const rules = getRules(); const def = rules[code];
       const cont = $('#valParams'); cont.innerHTML = '';
-
       if (!def){
-        // Pas de règle → affiche quand même les 2 champs standards pour les mesures
         ensureParamInput('surface_m2','Surface (m²)');
         ensureParamInput('longueur_m','Longueur (m)');
         const note = document.createElement('div'); note.className='note';
@@ -1157,30 +1208,38 @@
     }
     $('#valRubrique').addEventListener('input', buildValParams); buildValParams();
 
-    function evalLogic(expr, ctx){
-      const safe = expr.replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, (id)=> (id in ctx ? String(ctx[id]??0) : id))
-                       .replace(/[^0-9<>=!&|().+*\-\/ %]/g,'');
-      try{ return !!eval(safe); }catch(_){ return false; }
-    }
     $('#btnEval').addEventListener('click', ()=>{
       const code = ($('#valRubrique').value||'').trim();
       const rules = getRules(); const def = rules[code];
-      if (!def){ $('#valResult').textContent='Règle manquante'; $('#valTrace').textContent=''; return; }
+      if (!def){ $('#valResult').textContent='Règle manquante'; $('#valTrace').innerHTML=''; return; }
+
       const ctx={}; (def.params||[]).forEach(p=>{
         const v=parseFloat(($('#param_'+p.id)?.value||'').replace(',','.'));
         ctx[p.id] = isFinite(v)? v : 0;
       });
-      let decision='HN', ref=''; const trace=[];
-      for (const rule of def.logic||[]){
+
+      let decision='HN', ref=''; let hitIndex=-1;
+      for (let i=0; i<(def.logic||[]).length; i++){
+        const rule = def.logic[i];
         if (rule.if){
-          const ok=evalLogic(rule.if, ctx); trace.push(`IF ${rule.if} → ${ok?'VRAI':'FAUX'}`);
-          if (ok){ decision=rule.regime||'HN'; ref=rule.ref||''; break; }
-        }else if (rule.else){ decision=rule.else; ref=rule.ref||''; trace.push('ELSE'); break; }
+          const ok = (function(expr, ctx){
+            const safe = expr
+              .replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, (id)=> (id in ctx ? String(ctx[id]??0) : id))
+              .replace(/[^0-9<>=!&|().+*\-\/ %]/g,'');
+            try{ return !!eval(safe); }catch(_){ return false; }
+          })(rule.if, ctx);
+          if (ok){ decision=rule.regime||'HN'; ref=rule.ref||''; hitIndex=i; break; }
+        } else { decision = rule.else || 'HN'; ref=rule.ref||''; hitIndex=i; break; }
       }
+
       $('#valResult').textContent = decision;
-      $('#valTrace').textContent = `${def.label||code}\n${trace.join('\n')}${ref?'\nREF: '+ref:''}`;
+      $('#valTrace').innerHTML = buildHumanExplanation(def, ctx, def.logic, hitIndex, decision, ref);
+
       if (!$('#ftRefIota').value) $('#ftRefIota').value = code;
-      addSuggestedNatinfFromIota(code, 2);
+
+      // NATINF : mise à jour (REMPLACE)
+      const suggested = natinfSuggestForIota(code).slice(0,3).map(x=>x.natinf);
+      if (suggested.length) { $('#ftRefNatinf').value = suggested.join(', '); }
     });
 
     // Éditeur de règles + reset (appui long)
