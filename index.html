@@ -5,13 +5,14 @@
 <title>SD40 – Carte + Procédure (IOTA/BCAE/Phyto + NATINF + Validateur)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-<!-- Leaflet & plugins CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
 
 <style>
   html,body,#map{height:100%;margin:0}
+  /* force le masquage quand [hidden] */
+  [hidden]{display:none !important}
 
   /* ===== Liste des couches ===== */
   .leaflet-control-layers-expanded{max-height:70vh;overflow:auto}
@@ -96,47 +97,41 @@
 <body>
 <div id="map"></div>
 
-<!-- ===================== UI Procédure : drawer + onglets ===================== -->
+<!-- ===================== UI Procédure ===================== -->
 <div id="proc" class="proc-drawer" hidden>
   <div class="proc-header">
     <span>🗂️ Procédure terrain</span>
     <div style="display:flex;gap:8px">
-      <button id="btnRules" style="border:0;background:#fff;color:#0b2239;border-radius:8px;padding:6px 8px;cursor:pointer" title="Éditer les règles IOTA (JSON)">⚙️ Règles IOTA</button>
-      <button id="btnProcClose" style="border:0;background:#fff;color:#0b2239;border-radius:8px;padding:6px 8px;cursor:pointer" title="Fermer le panneau">Fermer</button>
+      <button id="btnRules" type="button" style="border:0;background:#fff;color:#0b2239;border-radius:8px;padding:6px 8px" title="Éditer les règles IOTA (JSON)">⚙️ Règles IOTA</button>
+      <button id="btnProcClose" type="button" style="border:0;background:#fff;color:#0b2239;border-radius:8px;padding:6px 8px" title="Fermer le panneau">Fermer</button>
     </div>
   </div>
 
   <div class="proc-tabs">
-    <button data-tab="iota" class="active">IOTA</button>
-    <button data-tab="bcae">BCAE</button>
-    <button data-tab="phyto">Phyto</button>
-    <button data-tab="autre">Autre</button>
-    <button data-tab="validator">Validateur IOTA</button>
+    <button data-tab="iota" class="active" type="button">IOTA</button>
+    <button data-tab="bcae" type="button">BCAE</button>
+    <button data-tab="phyto" type="button">Phyto</button>
+    <button data-tab="autre" type="button">Autre</button>
+    <button data-tab="validator" type="button">Validateur IOTA</button>
   </div>
 
   <div class="proc-body">
     <!-- IOTA -->
     <div class="tab" id="tab-iota">
-      <div class="proc-row">
-        <input id="iotaSearch" placeholder="Rechercher rubrique (ex : 3.2.3.0, ‘plans d’eau’)" />
-      </div>
+      <div class="proc-row"><input id="iotaSearch" placeholder="Rechercher rubrique (ex : 3.2.3.0, ‘plans d’eau’)" /></div>
       <div id="iotaList"></div>
       <div class="note">Cliquer une rubrique la copie dans la fiche et dans le validateur. Appui long sur ⚙️ pour réinitialiser les règles.</div>
     </div>
 
     <!-- BCAE -->
     <div class="tab" id="tab-bcae" hidden>
-      <div class="proc-row">
-        <input id="bcaeSearch" placeholder="Mot-clé (ex: ‘zone humide’, ‘drainage’, ‘nitrates’)" />
-      </div>
+      <div class="proc-row"><input id="bcaeSearch" placeholder="Mot-clé (ex: ‘zone humide’, ‘drainage’, ‘nitrates’)" /></div>
       <div id="bcaeList"></div>
     </div>
 
     <!-- Phyto -->
     <div class="tab" id="tab-phyto" hidden>
-      <div class="proc-row">
-        <input id="phytoSearch" placeholder="Mot-clé (ex: ‘phytopharmaceutique’, ‘certificat’, ‘néonicotinoïdes’)" />
-      </div>
+      <div class="proc-row"><input id="phytoSearch" placeholder="Mot-clé (ex: ‘phytopharmaceutique’, ‘certificat’, ‘néonicotinoïdes’)" /></div>
       <div id="phytoList"></div>
     </div>
 
@@ -154,7 +149,7 @@
       </div>
       <div id="valParams" class="proc-row"></div>
       <div class="proc-row">
-        <button id="btnEval">Évaluer le régime</button>
+        <button id="btnEval" type="button">Évaluer le régime</button>
         <span id="valResult" class="pill">—</span>
       </div>
       <div id="valTrace" class="mono"></div>
@@ -177,17 +172,16 @@
   </div>
 
   <div class="proc-actions">
-    <button id="btnProcPDF">Exporter PDF</button>
-    <button id="btnProcGJ">Exporter GeoJSON</button>
+    <button id="btnProcPDF" type="button">Exporter PDF</button>
+    <button id="btnProcGJ"  type="button">Exporter GeoJSON</button>
   </div>
 </div>
 
 <!-- Bouton flottant Procédure -->
 <div class="layer-toggle-wrap leaflet-control" style="position:absolute;right:10px;top:10px;z-index:1000;">
-  <button id="btnProcOpen" class="layer-toggle-btn"><span class="icon">🗂️</span><span class="label">Procédure</span></button>
+  <button id="btnProcOpen" class="layer-toggle-btn" type="button"><span class="icon">🗂️</span><span class="label">Procédure</span></button>
 </div>
 
-<!-- JS libs -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
@@ -205,7 +199,7 @@
   const $ = (s, r=document)=> r.querySelector(s);
   const $$ = (s, r=document)=> Array.from(r.querySelectorAll(s));
 
-  /* ---- Procédure : open/close fiable ---- */
+  /* ---- Procédure : open/close robuste ---- */
   const PROC_KEY='sd40:procVisible';
   const procEl = $('#proc');
   const btnOpen = $('#btnProcOpen');
@@ -343,7 +337,8 @@
       if (name==='DPT40Masque'){ try{ maskBounds = layer.getBounds(); }catch(_){ } }
     }catch(err){ console.warn(`ERR ${name}:`, err); }
   }
-  ensureLayerLoaded('DPT40Masque');
+  // ⚠️ pas de préchargement du masque pour éviter un 404 au démarrage
+
   map.on('overlayadd', async (e)=>{ const name = Object.keys(layerGroups).find(k => layerGroups[k]===e.layer); if (name) await ensureLayerLoaded(name);
     try{ if (e?.layer?.getBounds){ const b=e.layer.getBounds(); if (b && b.isValid()) map.fitBounds(b,{padding:[20,20]}); } }catch(_){}
   });
@@ -503,19 +498,17 @@
   map.on(L.Draw.Event.CREATED, e => {
     annotations.addLayer(e.layer); saveAnnotations();
     try{
-      const g = e.layer.toGeoJSON().geometry || {};
+      const gj = e.layer.toGeoJSON();
+      const g = gj.geometry || {};
       if (g.type === 'Polygon' || g.type === 'MultiPolygon'){
-        const gj = e.layer.toGeoJSON();
         lastMeasure.area_m2 = turf.area(gj);
-        const ring = gj.geometry.type==='Polygon' ? gj.geometry.coordinates[0] : gj.geometry.coordinates[0][0];
+        const ring = g.type==='Polygon' ? g.coordinates[0] : g.coordinates[0][0];
         lastMeasure.length_m = turf.length(turf.lineString(ring), {units:'kilometers'})*1000;
-        pushMeasureToValidator(true);
       } else if (g.type === 'LineString' || g.type === 'MultiLineString'){
-        const gj = e.layer.toGeoJSON();
         lastMeasure.length_m = turf.length(gj, {units:'kilometers'})*1000;
         lastMeasure.area_m2 = 0;
-        pushMeasureToValidator(true);
       }
+      pushMeasureToValidator(true);
     }catch(_){}
   });
   map.on(L.Draw.Event.EDITED,  () => saveAnnotations());
@@ -543,7 +536,7 @@
       return d; }
   }); map.addControl(new HomeControl());
 
-  // Toggle global outils (UNE SEULE FOIS)
+  // Toggle global outils (unique)
   const ToolsToggle = L.Control.extend({
     options:{ position:'topleft' },
     onAdd(){ const w=L.DomUtil.create('div','tools-toggle leaflet-control'); const b=L.DomUtil.create('button','',w);
@@ -710,48 +703,72 @@
 
     /* ===== VALIDATEUR IOTA ===== */
     const RULES_KEY='sd40:iota_rules_v1';
-    const DEFAULT_RULES = {
+
+    // -- RÈGLES OFFICIelles de base (unités adaptées au validateur)
+    const OFFICIAL_RULES = {
       "3.2.3.0": {
-        "label": "Plans d’eau",
-        "params": [
-          {"id":"surface_m2","label":"Surface du plan d’eau (m²)","type":"number"},
-          {"id":"volume_m3","label":"Volume (m³)","type":"number"}
-        ],
+        "label": "Plans d’eau (permanents ou non)",
+        "params": [ {"id":"surface_m2","label":"Surface du plan d’eau (m²)","type":"number"} ],
         "logic": [
-          {"if":"surface_m2 >= 10000 || volume_m3 >= 10000","regime":"A","ref":"Seuils EXEMPLE à configurer"},
-          {"if":"surface_m2 >= 1000 || volume_m3 >= 1000","regime":"D","ref":"Seuils EXEMPLE"},
+          {"if":"surface_m2 >= 30000","regime":"A","ref":"R.214-1 3.2.3.0 (A ≥ 3 ha)"},
+          {"if":"surface_m2 > 1000 && surface_m2 < 30000","regime":"D","ref":"R.214-1 3.2.3.0 (0,1–3 ha)"},
           {"else":"HN"}
         ]
       },
       "3.1.4.0": {
-        "label":"Consolidation/protection de berges (non végétal)",
+        "label":"Consolidation/protection des berges (techniques non végétales)",
         "params":[ {"id":"longueur_m","label":"Longueur traitée (m)","type":"number"} ],
         "logic":[
-          {"if":"longueur_m >= 200","regime":"A","ref":"EXEMPLE"},
-          {"if":"longueur_m >= 20","regime":"D","ref":"EXEMPLE"},
+          {"if":"longueur_m >= 200","regime":"A","ref":"R.214-1 3.1.4.0 (A ≥ 200 m)"},
+          {"if":"longueur_m >= 20 && longueur_m < 200","regime":"D","ref":"R.214-1 3.1.4.0 (20–200 m)"},
           {"else":"HN"}
         ]
       },
       "3.3.1.0": {
-        "label":"Zones humides : assèchement / mise en eau / remblais",
+        "label":"Zones humides : assèchement / mise en eau / imperméabilisation / remblais",
         "params":[ {"id":"surface_m2","label":"Surface affectée (m²)","type":"number"} ],
         "logic":[
-          {"if":"surface_m2 >= 10000","regime":"A","ref":"EXEMPLE"},
-          {"if":"surface_m2 >= 1000","regime":"D","ref":"EXEMPLE"},
+          {"if":"surface_m2 >= 10000","regime":"A","ref":"R.214-1 3.3.1.0 (A ≥ 1 ha)"},
+          {"if":"surface_m2 > 1000 && surface_m2 < 10000","regime":"D","ref":"R.214-1 3.3.1.0 (0,1–1 ha)"},
+          {"else":"HN"}
+        ]
+      },
+      "3.3.2.0": {
+        "label":"Drainage (surface drainée)",
+        "params":[ {"id":"surface_drainee_m2","label":"Surface drainée (m²)","type":"number"} ],
+        "logic":[
+          {"if":"surface_drainee_m2 >= 1000000","regime":"A","ref":"R.214-1 3.3.2.0 (A ≥ 100 ha)"},
+          {"if":"surface_drainee_m2 > 200000 && surface_drainee_m2 < 1000000","regime":"D","ref":"R.214-1 3.3.2.0 (20–100 ha)"},
+          {"else":"HN"}
+        ]
+      },
+      "3.1.3.0": {
+        "label":"Impact sensible sur la luminosité (longueur affectée)",
+        "params":[ {"id":"longueur_m","label":"Longueur (m)","type":"number"} ],
+        "logic":[
+          {"if":"longueur_m >= 100","regime":"A","ref":"R.214-1 3.1.3.0 (A ≥ 100 m)"},
+          {"if":"longueur_m >= 10 && longueur_m < 100","regime":"D","ref":"R.214-1 3.1.3.0 (10–100 m)"},
           {"else":"HN"}
         ]
       },
       "1.2.1.0": {
-        "label":"Prélèvements en cours d’eau / plan alimenté",
-        "params":[ {"id":"debit_l_s","label":"Débit maximal (L/s)","type":"number"} ],
+        "label":"Prélèvements en cours d’eau / nappe d’accompagnement / plan/canal alimenté",
+        "params":[
+          {"id":"capacite_m3_h","label":"Capacité maximale (m³/h)","type":"number"},
+          {"id":"part_pct_debit","label":"Part du débit du cours d’eau (%)","type":"number"}
+        ],
         "logic":[
-          {"if":"debit_l_s >= 80","regime":"A","ref":"EXEMPLE"},
-          {"if":"debit_l_s >= 8","regime":"D","ref":"EXEMPLE"},
+          {"if":"capacite_m3_h >= 1000 || part_pct_debit >= 5","regime":"A","ref":"R.214-1 1.2.1.0 (A ≥ 1000 m³/h ou ≥ 5 %)"},
+          {"if":"(capacite_m3_h >= 400 && capacite_m3_h < 1000) || (part_pct_debit >= 2 && part_pct_debit < 5)","regime":"D","ref":"R.214-1 1.2.1.0 (400–1000 m³/h ou 2–5 %)"},
           {"else":"HN"}
         ]
       }
     };
-    function getRules(){ try{ const raw=localStorage.getItem(RULES_KEY); if (raw) return JSON.parse(raw); }catch(_){ } return DEFAULT_RULES; }
+
+    function getRules(){
+      try{ const raw=localStorage.getItem(RULES_KEY); if (raw) return JSON.parse(raw); }catch(_){}
+      return OFFICIAL_RULES;
+    }
     function setRules(obj){ try{ localStorage.setItem(RULES_KEY, JSON.stringify(obj)); }catch(_){ } }
     function resetRules(){ try{ localStorage.removeItem(RULES_KEY);}catch(_){} }
 
@@ -804,7 +821,7 @@
       catch(e){ alert('JSON invalide : '+e.message); }
     });
     let rulesPressTimer=null;
-    $('#btnRules').addEventListener('mousedown', ()=>{ rulesPressTimer = setTimeout(()=>{ resetRules(); alert('Règles réinitialisées.'); buildValParams(); }, 800); });
+    $('#btnRules').addEventListener('mousedown', ()=>{ rulesPressTimer = setTimeout(()=>{ resetRules(); alert('Règles réinitialisées (officielles).'); buildValParams(); }, 800); });
     ['mouseup','mouseleave'].forEach(ev=> $('#btnRules').addEventListener(ev, ()=>{ if (rulesPressTimer){ clearTimeout(rulesPressTimer); rulesPressTimer=null; } }));
   }
 
