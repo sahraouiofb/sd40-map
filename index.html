@@ -691,6 +691,11 @@
   const {get:cacheGet, set:cacheSet} = idbKeyval;
   const CACHE_VERSION = 'v1';
   async function loadGeoJSONSmart(url){
+    // PATCH chemin: remap "layers/" -> "couches/"
+if (typeof url === 'string' && url.startsWith('layers/')) {
+  url = 'couches/' + url.slice('layers/'.length);
+}
+
     try{
       const res = await fetch(url, {cache:'no-store'}); if (!res.ok) throw new Error(res.status+' '+res.statusText);
       try{ const j = await res.clone().json(); await cacheSet(CACHE_VERSION+':'+url, j); return j; }catch(_){}
