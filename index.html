@@ -862,7 +862,8 @@
     }
     const BCAE_KEYS = ['bcae','zone humide','drainage','nitrates','programme d\'action','bande tampon','haie','prairie'];
     const PHYTO_KEYS = ['phytopharmaceutique','phytosanitaire','certificat individuel','neonicotinoide','amm','znt','biocide'];
-    const bcaeList = $('#bcaeList'), phytoList = $('#phytoList'], autreList = $('#autreList');
+   const bcaeList = $('#bcaeList'), phytoList = $('#phytoList'), autreList = $('#autreList');
+
 
     function filterBCAE(q){ const n=normG(q); return NATINF.filter(nf=>{ const t=normG(nf.intitule); return BCAE_KEYS.some(k=>t.includes(normG(k))) || t.includes(n); }); }
     function filterPHYTO(q){ const n=normG(q); return NATINF.filter(nf=>{ const t=normG(nf.intitule); return PHYTO_KEYS.some(k=>t.includes(normG(k))) || t.includes(n); }); }
