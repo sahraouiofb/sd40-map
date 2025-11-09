@@ -177,8 +177,8 @@
   </div>
 </div>
 
-<!-- Bouton flottant Procédure (décalé pour ne pas chevaucher “Couches”) -->
-<div class="layer-toggle-wrap leaflet-control" style="position:absolute;right:10px;top:60px;z-index:3000;">
+<!-- Bouton flottant Procédure (descendu pour ne pas chevaucher “Couches”) -->
+<div class="layer-toggle-wrap leaflet-control" style="position:absolute;right:10px;top:110px;z-index:3000;">
   <button id="btnProcOpen" class="layer-toggle-btn" type="button"><span class="icon">🗂️</span><span class="label">Procédure</span></button>
 </div>
 
@@ -230,344 +230,119 @@
     {"code":"5.2.4.0","titre":"Travaux d’exploitation de mines – autorisation L.621-4-1"}
   ],
   "rules": {
-    "1.1.1.0": {
-      "label":"Sondage/forage non domestique (recherche/surveillance d’eaux souterraines)",
-      "params":[],
-      "logic":[{"else":"D"}],
-      "ref":"R.214-1 1.1.1.0"
-    },
-    "1.1.2.0": {
-      "label":"Prélèvements en eaux souterraines (volume annuel)",
-      "params":[{"id":"volume_m3_an","label":"Volume prélevé (m³/an)","type":"number"}],
-      "logic":[
-        {"if":"volume_m3_an >= 200000","regime":"A","ref":"A ≥ 200 000 m³/an"},
-        {"if":"volume_m3_an > 10000 && volume_m3_an < 200000","regime":"D","ref":"10 000–200 000 m³/an"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 1.1.2.0"
-    },
-    "1.2.1.0": {
-      "label":"Prélèvements en cours d’eau/nappe d’accompagnement/plan-canal alimenté",
-      "params":[
-        {"id":"capacite_m3_h","label":"Capacité (m³/h)","type":"number"},
-        {"id":"part_pct_debit","label":"Part du débit du cours d’eau (%)","type":"number"}
-      ],
-      "logic":[
-        {"if":"capacite_m3_h >= 1000 || part_pct_debit >= 5","regime":"A","ref":"A ≥ 1000 m³/h ou ≥ 5 %"},
-        {"if":"(capacite_m3_h >= 400 && capacite_m3_h < 1000) || (part_pct_debit >= 2 && part_pct_debit < 5)","regime":"D","ref":"400–1000 m³/h ou 2–5 %"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 1.2.1.0"
-    },
-    "1.2.2.0": {
-      "label":"Prélèvements avec étiage majoritairement réalimenté artificiellement",
-      "params":[
-        {"id":"rivieres","label":"Seine/Loire/Marne/Yonne ? (oui/non)","type":"text"},
-        {"id":"capacite_m3_h","label":"Capacité (m³/h) – utile si 'oui'","type":"number"}
-      ],
-      "logic":[
-        {"if":"rivieres == 'oui' && capacite_m3_h > 80","regime":"A","ref":"Seine/Loire/Marne/Yonne : A si > 80 m³/h"},
-        {"if":"rivieres == 'oui' && capacite_m3_h <= 80","regime":"HN","ref":"Seine/Loire/Marne/Yonne : ≤ 80 m³/h = HN"},
-        {"if":"rivieres != 'oui'","regime":"A","ref":"Autres cours d’eau : A (cas de réalimentation majoritaire en étiage)"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 1.2.2.0"
-    },
-    "1.3.1.0": {
-      "label":"Prélèvements en zone à seuils abaissés (répartition quantitative)",
-      "params":[{"id":"capacite_m3_h","label":"Capacité (m³/h)","type":"number"}],
-      "logic":[
-        {"if":"capacite_m3_h >= 8","regime":"A","ref":"A ≥ 8 m³/h"},
-        {"else":"D"}
-      ],
-      "ref":"R.214-1 1.3.1.0"
-    },
-    "2.1.1.0": {
-      "label":"Systèmes d’assainissement collectif / ANC (charge DBO5)",
-      "params":[{"id":"dbo5_kg","label":"Charge brute (kg DBO5)","type":"number"}],
-      "logic":[
-        {"if":"dbo5_kg >= 600","regime":"A","ref":"A ≥ 600 kg DBO5"},
-        {"if":"dbo5_kg > 12 && dbo5_kg < 600","regime":"D","ref":"12–600 kg DBO5"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 2.1.1.0"
-    },
-    "2.1.3.0": {
-      "label":"Épandage/stockage de boues",
-      "params":[
-        {"id":"ms_t_an","label":"Matière sèche (t/an)","type":"number"},
-        {"id":"n_t_an","label":"Azote total (t/an)","type":"number"}
-      ],
-      "logic":[
-        {"if":"ms_t_an > 800 || n_t_an > 40","regime":"A","ref":"MS > 800 t/an ou N > 40 t/an"},
-        {"if":"(ms_t_an >= 3 && ms_t_an <= 800) || (n_t_an >= 0.15 && n_t_an <= 40)","regime":"D","ref":"MS 3–800 t/an ou N 0,15–40 t/an"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 2.1.3.0"
-    },
-    "2.1.4.0": {
-      "label":"Épandage/stockage d’effluents ou de boues (hors 2.1.3.0, effluents d’élevage)",
-      "params":[
-        {"id":"volume_m3_an","label":"Volume annuel (m³/an)","type":"number"},
-        {"id":"n_t_an","label":"Azote total (t/an)","type":"number"},
-        {"id":"dbo5_kg_an","label":"DBO5 (kg/an)","type":"number"}
-      ],
-      "logic":[
-        {"if":"volume_m3_an > 50000 || n_t_an > 1 || dbo5_kg_an > 500","regime":"D","ref":"> 50 000 m³/an ou N > 1 t/an ou DBO5 > 500 kg/an"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 2.1.4.0"
-    },
-    "2.1.5.0": {
-      "label":"Rejet d’eaux pluviales (surface interceptée)",
-      "params":[{"id":"surface_ha","label":"Surface totale interceptée (ha)","type":"number"}],
-      "logic":[
-        {"if":"surface_ha >= 20","regime":"A","ref":"A ≥ 20 ha"},
-        {"if":"surface_ha > 1 && surface_ha < 20","regime":"D","ref":"> 1–20 ha"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 2.1.5.0"
-    },
-    "2.2.1.0": {
-      "label":"Rejet en surface susceptible de modifier le régime des eaux",
-      "params":[
-        {"id":"capacite_rejet_m3_j","label":"Capacité totale de rejet (m³/j)","type":"number"},
-        {"id":"part_pct_debit","label":"Part du débit moyen interannuel (%)","type":"number"}
-      ],
-      "logic":[
-        {"if":"capacite_rejet_m3_j > 2000 || part_pct_debit >= 5","regime":"D","ref":"> 2 000 m³/j ou ≥ 5 %"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 2.2.1.0"
-    },
-    "2.2.3.0": {
-      "label":"Rejet en surface – flux ≥ niveau de référence R1 (≥1 paramètre)",
-      "params":[{"id":"r1_ok","label":"Atteint R1 ? (oui/non)","type":"text"}],
-      "logic":[
-        {"if":"r1_ok == 'oui'","regime":"D"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 2.2.3.0"
-    },
-    "2.3.1.0": { "label":"Rejets d’effluents sur le sol/sous-sol (hors cas exclus)", "params":[], "logic":[{"else":"A"}], "ref":"R.214-1 2.3.1.0" },
-    "2.3.2.0": { "label":"Recharge artificielle des eaux souterraines", "params":[], "logic":[{"else":"A"}], "ref":"R.214-1 2.3.2.0" },
+    "1.1.1.0": { "label":"Sondage/forage non domestique (recherche/surveillance d’eaux souterraines)","params":[],"logic":[{"else":"D"}],"ref":"R.214-1 1.1.1.0" },
+    "1.1.2.0": { "label":"Prélèvements en eaux souterraines (volume annuel)","params":[{"id":"volume_m3_an","label":"Volume prélevé (m³/an)","type":"number"}],
+      "logic":[{"if":"volume_m3_an >= 200000","regime":"A","ref":"A ≥ 200 000 m³/an"},{"if":"volume_m3_an > 10000 && volume_m3_an < 200000","regime":"D","ref":"10 000–200 000 m³/an"},{"else":"HN"}],
+      "ref":"R.214-1 1.1.2.0" },
+    "1.2.1.0": { "label":"Prélèvements en cours d’eau/nappe d’accompagnement/plan-canal alimenté",
+      "params":[{"id":"capacite_m3_h","label":"Capacité (m³/h)","type":"number"},{"id":"part_pct_debit","label":"Part du débit du cours d’eau (%)","type":"number"}],
+      "logic":[{"if":"capacite_m3_h >= 1000 || part_pct_debit >= 5","regime":"A","ref":"A ≥ 1000 m³/h ou ≥ 5 %"},{"if":"(capacite_m3_h >= 400 && capacite_m3_h < 1000) || (part_pct_debit >= 2 && part_pct_debit < 5)","regime":"D","ref":"400–1000 m³/h ou 2–5 %"},{"else":"HN"}],
+      "ref":"R.214-1 1.2.1.0" },
+    "1.2.2.0": { "label":"Prélèvements avec étiage majoritairement réalimenté artificiellement",
+      "params":[{"id":"rivieres","label":"Seine/Loire/Marne/Yonne ? (oui/non)","type":"text"},{"id":"capacite_m3_h","label":"Capacité (m³/h) – utile si 'oui'","type":"number"}],
+      "logic":[{"if":"rivieres == 'oui' && capacite_m3_h > 80","regime":"A","ref":"Seine/Loire/Marne/Yonne : A si > 80 m³/h"},{"if":"rivieres == 'oui' && capacite_m3_h <= 80","regime":"HN","ref":"Seine/Loire/Marne/Yonne : ≤ 80 m³/h = HN"},{"if":"rivieres != 'oui'","regime":"A","ref":"Autres cours d’eau : A (cas de réalimentation majoritaire en étiage)"},{"else":"HN"}],
+      "ref":"R.214-1 1.2.2.0" },
+    "1.3.1.0": { "label":"Prélèvements en zone à seuils abaissés (répartition quantitative)","params":[{"id":"capacite_m3_h","label":"Capacité (m³/h)","type":"number"}],"logic":[{"if":"capacite_m3_h >= 8","regime":"A","ref":"A ≥ 8 m³/h"},{"else":"D"}],"ref":"R.214-1 1.3.1.0" },
 
-    "3.1.1.0": {
-      "label":"Obstacle aux crues / continuité écologique (différence de niveau)",
+    "2.1.1.0": { "label":"Systèmes d’assainissement collectif / ANC (charge DBO5)","params":[{"id":"dbo5_kg","label":"Charge brute (kg DBO5)","type":"number"}],
+      "logic":[{"if":"dbo5_kg >= 600","regime":"A","ref":"A ≥ 600 kg DBO5"},{"if":"dbo5_kg > 12 && dbo5_kg < 600","regime":"D","ref":"12–600 kg DBO5"},{"else":"HN"}],
+      "ref":"R.214-1 2.1.1.0" },
+    "2.1.3.0": { "label":"Épandage/stockage de boues",
+      "params":[{"id":"ms_t_an","label":"Matière sèche (t/an)","type":"number"},{"id":"n_t_an","label":"Azote total (t/an)","type":"number"}],
+      "logic":[{"if":"ms_t_an > 800 || n_t_an > 40","regime":"A","ref":"MS > 800 t/an ou N > 40 t/an"},{"if":"(ms_t_an >= 3 && ms_t_an <= 800) || (n_t_an >= 0.15 && n_t_an <= 40)","regime":"D","ref":"MS 3–800 t/an ou N 0,15–40 t/an"},{"else":"HN"}],
+      "ref":"R.214-1 2.1.3.0" },
+    "2.1.4.0": { "label":"Épandage/stockage d’effluents ou de boues (hors 2.1.3.0, effluents d’élevage)",
+      "params":[{"id":"volume_m3_an","label":"Volume annuel (m³/an)","type":"number"},{"id":"n_t_an","label":"Azote total (t/an)","type":"number"},{"id":"dbo5_kg_an","label":"DBO5 (kg/an)","type":"number"}],
+      "logic":[{"if":"volume_m3_an > 50000 || n_t_an > 1 || dbo5_kg_an > 500","regime":"D","ref":"> 50 000 m³/an ou N > 1 t/an ou DBO5 > 500 kg/an"},{"else":"HN"}],
+      "ref":"R.214-1 2.1.4.0" },
+    "2.1.5.0": { "label":"Rejet d’eaux pluviales (surface interceptée)","params":[{"id":"surface_ha","label":"Surface totale interceptée (ha)","type":"number"}],
+      "logic":[{"if":"surface_ha >= 20","regime":"A","ref":"A ≥ 20 ha"},{"if":"surface_ha > 1 && surface_ha < 20","regime":"D","ref":"> 1–20 ha"},{"else":"HN"}],
+      "ref":"R.214-1 2.1.5.0" },
+
+    "2.2.1.0": { "label":"Rejet en surface susceptible de modifier le régime des eaux",
+      "params":[{"id":"capacite_rejet_m3_j","label":"Capacité totale de rejet (m³/j)","type":"number"},{"id":"part_pct_debit","label":"Part du débit moyen interannuel (%)","type":"number"}],
+      "logic":[{"if":"capacite_rejet_m3_j > 2000 || part_pct_debit >= 5","regime":"D","ref":"> 2 000 m³/j ou ≥ 5 %"},{"else":"HN"}],
+      "ref":"R.214-1 2.2.1.0" },
+    "2.2.3.0": { "label":"Rejet en surface – flux ≥ niveau de référence R1 (≥1 paramètre)","params":[{"id":"r1_ok","label":"Atteint R1 ? (oui/non)","type":"text"}],
+      "logic":[{"if":"r1_ok == 'oui'","regime":"D"},{"else":"HN"}],
+      "ref":"R.214-1 2.2.3.0" },
+    "2.3.1.0": { "label":"Rejets d’effluents sur le sol/sous-sol (hors cas exclus)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 2.3.1.0" },
+    "2.3.2.0": { "label":"Recharge artificielle des eaux souterraines","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 2.3.2.0" },
+
+    "3.1.1.0": { "label":"Obstacle aux crues / continuité écologique (différence de niveau)",
       "params":[{"id":"delta_cm","label":"Différence de niveau (cm)","type":"number"},{"id":"type","label":"Crues / Continuité","type":"text"}],
-      "logic":[
-        {"if":"type == 'crues'","regime":"A"},
-        {"if":"type == 'continuité' && delta_cm >= 50","regime":"A","ref":"Δ≥50 cm"},
-        {"if":"type == 'continuité' && delta_cm > 20 && delta_cm < 50","regime":"D","ref":"20–50 cm"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 3.1.1.0"
-    },
-    "3.1.2.0": {
-      "label":"Modification du lit/dérivation (longueur concernée)",
-      "params":[{"id":"longueur_m","label":"Longueur (m)","type":"number"}],
-      "logic":[
-        {"if":"longueur_m >= 100","regime":"A","ref":"A ≥ 100 m"},
-        {"if":"longueur_m < 100 && longueur_m > 0","regime":"D","ref":"< 100 m"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 3.1.2.0"
-    },
-    "3.1.3.0": {
-      "label":"Impact sensible sur la luminosité",
-      "params":[{"id":"longueur_m","label":"Longueur (m)","type":"number"}],
-      "logic":[
-        {"if":"longueur_m >= 100","regime":"A"},
-        {"if":"longueur_m >= 10 && longueur_m < 100","regime":"D"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 3.1.3.0"
-    },
-    "3.1.4.0": {
-      "label":"Consolidation/protection des berges (non végétal)",
-      "params":[{"id":"longueur_m","label":"Longueur (m)","type":"number"}],
-      "logic":[
-        {"if":"longueur_m >= 200","regime":"A"},
-        {"if":"longueur_m >= 20 && longueur_m < 200","regime":"D"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 3.1.4.0"
-    },
-    "3.1.5.0": {
-      "label":"Destruction de frayères / zones de croissance/alimentation",
-      "params":[{"id":"surface_m2","label":"Surface détruite (m²)","type":"number"}],
-      "logic":[
-        {"if":"surface_m2 > 200","regime":"A"},
-        {"if":"surface_m2 > 0 && surface_m2 <= 200","regime":"D"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 3.1.5.0"
-    },
-    "3.2.1.0": {
-      "label":"Entretien cours d’eau/canaux – sédiments/an",
-      "params":[
-        {"id":"volume_m3","label":"Volume extrait (m³/an)","type":"number"},
-        {"id":"teneur","label":"Teneur sédiments (\"<S1\" / \">=S1\")","type":"text"}
-      ],
-      "logic":[
-        {"if":"volume_m3 > 2000","regime":"A"},
-        {"if":"volume_m3 <= 2000 && teneur == '>=S1'","regime":"A"},
-        {"if":"volume_m3 <= 2000 && teneur == '<S1'","regime":"D"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 3.2.1.0"
-    },
-    "3.2.2.0": {
-      "label":"Remblais/installations dans le lit majeur – surface soustraite",
-      "params":[{"id":"surface_m2","label":"Surface soustraite (m²)","type":"number"}],
-      "logic":[
-        {"if":"surface_m2 >= 10000","regime":"A"},
-        {"if":"surface_m2 >= 400 && surface_m2 < 10000","regime":"D"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 3.2.2.0"
-    },
-    "3.2.3.0": {
-      "label":"Plans d’eau (création)",
-      "params":[{"id":"surface_m2","label":"Surface du plan d’eau (m²)","type":"number"}],
-      "logic":[
-        {"if":"surface_m2 >= 30000","regime":"A","ref":"A ≥ 3 ha"},
-        {"if":"surface_m2 > 1000 && surface_m2 < 30000","regime":"D","ref":"0,1–3 ha"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 3.2.3.0"
-    },
-    "3.2.5.0": { "label":"Barrages de retenue (classement R.214-112)", "params":[], "logic":[{"else":"A"}], "ref":"R.214-1 3.2.5.0" },
-    "3.2.6.0": { "label":"Ouvrages de prévention des inondations/submersions (SE / aménagement)", "params":[], "logic":[{"else":"A"}], "ref":"R.214-1 3.2.6.0" },
-    "3.2.7.0": { "label":"Piscicultures d’eau douce (L.431-6)", "params":[], "logic":[{"else":"D"}], "ref":"R.214-1 3.2.7.0" },
+      "logic":[{"if":"type == 'crues'","regime":"A"},{"if":"type == 'continuité' && delta_cm >= 50","regime":"A","ref":"Δ≥50 cm"},{"if":"type == 'continuité' && delta_cm > 20 && delta_cm < 50","regime":"D","ref":"20–50 cm"},{"else":"HN"}],
+      "ref":"R.214-1 3.1.1.0" },
+    "3.1.2.0": { "label":"Modification du lit/dérivation (longueur concernée)","params":[{"id":"longueur_m","label":"Longueur (m)","type":"number"}],
+      "logic":[{"if":"longueur_m >= 100","regime":"A","ref":"A ≥ 100 m"},{"if":"longueur_m < 100 && longueur_m > 0","regime":"D","ref":"< 100 m"},{"else":"HN"}],
+      "ref":"R.214-1 3.1.2.0" },
+    "3.1.3.0": { "label":"Impact sensible sur la luminosité","params":[{"id":"longueur_m","label":"Longueur (m)","type":"number"}],
+      "logic":[{"if":"longueur_m >= 100","regime":"A"},{"if":"longueur_m >= 10 && longueur_m < 100","regime":"D"},{"else":"HN"}],
+      "ref":"R.214-1 3.1.3.0" },
+    "3.1.4.0": { "label":"Consolidation/protection des berges (non végétal)","params":[{"id":"longueur_m","label":"Longueur (m)","type":"number"}],
+      "logic":[{"if":"longueur_m >= 200","regime":"A"},{"if":"longueur_m >= 20 && longueur_m < 200","regime":"D"},{"else":"HN"}],
+      "ref":"R.214-1 3.1.4.0" },
+    "3.1.5.0": { "label":"Destruction de frayères / zones de croissance/alimentation","params":[{"id":"surface_m2","label":"Surface détruite (m²)","type":"number"}],
+      "logic":[{"if":"surface_m2 > 200","regime":"A"},{"if":"surface_m2 > 0 && surface_m2 <= 200","regime":"D"},{"else":"HN"}],
+      "ref":"R.214-1 3.1.5.0" },
 
-    "3.3.1.0": {
-      "label":"Zones humides : assèchement/mise en eau/imperméabilisation/remblais",
-      "params":[{"id":"surface_m2","label":"Surface affectée (m²)","type":"number"}],
-      "logic":[
-        {"if":"surface_m2 >= 10000","regime":"A"},
-        {"if":"surface_m2 > 1000 && surface_m2 < 10000","regime":"D"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 3.3.1.0"
-    },
-    "3.3.2.0": {
-      "label":"Drainage – surface drainée",
-      "params":[{"id":"surface_drainee_m2","label":"Surface drainée (m²)","type":"number"}],
-      "logic":[
-        {"if":"surface_drainee_m2 >= 1000000","regime":"A","ref":"A ≥ 100 ha"},
-        {"if":"surface_drainee_m2 > 200000 && surface_drainee_m2 < 1000000","regime":"D","ref":"20–100 ha"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 3.3.2.0"
-    },
-    "3.3.3.0": {
-      "label":"Canalisations hydrocarbures/produits chimiques liquides",
-      "params":[
-        {"id":"longueur_km","label":"Longueur (km)","type":"number"},
-        {"id":"diam_m","label":"Diamètre extérieur (m)","type":"number"}
-      ],
-      "logic":[
-        {"if":"longueur_km > 5","regime":"A","ref":"> 5 km"},
-        {"if":"(diam_m * (longueur_km*1000)) > 2000","regime":"A","ref":"Diamètre × longueur > 2000 m²"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 3.3.3.0"
-    },
-    "3.3.4.0": {
-      "label":"Recherches/stockages souterrains de déchets radioactifs",
-      "params":[{"id":"type","label":"Type (forages>1 an / autres)","type":"text"}],
-      "logic":[
-        {"if":"type == 'forages>1an'","regime":"A"},
-        {"else":"D"}
-      ],
-      "ref":"R.214-1 3.3.4.0"
-    },
-    "3.3.5.0": {
-      "label":"Restauration des fonctionnalités naturelles des milieux aquatiques",
-      "params":[{"id":"categorie","label":"Catégorie (arasement/déplacement/etc.)","type":"text"}],
-      "logic":[{"else":"D"}],
-      "ref":"R.214-1 3.3.5.0"
-    },
+    "3.2.1.0": { "label":"Entretien cours d’eau/canaux – sédiments/an",
+      "params":[{"id":"volume_m3","label":"Volume extrait (m³/an)","type":"number"},{"id":"teneur","label":"Teneur sédiments (\"<S1\" / \">=S1\")","type":"text"}],
+      "logic":[{"if":"volume_m3 > 2000","regime":"A"},{"if":"volume_m3 <= 2000 && teneur == '>=S1'","regime":"A"},{"if":"volume_m3 <= 2000 && teneur == '<S1'","regime":"D"},{"else":"HN"}],
+      "ref":"R.214-1 3.2.1.0" },
+    "3.2.2.0": { "label":"Remblais/installations dans le lit majeur – surface soustraite","params":[{"id":"surface_m2","label":"Surface soustraite (m²)","type":"number"}],
+      "logic":[{"if":"surface_m2 >= 10000","regime":"A"},{"if":"surface_m2 >= 400 && surface_m2 < 10000","regime":"D"},{"else":"HN"}],
+      "ref":"R.214-1 3.2.2.0" },
+    "3.2.3.0": { "label":"Plans d’eau (création)","params":[{"id":"surface_m2","label":"Surface du plan d’eau (m²)","type":"number"}],
+      "logic":[{"if":"surface_m2 >= 30000","regime":"A","ref":"A ≥ 3 ha"},{"if":"surface_m2 > 1000 && surface_m2 < 30000","regime":"D","ref":"0,1–3 ha"},{"else":"HN"}],
+      "ref":"R.214-1 3.2.3.0" },
+    "3.2.5.0": { "label":"Barrages de retenue (classement R.214-112)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 3.2.5.0" },
+    "3.2.6.0": { "label":"Ouvrages de prévention des inondations/submersions (SE / aménagement)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 3.2.6.0" },
+    "3.2.7.0": { "label":"Piscicultures d’eau douce (L.431-6)","params":[],"logic":[{"else":"D"}],"ref":"R.214-1 3.2.7.0" },
 
-    "4.1.1.0": { "label":"Travaux de création/chenal d’accès portuaire / modif. des spécifications", "params":[], "logic":[{"else":"A"}], "ref":"R.214-1 4.1.1.0" },
-    "4.1.2.0": {
-      "label":"Aménagements portuaires – incidence directe sur le milieu (montant)",
-      "params":[{"id":"montant_eur","label":"Montant des travaux (€)","type":"number"}],
-      "logic":[
-        {"if":"montant_eur >= 1900000","regime":"A"},
-        {"if":"montant_eur >= 160000 && montant_eur < 1900000","regime":"D"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 4.1.2.0"
-    },
-    "4.1.3.0": {
-      "label":"Dragage et/ou rejet en milieu marin",
-      "params":[
-        {"id":"teneur","label":"Teneur sédiments (>=N2 / N1-N2 / <=N1)","type":"text"},
-        {"id":"volume_m3_12m","label":"Volume sur 12 mois (m³)","type":"number"},
-        {"id":"facade","label":"Façade (AMN / autre)","type":"text"},
-        {"id":"distance_km","label":"Distance au rejet / zone conchylicole (km)","type":"number"}
-      ],
-      "logic":[
-        {"if":"teneur == '>=N2'","regime":"A","ref":"Teneur ≥ N2"},
-        {"if":"teneur == 'N1-N2' && facade == 'AMN' && distance_km <= 1 && volume_m3_12m >= 50000","regime":"A","ref":"AMN/≤1 km, ≥50 000 m³"},
-        {"if":"teneur == 'N1-N2' && facade == 'AMN' && distance_km <= 1 && volume_m3_12m < 50000","regime":"D","ref":"AMN/≤1 km, <50 000 m³"},
-        {"if":"teneur == 'N1-N2' && facade != 'AMN' && distance_km <= 0.5 && volume_m3_12m >= 5000","regime":"A","ref":"ailleurs/≤500 m, ≥5 000 m³"},
-        {"if":"teneur == 'N1-N2' && facade != 'AMN' && distance_km <= 0.5 && volume_m3_12m < 5000","regime":"D","ref":"ailleurs/≤500 m, <5 000 m³"},
-        {"if":"teneur == '<=N1' && volume_m3_12m >= 500000","regime":"A","ref":"≤N1 et ≥500 000 m³"},
-        {"if":"teneur == '<=N1' && volume_m3_12m >= 5000 && volume_m3_12m < 500000","regime":"D","ref":"≤N1 et 5 000–500 000 m³"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 4.1.3.0"
-    },
+    "3.3.1.0": { "label":"Zones humides : assèchement/mise en eau/imperméabilisation/remblais","params":[{"id":"surface_m2","label":"Surface affectée (m²)","type":"number"}],
+      "logic":[{"if":"surface_m2 >= 10000","regime":"A"},{"if":"surface_m2 > 1000 && surface_m2 < 10000","regime":"D"},{"else":"HN"}],
+      "ref":"R.214-1 3.3.1.0" },
+    "3.3.2.0": { "label":"Drainage – surface drainée","params":[{"id":"surface_drainee_m2","label":"Surface drainée (m²)","type":"number"}],
+      "logic":[{"if":"surface_drainee_m2 >= 1000000","regime":"A","ref":"A ≥ 100 ha"},{"if":"surface_drainee_m2 > 200000 && surface_drainee_m2 < 1000000","regime":"D","ref":"20–100 ha"},{"else":"HN"}],
+      "ref":"R.214-1 3.3.2.0" },
+    "3.3.3.0": { "label":"Canalisations hydrocarbures/produits chimiques liquides",
+      "params":[{"id":"longueur_km","label":"Longueur (km)","type":"number"},{"id":"diam_m","label":"Diamètre extérieur (m)","type":"number"}],
+      "logic":[{"if":"longueur_km > 5","regime":"A","ref":"> 5 km"},{"if":"(diam_m * (longueur_km*1000)) > 2000","regime":"A","ref":"Diamètre × longueur > 2000 m²"},{"else":"HN"}],
+      "ref":"R.214-1 3.3.3.0" },
+    "3.3.4.0": { "label":"Recherches/stockages souterrains de déchets radioactifs","params":[{"id":"type","label":"Type (forages>1 an / autres)","type":"text"}],
+      "logic":[{"if":"type == 'forages>1an'","regime":"A"},{"else":"D"}],
+      "ref":"R.214-1 3.3.4.0" },
+    "3.3.5.0": { "label":"Restauration des fonctionnalités naturelles des milieux aquatiques","params":[{"id":"categorie","label":"Catégorie (arasement/déplacement/etc.)","type":"text"}],
+      "logic":[{"else":"D"}],"ref":"R.214-1 3.3.5.0" },
 
-    "5.1.1.0": {
-      "label":"Réinjection dans la même nappe (géothermie, exhaures, génie civil)",
-      "params":[{"id":"capacite_m3_h","label":"Capacité totale de réinjection (m³/h)","type":"number"}],
-      "logic":[
-        {"if":"capacite_m3_h >= 80","regime":"A"},
-        {"if":"capacite_m3_h >= 8 && capacite_m3_h < 80","regime":"D"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 5.1.1.0"
-    },
-    "5.1.2.0": { "label":"Recherche/exploitation de gîtes géothermiques", "params":[], "logic":[{"else":"A"}], "ref":"R.214-1 5.1.2.0" },
-    "5.1.3.0": {
-      "label":"Travaux miniers (recherches/cavités/forages/essais)",
-      "params":[{"id":"categorie","label":"a/b/d/e/f/g (voir texte)","type":"text"}],
-      "logic":[
-        {"if":"categorie == 'a' || categorie == 'b' || categorie == 'd'","regime":"A"},
-        {"if":"categorie == 'e' || categorie == 'f' || categorie == 'g'","regime":"D"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 5.1.3.0"
-    },
-    "5.1.4.0": {
-      "label":"Travaux d’exploitation de mines",
-      "params":[{"id":"type","label":"Type (a : sous autorisation exploitation / b : autres)","type":"text"}],
-      "logic":[
-        {"if":"type == 'a'","regime":"D"},
-        {"if":"type == 'b'","regime":"A"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 5.1.4.0"
-    },
-    "5.1.5.0": { "label":"Exploitation de stockages souterrains de déchets radioactifs", "params":[], "logic":[{"else":"A"}], "ref":"R.214-1 5.1.5.0" },
-    "5.1.6.0": {
-      "label":"Travaux de recherches des mines",
-      "params":[{"id":"type","label":"a : 2° art.3 / b : autres","type":"text"}],
-      "logic":[
-        {"if":"type == 'a'","regime":"A"},
-        {"if":"type == 'b'","regime":"D"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 5.1.6.0"
-    },
-    "5.1.7.0": { "label":"Prospection/recherche/exploitation (fonds marins domaine public)", "params":[], "logic":[{"else":"A"}], "ref":"R.214-1 5.1.7.0" },
-    "5.2.2.0": { "label":"Concessions hydrauliques (Livre V code de l’énergie)", "params":[], "logic":[{"else":"A"}], "ref":"R.214-1 5.2.2.0" },
-    "5.2.3.0": { "label":"Travaux commission d’aménagement foncier (liste réglementaire)", "params":[], "logic":[{"else":"A"}], "ref":"R.214-1 5.2.3.0" },
-    "5.2.4.0": { "label":"Travaux d’exploitation de mines (L.621-4-1)", "params":[], "logic":[{"else":"D"}], "ref":"R.214-1 5.2.4.0" }
+    "4.1.1.0": { "label":"Travaux de création/chenal d’accès portuaire / modif. des spécifications","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 4.1.1.0" },
+    "4.1.2.0": { "label":"Aménagements portuaires – incidence directe sur le milieu (montant)","params":[{"id":"montant_eur","label":"Montant des travaux (€)","type":"number"}],
+      "logic":[{"if":"montant_eur >= 1900000","regime":"A"},{"if":"montant_eur >= 160000 && montant_eur < 1900000","regime":"D"},{"else":"HN"}],
+      "ref":"R.214-1 4.1.2.0" },
+    "4.1.3.0": { "label":"Dragage et/ou rejet en milieu marin",
+      "params":[{"id":"teneur","label":"Teneur sédiments (>=N2 / N1-N2 / <=N1)","type":"text"},{"id":"volume_m3_12m","label":"Volume sur 12 mois (m³)","type":"number"},{"id":"facade","label":"Façade (AMN / autre)","type":"text"},{"id":"distance_km","label":"Distance au rejet / zone conchylicole (km)","type":"number"}],
+      "logic":[{"if":"teneur == '>=N2'","regime":"A","ref":"Teneur ≥ N2"},{"if":"teneur == 'N1-N2' && facade == 'AMN' && distance_km <= 1 && volume_m3_12m >= 50000","regime":"A","ref":"AMN/≤1 km, ≥50 000 m³"},{"if":"teneur == 'N1-N2' && facade == 'AMN' && distance_km <= 1 && volume_m3_12m < 50000","regime":"D","ref":"AMN/≤1 km, <50 000 m³"},{"if":"teneur == 'N1-N2' && facade != 'AMN' && distance_km <= 0.5 && volume_m3_12m >= 5000","regime":"A","ref":"ailleurs/≤500 m, ≥5 000 m³"},{"if":"teneur == 'N1-N2' && facade != 'AMN' && distance_km <= 0.5 && volume_m3_12m < 5000","regime":"D","ref":"ailleurs/≤500 m, <5 000 m³"},{"if":"teneur == '<=N1' && volume_m3_12m >= 500000","regime":"A","ref":"≤N1 et ≥500 000 m³"},{"if":"teneur == '<=N1' && volume_m3_12m >= 5000 && volume_m3_12m < 500000","regime":"D","ref":"≤N1 et 5 000–500 000 m³"},{"else":"HN"}],
+      "ref":"R.214-1 4.1.3.0" },
+
+    "5.1.1.0": { "label":"Réinjection dans la même nappe (géothermie, exhaures, génie civil)","params":[{"id":"capacite_m3_h","label":"Capacité totale de réinjection (m³/h)","type":"number"}],
+      "logic":[{"if":"capacite_m3_h >= 80","regime":"A"},{"if":"capacite_m3_h >= 8 && capacite_m3_h < 80","regime":"D"},{"else":"HN"}],
+      "ref":"R.214-1 5.1.1.0" },
+    "5.1.2.0": { "label":"Recherche/exploitation de gîtes géothermiques","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 5.1.2.0" },
+    "5.1.3.0": { "label":"Travaux miniers (recherches/cavités/forages/essais)","params":[{"id":"categorie","label":"a/b/d/e/f/g (voir texte)","type":"text"}],
+      "logic":[{"if":"categorie == 'a' || categorie == 'b' || categorie == 'd'","regime":"A"},{"if":"categorie == 'e' || categorie == 'f' || categorie == 'g'","regime":"D"},{"else":"HN"}],
+      "ref":"R.214-1 5.1.3.0" },
+    "5.1.4.0": { "label":"Travaux d’exploitation de mines","params":[{"id":"type","label":"Type (a : sous autorisation exploitation / b : autres)","type":"text"}],
+      "logic":[{"if":"type == 'a'","regime":"D"},{"if":"type == 'b'","regime":"A"},{"else":"HN"}],
+      "ref":"R.214-1 5.1.4.0" },
+    "5.1.5.0": { "label":"Exploitation de stockages souterrains de déchets radioactifs","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 5.1.5.0" },
+    "5.1.6.0": { "label":"Travaux de recherches des mines","params":[{"id":"type","label":"a : 2° art.3 / b : autres","type":"text"}],
+      "logic":[{"if":"type == 'a'","regime":"A"},{"if":"type == 'b'","regime":"D"},{"else":"HN"}],
+      "ref":"R.214-1 5.1.6.0" },
+    "5.1.7.0": { "label":"Prospection/recherche/exploitation (fonds marins domaine public)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 5.1.7.0" },
+    "5.2.2.0": { "label":"Concessions hydrauliques (Livre V code de l’énergie)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 5.2.2.0" },
+    "5.2.3.0": { "label":"Travaux commission d’aménagement foncier (liste réglementaire)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 5.2.3.0" },
+    "5.2.4.0": { "label":"Travaux d’exploitation de mines (L.621-4-1)","params":[],"logic":[{"else":"D"}],"ref":"R.214-1 5.2.4.0" }
   }
 }
 </script>
@@ -612,38 +387,40 @@
 
   /* ---- COUCHES ---- */
   const LAYERS = [
-    { name:"Axe_realimentes_Institution_Adour", url:"couches/Axe_realimentes_Institution_Adour.geojson" },
-    { name:"BDT_3_5_Bassin_Versant", url:"couches/BDT_3_5_Bassin_Versant.geojson" },
-    { name:"BDT_3_5_Plan_d_eau", url:"couches/BDT_3_5_Plan_d_eau.geojson" },
-    { name:"BDT_3_5_Reservoir", url:"couches/BDT_3_5_Reservoir.geojson" },
-    { name:"Cadastre_parcelles_Flux", url:"couches/Cadastre_parcelles_Flux.geojson" },
-    { name:"DCE_2022_2027_masses_deau_cotiere_Adour_Garonne", url:"couches/DCE_2022_2027_masses_deau_cotiere_Adour_Garonne.geojson" },
-    { name:"DCE_2022_2027_masses_deau_de_transition_Adour_Garonne", url:"couches/DCE_2022_2027_masses_deau_de_transition_Adour_Garonne.geojson" },
-    { name:"DCE__2022_2027__BV_specifique__AG", url:"couches/DCE__2022_2027__BV_specifique__AG.geojson" },
-    { name:"DCE__2022_2027__plans_deau__adour_garonne", url:"couches/DCE__2022_2027__plans_deau__adour_garonne.geojson" },
-    { name:"DDT40_Carto_Cours_d_Eau_validee", url:"couches/DDT40_Carto_Cours_d_Eau_validee.geojson" },
-    { name:"DDT40_Plan_d_Eau_loi_Eau", url:"couches/DDT40_Plan_d_Eau_loi_Eau.geojson" },
-    { name:"DDT40_retenue_d_eau", url:"couches/DDT40_retenue_d_eau.geojson" },
-    { name:"DPT40Masque", url:"couches/DPT40Masque.geojson" },
-    { name:"DREAL_points_nodaux", url:"couches/DREAL_points_nodaux.geojson" },
-    { name:"IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux", url:"couches/IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux.geojson" },
-    { name:"INRAe_carte_sols", url:"couches/INRAe_carte_sols.geojson" },
-    { name:"Isochrones_nappe_alluviale_adour_IA", url:"couches/Isochrones_nappe_alluviale_adour_IA.geojson" },
-    { name:"ONF_Foret", url:"couches/ONF_Foret.geojson" },
+    { name:"Axe_realimentes_Institution_Adour", url:"layers/Axe_realimentes_Institution_Adour.geojson" },
+    { name:"BDT_3_5_Bassin_Versant", url:"layers/BDT_3_5_Bassin_Versant.geojson" },
+    { name:"BDT_3_5_Plan_d_eau", url:"layers/BDT_3_5_Plan_d_eau.geojson" },
+    { name:"BDT_3_5_Reservoir", url:"layers/BDT_3_5_Reservoir.geojson" },
+    { name:"Cadastre_parcelles_Flux", url:"layers/Cadastre_parcelles_Flux.geojson" },
+    { name:"DCE_2022_2027_masses_deau_cotiere_Adour_Garonne", url:"layers/DCE_2022_2027_masses_deau_cotiere_Adour_Garonne.geojson" },
+    { name:"DCE_2022_2027_masses_deau_de_transition_Adour_Garonne", url:"layers/DCE_2022_2027_masses_deau_de_transition_Adour_Garonne.geojson" },
+    { name:"DCE__2022_2027__BV_specifique__AG", url:"layers/DCE__2022_2027__BV_specifique__AG.geojson" },
+    { name:"DCE__2022_2027__plans_deau__adour_garonne", url:"layers/DCE__2022_2027__plans_deau__adour_garonne.geojson" },
+    { name:"DDT40_Carto_Cours_d_Eau_validee", url:"layers/DDT40_Carto_Cours_d_Eau_validee.geojson" },
+    { name:"DDT40_Plan_d_Eau_loi_Eau", url:"layers/DDT40_Plan_d_Eau_loi_Eau.geojson" },
+    { name:"DDT40_retenue_d_eau", url:"layers/DDT40_retenue_d_eau.geojson" },
+    { name:"DPT40Masque", url:"layers/DPT40Masque.geojson" },
+    { name:"DREAL_points_nodaux", url:"layers/DREAL_points_nodaux.geojson" },
+    { name:"IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux", url:"layers/IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux.geojson" },
+    { name:"INRAe_carte_sols", url:"layers/INRAe_carte_sols.geojson" },
+    { name:"Isochrones_nappe_alluviale_adour_IA", url:"layers/Isochrones_nappe_alluviale_adour_IA.geojson" },
+    { name:"ONF_Foret", url:"layers/ONF_Foret.geojson" },
+
     /* GZIP */
-    { name:"DCE_2022-2027_cours_deau_Adour-Garonne", url:"couches/DCE_2022-2027_cours_deau_Adour-Garonne.geojson.gz" },
-    { name:"DCE_2022_2027__masses_deau_souterraine", url:"couches/DCE_2022_2027__masses_deau_souterraine.geojson.gz" },
-    { name:"BDT_3_5_Surface_hydrographique", url:"couches/BDT_3_5_Surface_hydrographique.geojson.gz" },
-    { name:"IGN_BDHaies_V2_2024", url:"couches/IGN_BDHaies_V2_2024.geojson.gz" },
-    { name:"Nappes_des_sables", url:"couches/Nappes_des_sables.geojson.gz" },
-    { name:"Zones_Restriction_Prelevements_flux", url:"couches/Zones_Restriction_Prelevements_flux.geojson.gz" },
-    { name:"ZAS_sup_40_2024", url:"couches/ZAS_sup_40_2024.geojson" },
-    { name:"ZRE_-_2013", url:"couches/ZRE_-_2013.geojson" },
-    { name:"Zones_port_es_par_les_arr_t_s", url:"couches/Zones_port_es_par_les_arr_t_s.geojson" },
-    { name:"Zones_portes_arretes", url:"couches/Zones_portes_arretes.geojson" },
-    { name:"axes_raliments_l_cde_retenues_l93_institution_adour", url:"couches/axes_raliments_l_cde_retenues_l93_institution_adour.geojson" },
-    { name:"pe_aci_adour", url:"couches/pe_aci_adour.geojson" },
-    { name:"sortie", url:"couches/sortie.geojson" }
+    { name:"DCE_2022-2027_cours_deau_Adour-Garonne", url:"layers/DCE_2022-2027_cours_deau_Adour-Garonne.geojson.gz" },
+    { name:"DCE_2022_2027__masses_deau_souterraine", url:"layers/DCE_2022_2027__masses_deau_souterraine.geojson.gz" },
+    { name:"BDT_3_5_Surface_hydrographique", url:"layers/BDT_3_5_Surface_hydrographique.geojson.gz" },
+    { name:"IGN_BDHaies_V2_2024", url:"layers/IGN_BDHaies_V2_2024.geojson.gz" },
+    { name:"Nappes_des_sables", url:"layers/Nappes_des_sables.geojson.gz" },
+    { name:"Zones_Restriction_Prelevements_flux", url:"layers/Zones_Restriction_Prelevements_flux.geojson.gz" },
+
+    { name:"ZAS_sup_40_2024", url:"layers/ZAS_sup_40_2024.geojson" },
+    { name:"ZRE_-_2013", url:"layers/ZRE_-_2013.geojson" },
+    { name:"Zones_port_es_par_les_arr_t_s", url:"layers/Zones_port_es_par_les_arr_t_s.geojson" },
+    { name:"Zones_portes_arretes", url:"layers/Zones_portes_arretes.geojson" },
+    { name:"axes_raliments_l_cde_retenues_l93_institution_adour", url:"layers/axes_raliments_l_cde_retenues_l93_institution_adour.geojson" },
+    { name:"pe_aci_adour", url:"layers/pe_aci_adour.geojson" },
+    { name:"sortie", url:"layers/sortie.geojson" }
   ];
 
   /* ---- MAP + Basemaps ---- */
@@ -687,78 +464,49 @@
   }
   function onEachFeature(feature, layer){ layer.bindPopup(buildPopupHTML(feature.properties||{}), {maxWidth:380,minWidth:220,autoPan:true}); }
 
-  /* Loader + cache */
+  /* Loader + cache avec fallback couches<->layers */
   const {get:cacheGet, set:cacheSet} = idbKeyval;
-  const CACHE_VERSION = 'v1';
- async function loadGeoJSONSmart(url){
-  async function tryFetch(u){
-    const res = await fetch(u, {cache:'no-store'});
-    if (!res.ok) throw new Error(String(res.status));
-    // d'abord essai JSON direct
-    try{
-      const j = await res.clone().json();
-      await cacheSet(CACHE_VERSION+':'+u, j);
-      return j;
-    }catch(_){/* pas du JSON direct */}
-    // sinon binaire (potentiellement gzip)
-    const buf = await res.arrayBuffer();
-    const u8 = new Uint8Array(buf);
-    if (u8.length===0) throw new Error('Fichier vide');
-    const isGzip   = (u8[0]===0x1f && u8[1]===0x8b);
-    const looksHTM = (u8[0]===0x3C); // '<' -> 404 html
-    if (isGzip){
-      let text;
-      if ('DecompressionStream' in window){
-        const res2 = await fetch(u,{cache:'no-store'});
-        const ds = new DecompressionStream('gzip');
-        const stream = res2.body.pipeThrough(ds);
-        text = await new Response(stream).text();
-      } else if (window.pako){
-        text = pako.ungzip(u8, {to:'string'});
-      } else {
-        throw new Error('GZIP détecté sans décompresseur');
+  const CACHE_VERSION = 'v3';
+
+  async function loadGeoJSONSmart(url){
+    async function tryFetch(u){
+      console.log('[layer] fetch', u);
+      const res = await fetch(u, {cache:'no-store'});
+      if (!res.ok) throw new Error(res.status+' '+res.statusText);
+      try { const jj = await res.clone().json(); await cacheSet(CACHE_VERSION+':'+u, jj); return jj; } catch(_){}
+      const buf = await res.arrayBuffer(); const u8 = new Uint8Array(buf);
+      if (u8.length===0) throw new Error('Fichier vide');
+      const isGzip   = (u8[0]===0x1f && u8[1]===0x8b);
+      const looksHTML= (u8[0]===0x3C);
+      if (isGzip){
+        let text;
+        if ('DecompressionStream' in window){
+          const r2 = await fetch(u,{cache:'no-store'});
+          text = await new Response(r2.body.pipeThrough(new DecompressionStream('gzip'))).text();
+        } else if (window.pako){ text = pako.ungzip(u8,{to:'string'}); }
+        else { throw new Error('GZIP détecté mais pas de décompresseur'); }
+        const j = JSON.parse(text); await cacheSet(CACHE_VERSION+':'+u, j); return j;
       }
-      const j = JSON.parse(text);
-      await cacheSet(CACHE_VERSION+':'+u, j);
-      return j;
+      if (looksHTML) throw new Error('HTML/404 — mauvais chemin/nom');
+      const txt = new TextDecoder().decode(u8); const j = JSON.parse(txt);
+      await cacheSet(CACHE_VERSION+':'+u, j); return j;
     }
-    if (looksHTM) throw new Error('404html');
-    throw new Error('Non-JSON ou tronqué');
-  }
 
-  // 1) essaie l’URL telle quelle
-  try{
-    console.info('[layer] fetch', url);
-    return await tryFetch(url);
-  }catch(e1){
-    // 2) si 404, swap couches<->layers et réessaie une seule fois
-    const is404 = String(e1.message||'').startsWith('404');
-    const swapped = url.includes('/couches/')
-      ? url.replace('/couches/','/layers/')
-      : url.includes('/layers/')
-        ? url.replace('/layers/','/couches/')
-        : null;
-
-    if (is404 && swapped){
-      try{
-        console.info('[layer] retry with', swapped);
-        const j = await tryFetch(swapped);
-        // mémorise l’URL corrigée en place pour les prochaines fois
-        for (const it of LAYERS){ if (it.url === url) { it.url = swapped; break; } }
-        return j;
-      }catch(e2){
-        // 3) sinon, tente le cache local
-        const cached = await cacheGet(CACHE_VERSION+':'+url) || await cacheGet(CACHE_VERSION+':'+swapped);
-        if (cached) return cached;
-        throw e2;
+    try { return await tryFetch(url); }
+    catch(e1){
+      // fallback automatique couches <-> layers
+      let alt=null;
+      if (typeof url==='string' && url.startsWith('layers/')) alt = url.replace(/^layers\//,'couches/');
+      else if (typeof url==='string' && url.startsWith('couches/')) alt = url.replace(/^couches\//,'layers/');
+      if (alt){
+        try { console.info('[fallback] try', alt); return await tryFetch(alt); }
+        catch(e2){}
       }
-    } else {
       const cached = await cacheGet(CACHE_VERSION+':'+url);
       if (cached) return cached;
       throw e1;
     }
   }
-}
 
   function normalizeFC(gj){
     const out={type:'FeatureCollection', features:[]};
@@ -1114,7 +862,7 @@
     }
     const BCAE_KEYS = ['bcae','zone humide','drainage','nitrates','programme d\'action','bande tampon','haie','prairie'];
     const PHYTO_KEYS = ['phytopharmaceutique','phytosanitaire','certificat individuel','neonicotinoide','amm','znt','biocide'];
-    const bcaeList = $('#bcaeList'), phytoList = $('#phytoList'), autreList = $('#autreList');
+    const bcaeList = $('#bcaeList'), phytoList = $('#phytoList'], autreList = $('#autreList');
 
     function filterBCAE(q){ const n=normG(q); return NATINF.filter(nf=>{ const t=normG(nf.intitule); return BCAE_KEYS.some(k=>t.includes(normG(k))) || t.includes(n); }); }
     function filterPHYTO(q){ const n=normG(q); return NATINF.filter(nf=>{ const t=normG(nf.intitule); return PHYTO_KEYS.some(k=>t.includes(normG(k))) || t.includes(n); }); }
