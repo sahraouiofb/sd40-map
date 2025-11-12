@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8" />
-<title>SD40 – Carte + Procédure (IOTA/BCAE/Phyto + NATINF + Validateur + Photos & Croquis)</title>
+<title>SD40 – Carte + Procédure (IOTA/BCAE/Phyto + NATINF + Validateur)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <!-- Leaflet & plugins CSS -->
@@ -88,43 +88,23 @@
   .proc-actions{display:flex;gap:8px;justify-content:flex-end;padding:10px;border-top:1px solid #eef}
   .badge{display:inline-block;padding:2px 6px;border-radius:6px;background:#e8eef6;color:#0b2239;font-weight:600;font-size:12px}
   .note{font-size:12px;color:#475569}
-  .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#eef6ff;color:#0b2239;font-weight:700}
-  .kv{display:grid;grid-template-columns:170px 1fr;gap:6px;font-size:13px}
+  .pill{display:inline-flex;align-items:center;gap:.35rem;padding:2px 10px;border-radius:999px;font-weight:800}
+  .pill-A{background:#fee2e2;color:#991b1b}   /* Autorisation */
+  .pill-D{background:#ffedd5;color:#9a3412}   /* Déclaration  */
+  .pill-HN{background:#e5e7eb;color:#374151}  /* Hors nomenclature */
+  .kv{display:grid;grid-template-columns:180px 1fr;gap:6px;font-size:13px}
   .kv b{color:#0b2239}
   .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px}
 
-  /* ===== Pièces : Photos & Croquis ===== */
-  .pieces-hdr{display:flex;align-items:center;justify-content:space-between;margin:6px 0 2px}
-  .pieces-tabs{display:flex;gap:6px;margin:6px 0}
-  .pieces-tabs button{border:1px solid #d0d7e1;background:#f8fafc;padding:6px 10px;border-radius:8px;cursor:pointer}
-  .pieces-tabs button.active{background:#0b2239;color:#fff;border-color:#0b2239}
-
-  .media-toolbar{display:flex;gap:8px;flex-wrap:wrap}
-  .media-toolbar .btn{border:1px solid #d0d7e1;background:#0b2239;color:#fff;padding:8px 10px;border-radius:8px;cursor:pointer;font-weight:600}
-  .media-toolbar .btn.alt{background:#f8fafc;color:#0b2239}
-
-  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-  @media (min-width:680px){ .grid{grid-template-columns:repeat(3,1fr)} }
-  .card{border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;display:flex;flex-direction:column;background:#fff}
-  .card img{width:100%;height:160px;object-fit:cover;background:#f1f5f9}
-  .card .card-body{padding:8px;display:grid;gap:6px}
-  .ctrls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-  .ctrls .btn{border:1px solid #d0d7e1;background:#fff;padding:4px 8px;border-radius:6px;cursor:pointer}
-  .ctrls .btn.danger{border-color:#fecaca;background:#fee2e2}
-  .ctrls .btn.small{font-size:12px}
-  .incl{display:flex;gap:6px;align-items:center}
-  .row-slim{display:flex;gap:6px}
-  .row-slim input[type="text"]{flex:1}
-
-  /* Sketch (croquis) */
-  .sketch-wrap{border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;background:#fff}
-  .sketch-toolbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:#f8fafc;border-bottom:1px solid #e5e7eb;padding:6px}
-  .sketch-toolbar .btn{border:1px solid #d0d7e1;background:#fff;padding:6px 8px;border-radius:8px;cursor:pointer}
-  .sketch-canvas{display:block;width:100%;height:360px;background:#fff;touch-action:none}
-  .sketch-meta{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px;border-top:1px solid #e5e7eb}
-
-  /* PDF chips */
-  .pdf-chip{display:inline-block;padding:2px 8px;border-radius:999px;background:#111827;color:#fff;font-weight:700;font-size:11px}
+  /* Croquis modal */
+  .sketch-modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);z-index:5000}
+  .sketch-card{background:#fff;border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,.35);width:min(920px,96vw);height:min(78vh,760px);display:flex;flex-direction:column;overflow:hidden;border:1px solid #d0d7e1}
+  .sketch-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid #eef;background:#f8fafc}
+  .sketch-left,.sketch-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .sketch-canvas{flex:1;background:#fff}
+  .sketch-toolbar select,.sketch-toolbar input[type="color"],.sketch-toolbar input[type="range"]{height:32px}
+  .thumbs{display:flex;gap:6px;flex-wrap:wrap}
+  .thumbs img{width:68px;height:68px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb}
 </style>
 </head>
 <body>
@@ -181,9 +161,9 @@
         <select id="valGeom"><option value="point">Point</option><option value="line">Ligne</option><option value="polygon">Polygone</option></select>
       </div>
       <div id="valParams" class="proc-row"></div>
-      <div class="proc-row">
+      <div class="proc-row" style="align-items:center">
         <button id="btnEval" type="button">Évaluer le régime</button>
-        <span id="valResult" class="pill">—</span>
+        <span id="valResult" class="pill pill-HN">—</span>
       </div>
       <div id="valTrace" class="mono"></div>
     </div>
@@ -197,78 +177,26 @@
       <input id="ftRefIota" placeholder="Rubrique IOTA retenue" />
       <input id="ftRefNatinf" placeholder="NATINF retenu (codes séparés par des virgules)" />
     </div>
+
+    <!-- Pièces : Photo & Croquis -->
+    <div class="proc-row">
+      <button id="btnPhoto" type="button">📷 Ajouter une photo</button>
+      <button id="btnSketch" type="button">✏️ Croquis</button>
+      <input id="photoInput" type="file" accept="image/*" capture="environment" hidden>
+    </div>
+    <div class="proc-row">
+      <div><b>Pièces jointes :</b></div>
+      <div id="piecesList" class="thumbs"></div>
+    </div>
+
     <div class="kv">
-      <b>N° de fiche :</b> <span class="badge" id="ftId">—</span>
       <b>Coordonnées :</b> <span class="badge" id="ftLatLng">—</span>
       <b>Complétude :</b> <span class="badge" id="ftScore">—</span>
     </div>
-
-    <!-- ===== Pièces : Photos & Croquis ===== -->
-    <h4 class="pieces-hdr" style="margin-top:12px">
-      <span>📎 Pièces (photos & croquis)</span>
-      <span class="note">Ajoute des preuves visuelles, elles s’intègrent au PDF.</span>
-    </h4>
-
-    <div class="pieces-tabs">
-      <button data-piecetab="photos" class="active" type="button">Photos</button>
-      <button data-piecetab="sketch" type="button">Croquis</button>
-    </div>
-
-    <!-- Photos -->
-    <div id="tab-photos">
-      <div class="media-toolbar">
-        <label class="btn">📷 Prendre une photo
-          <input id="inputCam" type="file" accept="image/*" capture="environment" hidden>
-        </label>
-        <label class="btn alt">⬆️ Importer
-          <input id="inputFiles" type="file" accept="image/*" multiple hidden>
-        </label>
-        <button id="btnPhotosClear" class="btn alt" type="button" title="Vider la galerie">🧹 Vider</button>
-      </div>
-      <div class="note" style="margin:6px 0">Max 10 photos. Compression automatique (long côté 1600 px). Orientation EXIF corrigée.</div>
-      <div id="photoGrid" class="grid"></div>
-    </div>
-
-    <!-- Croquis -->
-    <div id="tab-sketch" hidden>
-      <div class="sketch-wrap">
-        <div class="sketch-toolbar">
-          <select id="skBgSel" title="Fond">
-            <option value="blank">Fond blanc</option>
-            <option value="map">Carte actuelle</option>
-            <option value="photo">À partir d’une photo</option>
-          </select>
-          <select id="skTool" title="Outil">
-            <option value="pen">Stylo</option>
-            <option value="marker">Marqueur</option>
-            <option value="eraser">Gomme</option>
-            <option value="text">Texte</option>
-          </select>
-          <select id="skColor" title="Couleur">
-            <option value="#111827">Noir</option><option value="#e11d48">Rouge</option>
-            <option value="#0ea5e9">Bleu</option><option value="#059669">Vert</option>
-            <option value="#f59e0b">Orange</option><option value="#6b7280">Gris</option>
-          </select>
-          <input id="skSize" type="range" min="2" max="22" value="6" title="Épaisseur">
-          <button id="skUndo" class="btn" type="button">↶ Annuler</button>
-          <button id="skRedo" class="btn" type="button">↷ Refaire</button>
-          <button id="skClear" class="btn" type="button">🧹 Effacer</button>
-          <button id="skSave" class="btn" type="button">💾 Enregistrer dans « Pièces »</button>
-        </div>
-        <canvas id="skCanvas" class="sketch-canvas"></canvas>
-        <div class="sketch-meta">
-          <input id="skCaption" type="text" placeholder="Légende du croquis (ex: Implantation / zone d’écoulement)">
-          <div class="note">Astuce : appuie long pour dessiner droit 😉</div>
-        </div>
-      </div>
-      <div class="note" style="margin-top:6px">Le croquis est sauvegardé comme pièce (section « Croquis » du PDF).</div>
-    </div>
-
   </div>
 
   <div class="proc-actions">
     <button id="btnResetAll" type="button" style="margin-right:auto">Remettre à zéro</button>
-    <button id="btnDuplicate" type="button" title="Dupliquer la fiche (conserve IOTA/NATINF, vide constats)">Dupliquer</button>
     <button id="btnProcPDF" type="button">Exporter PDF</button>
     <button id="btnProcGJ"  type="button">Exporter GeoJSON</button>
   </div>
@@ -462,23 +390,11 @@
   const $ = (s, r=document)=> r.querySelector(s);
   const $$ = (s, r=document)=> Array.from(r.querySelectorAll(s));
 
-  /* ---- Persist / IDs ---- */
-  const store = idbKeyval;
+  /* ---- Procédure : open/close ---- */
   const PROC_KEY='sd40:procVisible';
   const RULES_KEY='sd40:iota_rules_v1';
-  const PHOTOS_KEY='sd40:photos_v1';
-  const SKETCHES_KEY='sd40:sketches_v1';
-  const ANNOS_KEY='sd40:annotations';
-  const CACHE_VERSION = 'v3';
   let PACK_RULES=null;
 
-  function genFicheId(){
-    const d=new Date();
-    const pad=n=>String(n).padStart(2,'0');
-    return `SD40-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}-${Math.random().toString(36).slice(2,4).toUpperCase()}`;
-  }
-
-  /* ---- Procédure : open/close robuste ---- */
   const procEl = $('#proc');
   const btnOpen = $('#btnProcOpen');
   const btnClose = $('#btnProcClose');
@@ -494,7 +410,7 @@
   document.addEventListener('keydown',(e)=>{ if (e.key === 'Escape') closeProc(); });
   try{ if (localStorage.getItem(PROC_KEY) === '1') openProc(); }catch(e){}
 
-  /* ---- COUCHES (nommage répertoires layers/ <-> couches/ avec fallback) ---- */
+  /* ---- COUCHES ---- */
   const LAYERS = [
     { name:"Axe_realimentes_Institution_Adour", url:"layers/Axe_realimentes_Institution_Adour.geojson" },
     { name:"BDT_3_5_Bassin_Versant", url:"layers/BDT_3_5_Bassin_Versant.geojson" },
@@ -574,12 +490,15 @@
   function onEachFeature(feature, layer){ layer.bindPopup(buildPopupHTML(feature.properties||{}), {maxWidth:380,minWidth:220,autoPan:true}); }
 
   /* Loader + cache avec fallback couches<->layers */
+  const {get:cacheGet, set:cacheSet} = idbKeyval;
+  const CACHE_VERSION = 'v3';
+
   async function loadGeoJSONSmart(url){
     async function tryFetch(u){
       console.log('[layer] fetch', u);
       const res = await fetch(u, {cache:'no-store'});
       if (!res.ok) throw new Error(res.status+' '+res.statusText);
-      try { const jj = await res.clone().json(); await store.set(CACHE_VERSION+':'+u, jj); return jj; } catch(_){}
+      try { const jj = await res.clone().json(); await cacheSet(CACHE_VERSION+':'+u, jj); return jj; } catch(_){}
       const buf = await res.arrayBuffer(); const u8 = new Uint8Array(buf);
       if (u8.length===0) throw new Error('Fichier vide');
       const isGzip   = (u8[0]===0x1f && u8[1]===0x8b);
@@ -591,22 +510,24 @@
           text = await new Response(r2.body.pipeThrough(new DecompressionStream('gzip'))).text();
         } else if (window.pako){ text = pako.ungzip(u8,{to:'string'}); }
         else { throw new Error('GZIP détecté mais pas de décompresseur'); }
-        const j = JSON.parse(text); await store.set(CACHE_VERSION+':'+u, j); return j;
+        const j = JSON.parse(text); await cacheSet(CACHE_VERSION+':'+u, j); return j;
       }
       if (looksHTML) throw new Error('HTML/404 — mauvais chemin/nom');
       const txt = new TextDecoder().decode(u8); const j = JSON.parse(txt);
-      await store.set(CACHE_VERSION+':'+u, j); return j;
+      await cacheSet(CACHE_VERSION+':'+u, j); return j;
     }
 
     try { return await tryFetch(url); }
     catch(e1){
+      // fallback automatique couches <-> layers
       let alt=null;
       if (typeof url==='string' && url.startsWith('layers/')) alt = url.replace(/^layers\//,'couches/');
       else if (typeof url==='string' && url.startsWith('couches/')) alt = url.replace(/^couches\//,'layers/');
       if (alt){
-        try { console.info('[fallback] try', alt); return await tryFetch(alt); } catch(e2){}
+        try { console.info('[fallback] try', alt); return await tryFetch(alt); }
+        catch(e2){}
       }
-      const cached = await store.get(CACHE_VERSION+':'+url);
+      const cached = await cacheGet(CACHE_VERSION+':'+url);
       if (cached) return cached;
       throw e1;
     }
@@ -642,7 +563,7 @@
       if (name==='DPT40Masque'){ try{ maskBounds = layer.getBounds(); }catch(_){ } }
     }catch(err){ console.warn(`ERR ${name}:`, err); }
   }
-  ensureLayerLoaded('DPT40Masque'); // utile pour bounds
+  ensureLayerLoaded('DPT40Masque');
   map.on('overlayadd', async (e)=>{
     const name = Object.keys(layerGroups).find(k => layerGroups[k]===e.layer);
     if (name) await ensureLayerLoaded(name);
@@ -802,7 +723,7 @@
     const a=document.createElement('a'); a.href=url; a.download = (mode==='dist'?'mesure_distance':'mesure_surface')+'.geojson'; a.click(); URL.revokeObjectURL(url);
   }
 
-  // Annotations (dessins Leaflet)
+  // Annotations Leaflet.Draw
   const annotations = new L.FeatureGroup().addTo(map);
   layersControl.addOverlay(annotations, 'Annotations (dessins)');
   const drawControl = new L.Control.Draw({
@@ -813,6 +734,7 @@
             rectangle:false, circle:false, circlemarker:false }
   });
   map.addControl(drawControl);
+  const ANNOS_KEY='sd40:annotations';
   function saveAnnotations(){ try{ localStorage.setItem(ANNOS_KEY, JSON.stringify(annotations.toGeoJSON())); }catch(_){ } }
   function loadAnnotations(){ try{ const raw=localStorage.getItem(ANNOS_KEY); if(!raw) return;
     const gj=JSON.parse(raw); L.geoJSON(gj,{ style:()=>({color:'#ff7f00',weight:2,fillOpacity:.2}), pointToLayer:(_f,latlng)=>L.marker(latlng)}).eachLayer(l=>annotations.addLayer(l)); }catch(_){ } }
@@ -860,7 +782,7 @@
       return d; }
   }); map.addControl(new HomeControl());
 
-  // Toggle global outils (unique)
+  // Toggle global outils
   const ToolsToggle = L.Control.extend({
     options:{ position:'topleft' },
     onAdd(){ const w=L.DomUtil.create('div','tools-toggle leaflet-control'); const b=L.DomUtil.create('button','',w);
@@ -871,14 +793,28 @@
 
   /* ---- PROCÉDURE – DATASETS & UI ---- */
   let IOTA=[], NATINF=[];
-  let ficheId = localStorage.getItem('sd40:ficheId') || genFicheId();
-  localStorage.setItem('sd40:ficheId', ficheId);
-  $('#ftId').textContent = ficheId;
-
   const DEMO_IOTA=[ {code:"3.2.3.0", titre:"Plans d’eau (permanents ou non)"},
                     {code:"3.1.4.0", titre:"Consolidation/protection de berges (techniques non végétales)"},
                     {code:"3.3.1.0", titre:"Zones humides : assèchement, mise en eau, remblais"} ];
   const DEMO_NATINF=[ {natinf:"32673", intitule:"Non-respect d'une prescription attachée à une déclaration IOTA", type:"C5"} ];
+
+  const RESULT_LABELS = { HN:'Hors nomenclature', A:'Autorisation', D:'Déclaration' };
+  const RESULT_ICON   = { HN:'⚪', A:'🔴', D:'🟠' };
+  function applyResultBadge(codeOrLabel){
+    // codeOrLabel peut être "A" / "D" / "HN" OU le libellé complet
+    let code = codeOrLabel;
+    if (!['A','D','HN'].includes(code)) {
+      // essaie d’inférer
+      const s = String(codeOrLabel||'').toLowerCase();
+      if (s.includes('autor')) code='A';
+      else if (s.includes('décla')||s.includes('decla')) code='D';
+      else code='HN';
+    }
+    const el = $('#valResult');
+    el.classList.remove('pill-A','pill-D','pill-HN');
+    el.classList.add('pill', 'pill-'+code);
+    el.textContent = `${RESULT_ICON[code]} ${RESULT_LABELS[code]}`;
+  }
 
   function getEmbeddedPack(){
     try{ const el=document.getElementById('iota-pack-officiel'); return el? JSON.parse(el.textContent) : null; }catch(_){ return null; }
@@ -893,15 +829,12 @@
       IOTA = Array.isArray(pack.iota)? pack.iota : DEMO_IOTA;
       if (pack.rules){ PACK_RULES = pack.rules; setRules(pack.rules); }
     }
-
     try{
       const r = await fetch('data/natinf_env_2023-10.json',{cache:'no-store'});
       NATINF = r.ok ? await r.json() : DEMO_NATINF;
     }catch(_){ NATINF = DEMO_NATINF; }
 
     initProc();
-    await loadPhotos();
-    await loadSketches();
   })();
 
   function normG(s){ return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
@@ -920,22 +853,12 @@
   }
 
   function initProc(){
-    // Onglets principaux
+    // Onglets
     $$('.proc-tabs button').forEach(b=>{
       b.addEventListener('click', ()=>{
         $$('.proc-tabs button').forEach(x=>x.classList.remove('active'));
         b.classList.add('active'); const tab=b.dataset.tab;
         $$('.tab').forEach(x=>x.hidden=(x.id!=='tab-'+tab));
-      });
-    });
-
-    // Onglets Pièces
-    $$('.pieces-tabs button').forEach(b=>{
-      b.addEventListener('click', ()=>{
-        $$('.pieces-tabs button').forEach(x=>x.classList.remove('active'));
-        b.classList.add('active'); const t=b.dataset.piecetab;
-        $('#tab-photos').hidden = (t!=='photos');
-        $('#tab-sketch').hidden = (t!=='sketch');
       });
     });
 
@@ -958,7 +881,6 @@
 
           const suggested = natinfSuggestForIota(r.value).slice(0,3).map(x=>x.natinf);
           $('#ftRefNatinf').value = suggested.join(', ');
-          evalScore();
         });
       });
     }
@@ -974,14 +896,16 @@
         </label>
       </div>`).join('') || '<em>Aucun résultat</em>';
       $$('input[type=radio]', listEl).forEach(r=>{
-        r.addEventListener('change', ()=>{ $('#ftRefNatinf').value = r.value; evalScore(); });
+        r.addEventListener('change', ()=>{ $('#ftRefNatinf').value = r.value; });
       });
     }
     const BCAE_KEYS = ['bcae','zone humide','drainage','nitrates','programme d\'action','bande tampon','haie','prairie'];
     const PHYTO_KEYS = ['phytopharmaceutique','phytosanitaire','certificat individuel','neonicotinoide','amm','znt','biocide'];
     const bcaeList = $('#bcaeList'), phytoList = $('#phytoList'), autreList = $('#autreList');
+
     function filterBCAE(q){ const n=normG(q); return NATINF.filter(nf=>{ const t=normG(nf.intitule); return BCAE_KEYS.some(k=>t.includes(normG(k))) || t.includes(n); }); }
     function filterPHYTO(q){ const n=normG(q); return NATINF.filter(nf=>{ const t=normG(nf.intitule); return PHYTO_KEYS.some(k=>t.includes(normG(k))) || t.includes(n); }); }
+
     $('#bcaeSearch').addEventListener('input', (e)=> pickNatinf(bcaeList, filterBCAE(e.target.value))); pickNatinf(bcaeList, filterBCAE('zone humide'));
     $('#phytoSearch').addEventListener('input', (e)=> pickNatinf(phytoList, filterPHYTO(e.target.value))); pickNatinf(phytoList, filterPHYTO('phytopharmaceutique'));
     $('#autreSearch').addEventListener('input', (e)=>{ const q=normG(e.target.value); const out=NATINF.filter(nf=> normG(nf.intitule).includes(q) || (nf.natinf||'').includes(q)); pickNatinf(autreList, out); });
@@ -990,25 +914,271 @@
     function updateLatLngBadge(ll){ $('#ftLatLng').textContent = ll ? `Lat ${ll.lat.toFixed(5)} / Lng ${ll.lng.toFixed(5)}` : '—'; }
     map.on('click', (e)=> updateLatLngBadge(e.latlng)); updateLatLngBadge(map.getCenter());
 
-    // Complétude (ajout : ≥1 pièce)
-    function evalScore(){
-      const f1=$('#ftTitre').value.trim().length>0;
-      const f2=$('#ftDesc').value.trim().length>0;
-      const f3=$('#ftRefIota').value.trim().length>0;
-      const f4=$('#ftRefNatinf').value.trim().length>0;
-      const hasPiece = (photos.filter(p=>p.kind==='photo').length + sketches.length) > 0;
-      const n = [f1,f2,f3,f4,hasPiece].filter(Boolean).length;
-      $('#ftScore').textContent = (n===5? 'OK (5/5)': n+'/5');
-    }
+    // Complétude
+    function evalScore(){ const f=[ $('#ftTitre').value, $('#ftDesc').value, $('#ftRefIota').value, $('#ftRefNatinf').value ]; const n=f.filter(x=>String(x||'').trim().length>0).length;
+      $('#ftScore').textContent = (n>=4? 'OK (4/4)': n+'/4'); }
     ['#ftTitre','#ftDesc','#ftRefIota','#ftRefNatinf'].forEach(sel=> $(sel).addEventListener('input', evalScore)); evalScore();
 
-    // Dupliquer
-    $('#btnDuplicate').addEventListener('click', ()=>{
-      const keepIota=$('#ftRefIota').value, keepNatinf=$('#ftRefNatinf').value, keepLieu=$('#ftLieu').value;
-      ['#ftTitre','#ftDesc'].forEach(s=> $(s).value='');
-      $('#ftRefIota').value=keepIota; $('#ftRefNatinf').value=keepNatinf; $('#ftLieu').value=keepLieu;
-      ficheId = genFicheId(); localStorage.setItem('sd40:ficheId', ficheId); $('#ftId').textContent=ficheId;
-      evalScore();
+    // === Photos & Croquis ===
+    const photos=[]; // {id, dataUrl, w, h, label}
+    const sketches=[]; // {id, dataUrl, w, h, label}
+    function refreshPieces(){
+      const cont = $('#piecesList'); cont.innerHTML='';
+      [...photos, ...sketches].forEach(p=>{
+        const im = document.createElement('img'); im.src=p.dataUrl; im.title=p.label||'Pièce'; cont.appendChild(im);
+      });
+    }
+    $('#btnPhoto').addEventListener('click', ()=> $('#photoInput').click());
+    $('#photoInput').addEventListener('change', async (e)=>{
+      const f=e.target.files?.[0]; if(!f) return;
+      const dataUrl = await fileToDataURL(f);
+      const img = await dataUrlToImage(dataUrl);
+      photos.push({ id:'ph'+Date.now(), dataUrl, w:img.width, h:img.height, label:'Photo '+new Date().toLocaleString() });
+      refreshPieces(); e.target.value='';
+    });
+
+    // Croquis modal
+    let skModal=null, skCanvas=null, skCtx=null, skDrawing=false, skLast=null, skColor='#111827', skSize=3, skBg='blank';
+    function openSketch(){
+      if (skModal) return;
+      skModal = document.createElement('div'); skModal.className='sketch-modal';
+      skModal.innerHTML = `
+        <div class="sketch-card">
+          <div class="sketch-toolbar">
+            <div class="sketch-left">
+              <select id="skBgSel" title="Fond">
+                <option value="blank">Fond blanc</option>
+                <option value="map">Fond = carte actuelle</option>
+                <option value="photo">Fond = une photo</option>
+              </select>
+              <label>Couleur <input id="skColor" type="color" value="#111827"></label>
+              <label>Épaisseur <input id="skSize" type="range" min="1" max="20" value="3"></label>
+              <button id="skUndo" type="button">↶ Annuler</button>
+              <button id="skClear" type="button">🧹 Vider</button>
+            </div>
+            <div class="sketch-right">
+              <button id="skSave" type="button">💾 Enregistrer</button>
+              <button id="skClose" type="button">Fermer</button>
+            </div>
+          </div>
+          <canvas id="skCanvas" class="sketch-canvas"></canvas>
+        </div>`;
+      document.body.appendChild(skModal);
+
+      skCanvas = $('#skCanvas', skModal); skCtx = skCanvas.getContext('2d');
+      function drawImageCover(ctx, img, w, h){
+        const r = Math.max(w / img.width, h / img.height);
+        const dw = img.width * r, dh = img.height * r;
+        const dx = (w - dw) / 2, dy = (h - dh) / 2;
+        ctx.drawImage(img, dx, dy, dw, dh);
+      }
+      function resizeSketch(){
+        const rect = skCanvas.getBoundingClientRect();
+        const cssW = Math.max(1, Math.round(rect.width));
+        const cssH = Math.max(1, Math.round(rect.height));
+        const dpr  = window.devicePixelRatio || 1;
+        skCanvas.width  = Math.round(cssW * dpr);
+        skCanvas.height = Math.round(cssH * dpr);
+        skCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        redrawSketch();
+      }
+      async function setSketchBg(mode){
+        skBg = mode;
+        if (mode==='blank'){ redrawSketch(); return; }
+        if (mode==='photo'){
+          if (!photos.length){ alert('Aucune photo disponible.'); $('#skBgSel').value='blank'; redrawSketch(); return; }
+          const pick = prompt('ID de la photo (index 1..N) ou vide pour la première :', '');
+          const idx = Math.min(Math.max(((+pick||1)-1),0), photos.length-1);
+          const img = await dataUrlToImage(photos[idx].dataUrl);
+          redrawSketch(img);
+          return;
+        }
+        if (mode==='map'){
+          try{
+            const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, backgroundColor:'#fff', scale:1});
+            const img = await dataUrlToImage(canvas.toDataURL('image/jpeg',0.9));
+            redrawSketch(img);
+          }catch(e){
+            alert('Impossible de capturer la carte (CORS). Fond blanc utilisé.');
+            redrawSketch();
+          }
+        }
+      }
+      function redrawSketch(bgImg=null){
+        const rect = skCanvas.getBoundingClientRect();
+        const w = Math.max(1, Math.round(rect.width));
+        const h = Math.max(1, Math.round(rect.height));
+        skCtx.clearRect(0, 0, w, h);
+        skCtx.fillStyle = '#fff';
+        skCtx.fillRect(0, 0, w, h);
+        if (bgImg){
+          drawImageCover(skCtx, bgImg, w, h);
+        }
+        // rejoue l’historique
+        skStack.forEach(st=>{
+          skCtx.strokeStyle = st.color;
+          skCtx.lineWidth = st.size;
+          skCtx.lineJoin = skCtx.lineCap = 'round';
+          skCtx.beginPath();
+          st.pts.forEach((p,i)=>{ if(i===0) skCtx.moveTo(p.x,p.y); else skCtx.lineTo(p.x,p.y); });
+          skCtx.stroke();
+        });
+      }
+      function pt(e){
+        const rect = skCanvas.getBoundingClientRect();
+        const cx = (e.touches ? e.touches[0].clientX : e.clientX);
+        const cy = (e.touches ? e.touches[0].clientY : e.clientY);
+        return { x: cx - rect.left, y: cy - rect.top };
+      }
+
+      const skStack=[]; // historique des traits
+      $('#skBgSel', skModal).addEventListener('change', (e)=> setSketchBg(e.target.value));
+      $('#skColor', skModal).addEventListener('input', (e)=> skColor = e.target.value);
+      $('#skSize',  skModal).addEventListener('input', (e)=> skSize  = +e.target.value);
+      $('#skUndo',  skModal).addEventListener('click', ()=>{ skStack.pop(); redrawSketch(); });
+      $('#skClear', skModal).addEventListener('click', ()=>{ skStack.length=0; setSketchBg(skBg); });
+
+      function down(e){ e.preventDefault(); skDrawing=true; const p=pt(e); skLast=p; skStack.push({color:skColor,size:skSize,pts:[p]}); }
+      function move(e){ if(!skDrawing) return; const p=pt(e); const cur=skStack[skStack.length-1]; cur.pts.push(p);
+        skCtx.strokeStyle = cur.color; skCtx.lineWidth = cur.size; skCtx.lineJoin=skCtx.lineCap='round';
+        skCtx.beginPath(); skCtx.moveTo(skLast.x, skLast.y); skCtx.lineTo(p.x, p.y); skCtx.stroke(); skLast=p; }
+      function up(){ skDrawing=false; }
+
+      skCanvas.addEventListener('mousedown', down);
+      skCanvas.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+      skCanvas.addEventListener('touchstart', down, {passive:false});
+      skCanvas.addEventListener('touchmove',  move, {passive:false});
+      window.addEventListener('touchend', up);
+
+      $('#skSave', skModal).addEventListener('click', ()=>{
+        const dataUrl = skCanvas.toDataURL('image/png');
+        sketches.push({ id:'sk'+Date.now(), dataUrl, w:skCanvas.width, h:skCanvas.height, label:'Croquis '+new Date().toLocaleString() });
+        refreshPieces();
+        alert('Croquis enregistré dans les pièces.');
+      });
+      $('#skClose', skModal).addEventListener('click', closeSketch);
+
+      function closeSketch(){
+        if (!skModal) return;
+        window.removeEventListener('mouseup', up);
+        window.removeEventListener('touchend', up);
+        skModal.remove(); skModal=null; skCanvas=null; skCtx=null;
+      }
+
+      // première taille + fond blanc
+      const obs = new ResizeObserver(resizeSketch); obs.observe($('.sketch-card', skModal));
+      resizeSketch();
+      setSketchBg('blank');
+    }
+    $('#btnSketch').addEventListener('click', openSketch);
+
+    // Exports fiche
+    $('#btnProcGJ').addEventListener('click', ()=>{
+      const ll = map.getCenter();
+      const props = { titre:$('#ftTitre').value, lieu:$('#ftLieu').value, desc:$('#ftDesc').value, iota:$('#ftRefIota').value, natinf:$('#ftRefNatinf').value, date:new Date().toISOString() };
+      const gj = { type:'FeatureCollection', features:[{ type:'Feature', properties:props, geometry:{ type:'Point', coordinates:[ll.lng,ll.lat] } }]};
+      const blob = new Blob([JSON.stringify(gj)], {type:'application/geo+json'});
+      const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href = url; a.download = 'fiche-terrain.geojson'; a.click(); URL.revokeObjectURL(url);
+    });
+
+    // === PDF narratif pro ===
+    $('#btnProcPDF').addEventListener('click', async ()=>{
+      const Titre = $('#ftTitre').value || 'Intervention';
+      const Lieu  = $('#ftLieu').value || '—';
+      const Iota  = $('#ftRefIota').value || '—';
+      const Natinf= $('#ftRefNatinf').value || '—';
+      const Desc  = $('#ftDesc').value || '';
+      const Reg   = $('#valResult').textContent.replace(/^[🔴🟠⚪]\s*/,'') || '—';
+
+      const { jsPDF } = window.jspdf; const pdf = new jsPDF({unit:'pt', format:'a4'});
+      const W = pdf.internal.pageSize.getWidth();
+
+      // Couverture / Titre
+      pdf.setFillColor(11,34,57); pdf.rect(0,0,W,72,'F');
+      pdf.setTextColor(255,255,255); pdf.setFont('helvetica','bold'); pdf.setFontSize(16);
+      pdf.text('FICHE TERRAIN – Procédure', 40, 46);
+      pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
+      pdf.text(new Date().toLocaleString(), W-40, 46, {align:'right'});
+
+      // Cadre résumé narratif
+      pdf.setTextColor(0,0,0);
+      pdf.setFont('helvetica','bold'); pdf.setFontSize(14);
+      pdf.text(Titre, 40, 100);
+      pdf.setFontSize(11); pdf.setFont('helvetica','normal');
+      const narrative = [
+        `Contexte et lieu : l’intervention s’est déroulée à ${Lieu}.`,
+        Iota!=='—' ? `Références IOTA pressenties ou retenues : ${Iota}.` : `Aucune rubrique IOTA retenue à ce stade.`,
+        Natinf!=='—' ? `Qualification pénale (NATINF) envisagée : ${Natinf}.` : `Aucun code NATINF ciblé pour l’instant.`,
+        `Évaluation réglementaire : ${Reg}.`,
+        Desc ? `Constats : ${Desc}` : `Constats : —`
+      ].join(' ');
+      const narrWrapped = pdf.splitTextToSize(narrative, W-80);
+      pdf.text(narrWrapped, 40, 124);
+
+      // Pastille résultat
+      const res = $('#valResult').textContent;
+      let col=[55,65,81]; // HN
+      if (res.includes('Autorisation')) col=[185,28,28];
+      else if (res.includes('Déclaration')) col=[154,52,18];
+      pdf.setFillColor(col[0],col[1],col[2]);
+      pdf.setTextColor(255,255,255);
+      const resText = ` ${res} `;
+      const tw = pdf.getTextWidth(resText) + 10;
+      pdf.roundedRect(40, 168, tw, 18, 9, 9, 'F');
+      pdf.text(resText, 45, 181);
+
+      // Encadré références
+      pdf.setTextColor(0,0,0);
+      pdf.setFont('helvetica','bold'); pdf.text('Références & paramètres', 40, 212);
+      pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
+      const refs = [
+        `Rubrique IOTA : ${Iota}`,
+        `NATINF : ${Natinf}`
+      ];
+      const trace = $('#valTrace').innerText || '';
+      const refWrapped = pdf.splitTextToSize(refs.join(' • ') + (trace ? ' • ' + trace : ''), W-80);
+      pdf.text(refWrapped, 40, 228);
+
+      // Capture carte
+      try{
+        const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, scale:1});
+        const img = canvas.toDataURL('image/jpeg', 0.85);
+        const w = W-80, h = w * (canvas.height/canvas.width);
+        pdf.addPage(); pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.text('Localisation – aperçu carte', 40, 60);
+        pdf.addImage(img, 'JPEG', 40, 80, w, Math.min(h, 680));
+      }catch(_){}
+
+      // Pièces (photos + dernier croquis)
+      pdf.addPage();
+      pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.text('Pièces jointes', 40, 60);
+      pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
+      let x=40, y=76, maxH=0, pad=8, boxW=180, boxH=120;
+      const items = [...photos, ...sketches];
+      if (items.length===0){ pdf.text('Aucune pièce jointe.', 40, 90); }
+      for (const it of items){
+        const img = it.dataUrl;
+        pdf.setDrawColor(229,231,235); pdf.rect(x-2,y-2,boxW+4,boxH+4);
+        pdf.addImage(img, 'JPEG', x, y, boxW, boxH, undefined, 'FAST');
+        pdf.text((it.label||'Pièce'), x, y+boxH+14);
+        x += boxW + pad;
+        maxH = Math.max(maxH, boxH);
+        if (x + boxW > W-40){ x=40; y += maxH + 36; maxH=0; if (y > 740){ pdf.addPage(); y=60; } }
+      }
+
+      pdf.save('fiche-terrain.pdf');
+    });
+
+    // Reset total
+    $('#btnResetAll').addEventListener('click', ()=>{
+      ['#ftTitre','#ftLieu','#ftDesc','#ftRefIota','#ftRefNatinf'].forEach(s=> $(s).value='');
+      $('#ftScore').textContent='—'; $('#ftLatLng').textContent='—';
+      $('#valRubrique').value=''; $('#valParams').innerHTML=''; applyResultBadge('HN'); $('#valTrace').innerHTML='';
+      lastMeasure = { mode:null, length_m:0, area_m2:0 };
+      resetManual(); stopGPS();
+      photos.length=0; sketches.length=0; refreshPieces();
+      if (typeof annotations !== 'undefined'){ annotations.clearLayers(); try{ localStorage.removeItem('sd40:annotations'); }catch(_){ } }
+      $$('input[name=iotaPick]').forEach(r=> r.checked=false);
     });
 
     /* ===== VALIDATEUR IOTA ===== */
@@ -1017,6 +1187,7 @@
       if (pack && pack.rules){ setRules(pack.rules); alert('Règles réinstallées (pack intégré).'); buildValParams(); }
       else { alert('Pack intégré absent.'); }
     }
+
     function fmtNum(x){ const n=Number(x); if(!isFinite(n)) return String(x||''); return n.toLocaleString('fr-FR'); }
     function humanizeCond(raw, def){
       let s = String(raw);
@@ -1033,7 +1204,7 @@
            .replace(/'([^']+)'/g,'$1');
       return s.trim();
     }
-    function buildHumanExplanation(def, ctx, logic, hitIndex, decision, ref){
+    function buildHumanExplanation(def, ctx, logic, hitIndex, decisionLabel, ref){
       let html = `<div style="margin:.25rem 0 .5rem"><b>${def.label||''}</b></div>`;
       if (def.params?.length){
         html += `<div class="kv" style="margin-bottom:6px">`;
@@ -1059,7 +1230,7 @@
         });
         html += `</ul>`;
       }
-      html += `<div style="margin:.25rem 0"><b>Régime :</b> <span class="pill" style="margin-left:.35rem">${decision}</span>${ref?` <span class="note">(${ref})</span>`:''}</div>`;
+      html += `<div style="margin:.25rem 0"><b>Régime :</b> <span class="pill ${decisionLabel.includes('Autorisation')?'pill-A':decisionLabel.includes('Déclaration')?'pill-D':'pill-HN'}" style="margin-left:.35rem">${decisionLabel}</span>${ref?` <span class="note">(${ref})</span>`:''}</div>`;
       html += `<div class="note" style="margin-top:.25rem">Résultat indicatif, à confronter aux textes en vigueur.</div>`;
       return html;
     }
@@ -1088,7 +1259,7 @@
     $('#btnEval').addEventListener('click', ()=>{
       const code = ($('#valRubrique').value||'').trim();
       const rules = getRules(); const def = rules[code];
-      if (!def){ $('#valResult').textContent='Règle manquante'; $('#valTrace').innerHTML=''; return; }
+      if (!def){ applyResultBadge('HN'); $('#valTrace').innerHTML=''; return; }
 
       const ctx={}; (def.params||[]).forEach(p=>{
         const v=parseFloat(($('#param_'+p.id)?.value||'').replace(',','.'));
@@ -1109,480 +1280,33 @@
         } else { decision = rule.else || 'HN'; ref=rule.ref||''; hitIndex=i; break; }
       }
 
-      $('#valResult').textContent = decision;
-      $('#valTrace').innerHTML = buildHumanExplanation(def, ctx, def.logic, hitIndex, decision, ref);
+      const label = RESULT_LABELS[decision] || decision;
+      applyResultBadge(decision);
+      $('#valTrace').innerHTML = buildHumanExplanation(def, ctx, def.logic, hitIndex, label, ref);
 
       if (!$('#ftRefIota').value) $('#ftRefIota').value = code;
+
       const suggested = natinfSuggestForIota(code).slice(0,3).map(x=>x.natinf);
       if (suggested.length) { $('#ftRefNatinf').value = suggested.join(', '); }
-      evalScore();
     });
 
     // Éditeur de règles + reset (appui long)
     $('#btnRules').addEventListener('click', ()=>{
       const now = JSON.stringify(getRules(), null, 2);
-      const txt = prompt('Édite les règles (JSON strict)\nEx: {"3.2.3.0":{"label":"...","params":[...],"logic":[...]}}', now);
+      const txt = prompt('Édite les règles (JSON strict : guillemets doubles, pas de virgule traînante)\nExemple: {"if":"surface_m2 >= 1000","regime":"D"}', now);
       if (txt==null) return;
       try{ const obj=JSON.parse(txt); setRules(obj); alert('Règles enregistrées.'); buildValParams(); }
       catch(e){ alert('JSON invalide : '+e.message); }
     });
-    let rulesPress=null;
-    $('#btnRules').addEventListener('mousedown', ()=>{ rulesPress = setTimeout(()=> resetRules(), 800); });
-    ['mouseup','mouseleave'].forEach(ev=> $('#btnRules').addEventListener(ev, ()=>{ if (rulesPress){ clearTimeout(rulesPress); rulesPress=null; } }));
+    let rulesPressTimer=null;
+    $('#btnRules').addEventListener('mousedown', ()=>{ rulesPressTimer = setTimeout(()=> resetRules(), 800); });
+    ['mouseup','mouseleave'].forEach(ev=> $('#btnRules').addEventListener(ev, ()=>{ if (rulesPressTimer){ clearTimeout(rulesPressTimer); rulesPressTimer=null; } }));
   }
-
-  /* ===================== PHOTOS ===================== */
-  let photos = []; // {id, kind:'photo'|'sketch', dataUrl, thumb, width, height, size, caption, include, lat, lng, takenAt, rot}
-  const photoGrid = $('#photoGrid');
-  $('#inputCam').addEventListener('change', e=>handleFiles(e.target.files));
-  $('#inputFiles').addEventListener('change', e=>handleFiles(e.target.files));
-  $('#btnPhotosClear').addEventListener('click', async ()=>{
-    if (!confirm('Supprimer toutes les photos et croquis ?')) return;
-    photos = photos.filter(p=>p.kind!=='photo'); // laisse les croquis si on veut ? On vide tout pour cohérence
-    photos = [];
-    await store.set(PHOTOS_KEY, photos);
-    renderPhotos();
-    evalScore();
-  });
-
-  async function loadPhotos(){ photos = await store.get(PHOTOS_KEY) || []; renderPhotos(); }
-  async function savePhotos(){ await store.set(PHOTOS_KEY, photos); }
-
-  function renderPhotos(){
-    const items = photos.map((p, idx)=>`
-      <div class="card" draggable="true" data-idx="${idx}">
-        <img src="${p.thumb || p.dataUrl}" alt="">
-        <div class="card-body">
-          <div class="incl">
-            <input type="checkbox" ${p.include?'checked':''} data-act="toggle" data-idx="${idx}" id="incl_${idx}">
-            <label for="incl_${idx}">${p.kind==='sketch'?'Inclure croquis':'Inclure photo'} dans le rapport</label>
-          </div>
-          <div class="row-slim">
-            <input type="text" data-act="caption" data-idx="${idx}" value="${p.caption||''}" placeholder="Légende">
-          </div>
-          <div class="ctrls">
-            <button class="btn small" data-act="rotate" data-idx="${idx}">↻ Rotation</button>
-            <button class="btn small" data-act="moveup" data-idx="${idx}">▲</button>
-            <button class="btn small" data-act="movedown" data-idx="${idx}">▼</button>
-            <span class="note">${p.kind==='sketch'?'Croquis':'Photo'} • ${(p.width||0)}×${(p.height||0)}</span>
-            <button class="btn small danger" data-act="remove" data-idx="${idx}">Supprimer</button>
-          </div>
-        </div>
-      </div>`).join('');
-    photoGrid.innerHTML = items || '<div class="note">Aucune pièce pour l’instant.</div>';
-
-    // Actions
-    photoGrid.querySelectorAll('[data-act]').forEach(el=>{
-      el.onclick = async (ev)=>{
-        const idx = +el.dataset.idx; const act = el.dataset.act;
-        if (act==='toggle'){ photos[idx].include = el.checked; await savePhotos(); }
-        if (act==='caption'){ /* en keyup */ }
-        if (act==='rotate'){ photos[idx] = await rotateEntry(photos[idx]); await savePhotos(); renderPhotos(); }
-        if (act==='remove'){ if (!confirm('Supprimer ?')) return; photos.splice(idx,1); await savePhotos(); renderPhotos(); evalScore(); }
-        if (act==='moveup'){ if (idx>0){ const t=photos[idx]; photos.splice(idx,1); photos.splice(idx-1,0,t); await savePhotos(); renderPhotos(); } }
-        if (act==='movedown'){ if (idx<photos.length-1){ const t=photos[idx]; photos.splice(idx,1); photos.splice(idx+1,0,t); await savePhotos(); renderPhotos(); } }
-      };
-      if (el.dataset.act==='caption'){
-        el.oninput = async ()=>{ const idx=+el.dataset.idx; photos[idx].caption = el.value; await savePhotos(); };
-      }
-    });
-
-    // DnD (simple)
-    photoGrid.querySelectorAll('.card').forEach(card=>{
-      card.addEventListener('dragstart', e=>{ e.dataTransfer.setData('text/plain', card.dataset.idx); });
-      card.addEventListener('dragover', e=>{ e.preventDefault(); card.style.outline='2px dashed #0b2239'; });
-      card.addEventListener('dragleave', ()=> card.style.outline='');
-      card.addEventListener('drop', async e=>{
-        e.preventDefault(); card.style.outline='';
-        const from = +e.dataTransfer.getData('text/plain'); const to = +card.dataset.idx;
-        if (from===to) return;
-        const item = photos.splice(from,1)[0];
-        photos.splice(to,0,item);
-        await savePhotos(); renderPhotos();
-      });
-    });
-  }
-
-  async function handleFiles(files){
-    const arr = Array.from(files||[]);
-    for (const f of arr){
-      if (!f.type.startsWith('image/')) continue;
-      const img = await fileToImage(f);
-      const orient = await readExifOrientation(f).catch(()=>1);
-      const processed = await rasterizeToDataURL(img, {orientation:orient, max:1600, quality:0.82});
-      const thumb = await rasterizeToDataURL(img, {orientation:orient, max:220, quality:0.7});
-      const entry = {
-        id: cryptoRandomId(), kind:'photo', dataUrl: processed.dataUrl, thumb: thumb.dataUrl,
-        width: processed.w, height: processed.h, size: processed.bytes,
-        caption:'', include:true, rot:0,
-        takenAt: new Date(f.lastModified||Date.now()).toISOString()
-      };
-      photos.push(entry);
-    }
-    await savePhotos();
-    renderPhotos();
-    evalScore();
-    $('#inputCam').value = ''; $('#inputFiles').value='';
-  }
-
-  function cryptoRandomId(){ try{ return crypto.randomUUID(); }catch(_){ return 'id_'+Math.random().toString(36).slice(2); } }
-  function fileToImage(file){
-    return new Promise((res,rej)=>{
-      const fr=new FileReader(); fr.onload=()=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=rej; img.src=fr.result; }; fr.onerror=rej; fr.readAsDataURL(file);
-    });
-  }
-
-  async function rotateEntry(entry){
-    const img = await dataUrlToImage(entry.dataUrl);
-    const out = await rasterizeToDataURL(img, {rotate90:true, max:1600, quality:0.82});
-    const th = await rasterizeToDataURL(img, {rotate90:true, max:220, quality:0.7});
-    entry.dataUrl = out.dataUrl; entry.thumb=th.dataUrl; entry.width=out.w; entry.height=out.h; entry.rot=((entry.rot||0)+90)%360;
-    return entry;
-  }
-  function dataUrlToImage(dataUrl){
-    return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=rej; img.src=dataUrl; });
-  }
-
-  // Lecture EXIF Orientation (JPEG simple)
-  async function readExifOrientation(file){
-    const buf = await file.arrayBuffer(); const view=new DataView(buf);
-    if (view.getUint16(0,false) !== 0xFFD8) return 1; // not JPEG
-    let offset=2; const length=view.byteLength;
-    while (offset < length){
-      const marker = view.getUint16(offset,false); offset+=2;
-      if (marker===0xFFE1){ // APP1
-        const exifLen = view.getUint16(offset,false); offset+=2;
-        if (view.getUint32(offset,false) !== 0x45786966) break; // "Exif"
-        offset += 6; // skip "Exif\0\0"
-        const tiffOff = offset;
-        const little = view.getUint16(tiffOff,false)===0x4949;
-        const get16 = (o)=> view.getUint16(tiffOff+o, little);
-        const get32 = (o)=> view.getUint32(tiffOff+o, little);
-        const firstIFD = get32(4);
-        let entries = get16(firstIFD);
-        for (let i=0; i<entries; i++){
-          const entryOff = firstIFD + 2 + i*12;
-          const tag = get16(entryOff);
-          if (tag===0x0112){ // Orientation
-            const val = get16(entryOff+8);
-            return val || 1;
-          }
-        }
-        break;
-      } else if ((marker & 0xFF00)!==0xFF00) break;
-      else offset += view.getUint16(offset,false);
-    }
-    return 1;
-  }
-
-  async function rasterizeToDataURL(img, {orientation=1, rotate90=false, max=1600, quality=0.82}={}){
-    let sw = img.naturalWidth, sh = img.naturalHeight;
-    let rotate = 0;
-    if (orientation===6) rotate = 90;
-    if (orientation===8) rotate = -90;
-    if (orientation===3) rotate = 180;
-    if (rotate90) rotate += 90;
-    rotate = ((rotate%360)+360)%360;
-
-    let dw=sw, dh=sh;
-    const scale = max / Math.max(sw, sh); if (scale<1){ dw=Math.round(sw*scale); dh=Math.round(sh*scale); }
-
-    // swap width/height if rotate 90/270
-    const rot90 = (rotate===90 || rotate===270);
-    const cw = rot90 ? dh : dw;
-    const ch = rot90 ? dw : dh;
-
-    const c=document.createElement('canvas'); c.width=cw; c.height=ch;
-    const ctx=c.getContext('2d');
-    ctx.save();
-    // transform
-    if (rotate===90){ ctx.translate(cw,0); ctx.rotate(Math.PI/2); }
-    else if (rotate===180){ ctx.translate(cw,ch); ctx.rotate(Math.PI); }
-    else if (rotate===270){ ctx.translate(0,ch); ctx.rotate(-Math.PI/2); }
-
-    ctx.drawImage(img, 0, 0, dw, dh);
-    ctx.restore();
-    const dataUrl = c.toDataURL('image/jpeg', quality);
-    const bytes = Math.round((dataUrl.length * 3)/4);
-    return {dataUrl, w:cw, h:ch, bytes};
-  }
-
-  /* ===================== CROQUIS ===================== */
-  let sketches = []; // {id, dataUrl, width, height, caption, include:true}
-  async function loadSketches(){ sketches = (await store.get(SKETCHES_KEY)) || []; // On fusionne dans photos pour affichage unique
-    for (const s of sketches){
-      photos.push({ id:s.id, kind:'sketch', dataUrl:s.dataUrl, thumb:s.dataUrl, width:s.width, height:s.height, size:0, caption:s.caption||'', include:true });
-    }
-    await savePhotos(); renderPhotos(); evalScore();
-  }
-  async function saveSketches(){ await store.set(SKETCHES_KEY, sketches); }
-
-  const skCanvas = $('#skCanvas'); const skCtx = skCanvas.getContext('2d');
-  let skBg = 'blank'; let skTool='pen'; let skColor='#111827'; let skSize=6;
-  let drawing=false, last=null; let undoStack=[], redoStack=[];
-  function resizeSketch(){
-    const w = skCanvas.clientWidth || skCanvas.parentElement.clientWidth || 800;
-    skCanvas.width = w; skCanvas.height = 360;
-    redrawSketch();
-  }
-  window.addEventListener('resize', resizeSketch);
-  resizeSketch();
-
-  function pushUndo(){ try{ undoStack.push(skCtx.getImageData(0,0,skCanvas.width, skCanvas.height)); if (undoStack.length>30) undoStack.shift(); redoStack=[]; }catch(_){ /* security */ } }
-  function redrawSketch(bgImg=null){
-    skCtx.fillStyle = '#fff'; skCtx.fillRect(0,0,skCanvas.width, skCanvas.height);
-    if (bgImg){ // draw provided background
-      const ratio=Math.min(skCanvas.width/bgImg.width, skCanvas.height/bgImg.height);
-      const dw=bgImg.width*ratio, dh=bgImg.height*ratio;
-      const dx=(skCanvas.width-dw)/2, dy=(skCanvas.height-dh)/2;
-      skCtx.drawImage(bgImg, dx, dy, dw, dh);
-    }
-  }
-  async function setSketchBg(mode){
-    skBg = mode;
-    if (mode==='blank'){ redrawSketch(); return; }
-    if (mode==='photo'){
-      if (!photos.length){ alert('Aucune photo disponible.'); $('#skBgSel').value='blank'; redrawSketch(); return; }
-      const pick = prompt('ID de la photo (index 1..N) ou laisse vide pour la première :', '');
-      const idx = Math.min(Math.max(((+pick||1)-1),0), photos.length-1);
-      const img = await dataUrlToImage(photos[idx].dataUrl);
-      redrawSketch(img);
-      return;
-    }
-    if (mode==='map'){
-      try{
-        const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, backgroundColor:'#fff', scale:1});
-        const img = await dataUrlToImage(canvas.toDataURL('image/jpeg',0.9));
-        redrawSketch(img);
-      }catch(e){
-        alert('Impossible de capturer la carte (CORS). Fond blanc utilisé.');
-        redrawSketch();
-      }
-    }
-  }
-
-  $('#skBgSel').addEventListener('change', e=> setSketchBg(e.target.value));
-  $('#skTool').addEventListener('change', e=> skTool=e.target.value);
-  $('#skColor').addEventListener('change', e=> skColor=e.target.value);
-  $('#skSize').addEventListener('input', e=> skSize=+e.target.value);
-
-  function pt(e){
-    const rect = skCanvas.getBoundingClientRect();
-    const x = (e.touches? e.touches[0].clientX : e.clientX) - rect.left;
-    const y = (e.touches? e.touches[0].clientY : e.clientY) - rect.top;
-    return {x,y};
-  }
-  function startDraw(e){
-    drawing=true; last=pt(e); pushUndo();
-    if (skTool==='text'){
-      drawing=false;
-      const text = prompt('Texte :','');
-      if (!text) return;
-      skCtx.fillStyle=skColor; skCtx.font = `${Math.max(12, skSize*4)}px system-ui`;
-      skCtx.fillText(text, last.x, last.y);
-    }
-  }
-  function moveDraw(e){
-    if (!drawing || skTool==='text') return;
-    const p = pt(e);
-    skCtx.lineCap='round'; skCtx.lineJoin='round';
-    if (skTool==='eraser'){ skCtx.globalCompositeOperation='destination-out'; skCtx.strokeStyle='rgba(0,0,0,1)'; skCtx.lineWidth=skSize*2; }
-    else if (skTool==='marker'){ skCtx.globalCompositeOperation='source-over'; skCtx.strokeStyle=skColor; skCtx.lineWidth=skSize*2; skCtx.globalAlpha=0.4; }
-    else { skCtx.globalCompositeOperation='source-over'; skCtx.strokeStyle=skColor; skCtx.lineWidth=skSize; skCtx.globalAlpha=1; }
-    skCtx.beginPath(); skCtx.moveTo(last.x,last.y); skCtx.lineTo(p.x,p.y); skCtx.stroke();
-    last=p;
-  }
-  function endDraw(){ drawing=false; skCtx.globalAlpha=1; skCtx.globalCompositeOperation='source-over'; }
-
-  skCanvas.addEventListener('mousedown', startDraw);
-  skCanvas.addEventListener('mousemove', moveDraw);
-  window.addEventListener('mouseup', endDraw);
-  skCanvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); startDraw(e); });
-  skCanvas.addEventListener('touchmove', (e)=>{ e.preventDefault(); moveDraw(e); });
-  skCanvas.addEventListener('touchend', (e)=>{ e.preventDefault(); endDraw(e); });
-
-  $('#skUndo').addEventListener('click', ()=>{
-    if (!undoStack.length) return;
-    const img = undoStack.pop(); try{ redoStack.push(skCtx.getImageData(0,0,skCanvas.width, skCanvas.height)); }catch(_){}
-    skCtx.putImageData(img,0,0);
-  });
-  $('#skRedo').addEventListener('click', ()=>{
-    if (!redoStack.length) return;
-    const img = redoStack.pop(); try{ undoStack.push(skCtx.getImageData(0,0,skCanvas.width, skCanvas.height)); }catch(_){}
-    skCtx.putImageData(img,0,0);
-  });
-  $('#skClear').addEventListener('click', ()=>{ pushUndo(); redrawSketch(); });
-
-  $('#skSave').addEventListener('click', async ()=>{
-    const dataUrl = skCanvas.toDataURL('image/png');
-    const entry = { id: cryptoRandomId(), dataUrl, width: skCanvas.width, height: skCanvas.height, caption: $('#skCaption').value||'' , include:true };
-    sketches.push(entry); await saveSketches();
-    // Ajoute aussi dans la galerie Photos (section commune)
-    photos.push({ id: entry.id, kind:'sketch', dataUrl, thumb:dataUrl, width:entry.width, height:entry.height, size:0, caption:entry.caption, include:true });
-    await savePhotos(); renderPhotos(); evalScore();
-    alert('Croquis enregistré dans les pièces.');
-  });
-
-  // Par défaut fond blanc
-  setSketchBg('blank');
-
-  /* ===================== EXPORTS ===================== */
-  // GeoJSON
-  $('#btnProcGJ').addEventListener('click', ()=>{
-    const ll = map.getCenter();
-    const props = {
-      fiche_id: $('#ftId').textContent || ficheId,
-      titre:$('#ftTitre').value, lieu:$('#ftLieu').value, desc:$('#ftDesc').value,
-      iota:$('#ftRefIota').value, natinf:$('#ftRefNatinf').value, date:new Date().toISOString(),
-      pieces: photos.map(p=>({id:p.id, kind:p.kind, caption:p.caption||'', include:!!p.include, width:p.width, height:p.height}))
-    };
-    const gj = { type:'FeatureCollection', features:[{ type:'Feature', properties:props, geometry:{ type:'Point', coordinates:[ll.lng,ll.lat] } }]};
-    const blob = new Blob([JSON.stringify(gj)], {type:'application/geo+json'});
-    const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href = url; a.download = `${props.fiche_id}.geojson`; a.click(); URL.revokeObjectURL(url);
-  });
-
-  // PDF narratif + pro
-  $('#btnProcPDF').addEventListener('click', async ()=>{
-    const { jsPDF } = window.jspdf; const pdf = new jsPDF({unit:'pt', format:'a4'});
-
-    // ===== Styles
-    function H1(t, y){ pdf.setFont('helvetica','bold'); pdf.setFontSize(18); pdf.text(t, 40, y); }
-    function H2(t, y){ pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.text(t, 40, y); }
-    function P(t, x, y, w=520){ pdf.setFont('helvetica','normal'); pdf.setFontSize(11); const lines=pdf.splitTextToSize(t, w); pdf.text(lines, x, y, {maxWidth:w, lineHeightFactor:1.3}); return y + lines.length*14; }
-    function Chip(t, x, y){ pdf.setFillColor(17,24,39); pdf.setTextColor(255,255,255); const w=pdf.getTextWidth(t)+10; pdf.roundedRect(x,y-10,w,16,6,6,'F'); pdf.text(t, x+5, y+2); pdf.setTextColor(0,0,0); return y+10; }
-    function Footer(){
-      const n = pdf.internal.getNumberOfPages();
-      for (let i=1;i<=n;i++){
-        pdf.setPage(i);
-        pdf.setFont('helvetica','normal'); pdf.setFontSize(9);
-        pdf.setDrawColor(230); pdf.line(40,810,555,810);
-        pdf.text(`OFB – SD40 • Fiche ${$('#ftId').textContent} • ${new Date().toLocaleString()}`, 40, 826);
-        pdf.text(String(i), 555, 826, {align:'right'});
-      }
-    }
-    function addPage(){ pdf.addPage(); }
-
-    // ===== Couverture
-    pdf.setFillColor(11,34,57); pdf.rect(0,0,595,80,'F');
-    pdf.setTextColor(255,255,255); pdf.setFont('helvetica','bold'); pdf.setFontSize(16);
-    pdf.text('Procédure – Fiche terrain', 40, 50);
-    pdf.setTextColor(0,0,0);
-
-    pdf.setFont('helvetica','normal'); pdf.setFontSize(11);
-    const id=$('#ftId').textContent||ficheId;
-    pdf.text(`N° de fiche : ${id}`, 40, 110);
-    pdf.text(`Lieu : ${$('#ftLieu').value||'—'}`, 40, 126);
-    pdf.text(`Coordonnées : ${$('#ftLatLng').textContent||'—'}`, 40, 142);
-    pdf.text(`Date : ${new Date().toLocaleString('fr-FR')}`, 40, 158);
-    pdf.text(`Rubrique IOTA : ${$('#ftRefIota').value||'—'}`, 40, 174);
-    pdf.text(`Codes NATINF : ${$('#ftRefNatinf').value||'—'}`, 40, 190);
-
-    // Bandeau "résumé"
-    H2('Résumé narratif', 230);
-    let y=250;
-    const iotaCode=$('#ftRefIota').value||'—';
-    const natCodes = ($('#ftRefNatinf').value||'').split(',').map(s=>s.trim()).filter(Boolean);
-    const natTexts = natCodes.map(c=>{
-      const it = NATINF.find(n=>String(n.natinf)===c); return it ? `${c} – ${it.intitule}` : c;
-    });
-    const narrative = [
-      `Le ${new Date().toLocaleDateString('fr-FR')}, à ${$('#ftLieu').value||'—'}, dans le cadre d’un contrôle relevant de la rubrique IOTA ${iotaCode},`,
-      `les agents ont procédé aux constatations suivantes :`,
-      `${($('#ftDesc').value||'—')}`,
-      natTexts.length ? `Au regard des éléments relevés, les qualifications pénales suivantes sont susceptibles d’être mobilisées : ${natTexts.join('; ')}.` : `Aucune qualification pénale n’a été proposée à ce stade.`,
-      `La présente fiche consolide les mesures et éléments matériels collectés sur site, joint les pièces visuelles (photos, croquis) et restitue le résultat indicatif du validateur IOTA.`
-    ].join(' ');
-    y = P(narrative, 40, y);
-
-    // Validateur
-    y += 14; H2('Validateur IOTA', y); y+=8;
-    y = Chip(`Résultat : ${$('#valResult').textContent||'—'}`, 40, y+18);
-    const trace = $('#valTrace').innerText||'';
-    if (trace){ y = P(trace, 40, y+8); }
-
-    // Mesures (si existantes)
-    const mParts=[];
-    if (lastMeasure.length_m>0) mParts.push(`longueur mesurée ≈ ${fmtLength(lastMeasure.length_m)}`);
-    if (lastMeasure.area_m2>0)  mParts.push(`surface mesurée ≈ ${fmtArea(lastMeasure.area_m2)}`);
-    if (mParts.length){
-      y += 10; H2('Mesures sur site', y); y = P(mParts.join(' ; ')+'.', 40, y+12);
-    }
-
-    // Carte
-    addPage(); H1('Localisation – aperçu carte', 80);
-    try{
-      const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, scale:1, backgroundColor:'#fff'});
-      const img = canvas.toDataURL('image/jpeg', 0.85);
-      const w=520, h = w * (canvas.height/canvas.width);
-      pdf.addImage(img, 'JPEG', 40, 100, w, Math.min(h, 640));
-    }catch(_){
-      P('Aperçu carte non disponible (restriction CORS sur certaines tuiles).', 40, 110);
-    }
-
-    // Photos
-    const photosIncl = photos.filter(p=>p.include && p.kind==='photo');
-    if (photosIncl.length){
-      addPage(); H1('Photos', 80);
-      let x=40, yy=110;
-      const slotW=240, slotH=180, gap=20;
-      for (let i=0;i<photosIncl.length;i++){
-        const p=photosIncl[i];
-        try{
-          const img = p.dataUrl;
-          const ar = p.width/p.height;
-          let w=slotW, h=slotH;
-          if (ar> (slotW/slotH)){ h = Math.round(slotW/ar); } else { w = Math.round(slotH*ar); }
-          pdf.addImage(img, 'JPEG', x+(slotW-w)/2, yy+(slotH-h)/2, w, h);
-          pdf.setFontSize(10); pdf.setFont('helvetica','italic');
-          pdf.text(p.caption||`Photo ${i+1}`, x, yy+slotH+14, {maxWidth:slotW});
-        }catch(_){}
-        x += slotW + gap;
-        if (x> (40+slotW+gap)){ // 2 par ligne
-          x=40; yy += slotH + 50;
-          if (yy>720){ addPage(); H1('Photos (suite)', 80); yy=110; }
-        }
-      }
-    }
-
-    // Croquis
-    const sketchesIncl = photos.filter(p=>p.include && p.kind==='sketch');
-    if (sketchesIncl.length){
-      addPage(); H1('Croquis', 80);
-      let yy=110;
-      for (let i=0;i<sketchesIncl.length;i++){
-        const s = sketchesIncl[i];
-        try{
-          const w=520, h = w*(s.height/s.width);
-          pdf.addImage(s.dataUrl, 'PNG', 40, yy, w, Math.min(h, 540));
-          pdf.setFont('helvetica','italic'); pdf.setFontSize(10);
-          pdf.text(s.caption||`Croquis ${i+1}`, 40, Math.min(yy+Math.min(h,540)+16, 800));
-          yy += Math.min(h,540) + 48;
-          if (yy>760){ addPage(); H1('Croquis (suite)', 80); yy=110; }
-        }catch(_){}
-      }
-    }
-
-    Footer();
-    pdf.save(`${($('#ftId').textContent||ficheId)}.pdf`);
-  });
-
-  // Reset total
-  $('#btnResetAll').addEventListener('click', async ()=>{
-    ['#ftTitre','#ftLieu','#ftDesc','#ftRefIota','#ftRefNatinf'].forEach(s=> $(s).value='');
-    $('#ftScore').textContent='—'; $('#ftLatLng').textContent='—';
-    $('#valRubrique').value=''; $('#valParams').innerHTML=''; $('#valResult').textContent='—'; $('#valTrace').innerHTML='';
-    lastMeasure = { mode:null, length_m:0, area_m2:0 };
-    resetManual(); stopGPS();
-    annotations.clearLayers(); try{ localStorage.removeItem(ANNOS_KEY); }catch(_){}
-    // Clear pieces
-    photos = []; sketches = [];
-    await store.set(PHOTOS_KEY, photos); await store.set(SKETCHES_KEY, sketches);
-    renderPhotos();
-    ficheId = genFicheId(); localStorage.setItem('sd40:ficheId', ficheId); $('#ftId').textContent=ficheId;
-    evalScore();
-  });
 
   /* ---- Utils ---- */
+  async function fileToDataURL(file){ return await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); }); }
+  async function dataUrlToImage(dataUrl){ return await new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=dataUrl; }); }
+
   proj4.defs('EPSG:2154', '+proj=lcc +lat_1=49 +lat_2=44 +lat_0=46.5 +lon_0=3 +x_0=700000 +y_0=6600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs');
   function computeLengthMeters(latlngs){ if (latlngs.length<2) return 0; const line=turf.lineString(latlngs.map(ll=>[ll.lng,ll.lat])); return turf.length(line,{units:'kilometers'})*1000; }
   function computeAreaM2(latlngs){ if (latlngs.length<3) return 0; const ring=[...latlngs.map(ll=>[ll.lng,ll.lat]), [latlngs[0].lng,latlngs[0].lat]]; return turf.area(turf.polygon([ring])); }
