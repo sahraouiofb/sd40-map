@@ -17,12 +17,11 @@
   /* ===== Liste des couches — large et tactile ===== */
   .leaflet-control-layers-expanded{max-height:70vh;overflow:auto}
   .leaflet-control-layers .leaflet-control-layers-list label{
-    display:flex; align-items:center; gap:10px; line-height:1.3; padding:6px 8px; font-size:14px;
+    display:flex;align-items:center;gap:10px;line-height:1.3;padding:6px 8px;font-size:14px;
   }
   .leaflet-control-layers-overlays input[type="checkbox"]{width:18px;height:18px;margin-left:0}
   @media (max-width:820px){
-    .leaflet-control-layers{ position:fixed; top:56px; right:8px; left:8px; z-index:2000;
-      width:auto; max-width:none; box-shadow:0 8px 24px rgba(0,0,0,.35) }
+    .leaflet-control-layers{ position:fixed; top:56px; right:8px; left:8px; z-index:2000; width:auto; max-width:none; box-shadow:0 8px 24px rgba(0,0,0,.35) }
     .leaflet-control-layers-overlays input[type="checkbox"]{width:22px;height:22px}
     .leaflet-control-layers .leaflet-control-layers-list label{font-size:16px}
   }
@@ -51,22 +50,18 @@
   .popup-table{width:100%;border-collapse:collapse;font-size:13px}
   .popup-table th{white-space:nowrap;text-align:left;color:#22313f;font-weight:600;padding:.25rem .5rem .25rem 0;border-bottom:1px solid #eef}
   .popup-table td{padding:.25rem 0;border-bottom:1px solid #f2f4f7;word-break:break-word}
-
   .measure-label{
-    background:#0b2239;color:#fff;padding:4px 6px;border-radius:4px;
-    font:12px/1.2 system-ui; box-shadow:0 2px 8px rgba(0,0,0,.25);
+    background:#0b2239;color:#fff;padding:4px 6px;border-radius:4px;font:12px/1.2 system-ui;box-shadow:0 2px 8px rgba(0,0,0,.25);
   }
   @media (max-width:480px){ .popup-card{max-width:90vw} }
 
   /* Masquage global des outils */
   body.tools-hidden .leaflet-draw, body.tools-hidden .tool-btn { display:none !important; }
   .tools-toggle.leaflet-control{
-    background:#111827;color:#fff;border:1px solid #0b1220;border-radius:10px;
-    box-shadow:0 6px 18px rgba(0,0,0,.35); overflow:hidden
+    background:#111827;color:#fff;border:1px solid #0b1220;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.35);overflow:hidden
   }
   .tools-toggle button{
-    display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;
-    background:#111827;color:#fff;border:0;cursor:pointer;font:600 14px system-ui
+    display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:#111827;color:#fff;border:0;cursor:pointer;font:600 14px system-ui
   }
   .tools-toggle button:hover{background:#0f172a}
 
@@ -90,6 +85,10 @@
   .kv b{color:#0b2239}
   .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
 
+  /* Sélection IOTA */
+  .iota-selected{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+  .iota-pill{background:#eef2ff;color:#1e40af;border:1px solid #c7d2fe;border-radius:999px;padding:2px 8px;font-weight:700;font-size:12px}
+
   /* Croquis modal */
   .sketch-modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);z-index:5000}
   .sketch-card{background:#fff;border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,.35);width:min(920px,96vw);height:min(78vh,760px);display:flex;flex-direction:column;overflow:hidden;border:1px solid #d0d7e1}
@@ -103,1145 +102,590 @@
 </head>
 
 <body>
-<div id="map"></div>
+  <div id="map"></div>
 
-<!-- ===================== UI Procédure ===================== -->
-<div id="proc" class="proc-drawer" hidden>
-  <div class="proc-header">
-    <span>🗂️ Procédure terrain</span>
-    <div style="display:flex;gap:8px">
-      <button id="btnRules" type="button" style="border:0;background:#fff;color:#0b2239;border-radius:8px;padding:6px 8px" title="Éditer les règles IOTA (JSON)">⚙️ Règles IOTA</button>
-      <button id="btnProcClose" type="button" style="border:0;background:#fff;color:#0b2239;border-radius:8px;padding:6px 8px" title="Fermer le panneau">Fermer</button>
+  <!-- ===================== UI Procédure ===================== -->
+  <div id="proc" class="proc-drawer" hidden>
+    <div class="proc-header">
+      <span>🗂️ Procédure terrain</span>
+      <div style="display:flex;gap:8px">
+        <button id="btnRules" type="button" style="border:0;background:#fff;color:#0b2239;border-radius:8px;padding:6px 8px" title="Éditer les règles IOTA (JSON)">⚙️ Règles IOTA</button>
+        <button id="btnProcClose" type="button" style="border:0;background:#fff;color:#0b2239;border-radius:8px;padding:6px 8px" title="Fermer le panneau">Fermer</button>
+      </div>
     </div>
-  </div>
 
-  <div class="proc-tabs">
-    <button data-tab="iota" class="active" type="button">IOTA</button>
-    <button data-tab="bcae" type="button">BCAE</button>
-    <button data-tab="phyto" type="button">Phyto</button>
-    <button data-tab="autre" type="button">Autre</button>
-    <button data-tab="validator" type="button">Validateur IOTA</button>
-  </div>
+    <div class="proc-tabs">
+      <button data-tab="iota" class="active" type="button">IOTA</button>
+      <button data-tab="bcae" type="button">BCAE</button>
+      <button data-tab="phyto" type="button">Phyto</button>
+      <button data-tab="autre" type="button">Autre</button>
+      <button data-tab="validator" type="button">Validateur IOTA</button>
+    </div>
 
-  <div class="proc-body">
-    <!-- IOTA -->
-    <div class="tab" id="tab-iota">
+    <div class="proc-body">
+      <!-- IOTA -->
+      <div class="tab" id="tab-iota">
+        <div class="proc-row"><input id="iotaSearch" placeholder="Rechercher rubrique (ex : 3.2.3.0, ‘plans d’eau’)" /></div>
+        <div id="iotaList"></div>
+        <div class="iota-selected" id="iotaSelected"></div>
+        <div class="note">Coche une ou plusieurs rubriques. L’évaluation prendra la plus restrictive (A > D > HN). Appui long sur ⚙️ pour réinitialiser les règles intégrées.</div>
+      </div>
+
+      <!-- BCAE -->
+      <div class="tab" id="tab-bcae" hidden>
+        <div class="proc-row"><input id="bcaeSearch" placeholder="Mot-clé (ex: ‘zone humide’, ‘drainage’, ‘nitrates’)" /></div>
+        <div id="bcaeList"></div>
+      </div>
+
+      <!-- Phyto -->
+      <div class="tab" id="tab-phyto" hidden>
+        <div class="proc-row"><input id="phytoSearch" placeholder="Mot-clé (ex: ‘phytopharmaceutique’, ‘certificat’, ‘néonicotinoïdes’)" /></div>
+        <div id="phytoList"></div>
+      </div>
+
+      <!-- Autre -->
+      <div class="tab" id="tab-autre" hidden>
+        <div class="proc-row"><input id="autreSearch" placeholder="Recherche NATINF (mot-clé ou code)"/></div>
+        <div id="autreList"></div>
+      </div>
+
+      <!-- VALIDATEUR IOTA -->
+      <div class="tab" id="tab-validator" hidden>
+        <div class="proc-row">
+          <input id="valRubrique" placeholder="Rubrique IOTA (ex : 3.2.3.0) – facultatif si sélection multiple" />
+          <select id="valGeom">
+            <option value="point">Point</option>
+            <option value="line">Ligne</option>
+            <option value="polygon">Polygone</option>
+          </select>
+        </div>
+        <div id="valParams" class="proc-row"></div>
+        <div class="proc-row" style="align-items:center">
+          <button id="btnEval" type="button">Évaluer le régime</button>
+          <span id="valResult" class="pill pill-HN">—</span>
+        </div>
+        <div id="valTrace" class="mono"></div>
+      </div>
+
+      <hr>
+
+      <!-- Fiche terrain -->
+      <div class="proc-row"><input id="ftTitre" placeholder="Titre de l’intervention" /></div>
+      <div class="proc-row"><input id="ftLieu" placeholder="Lieu / commune" /></div>
+      <div class="proc-row"><textarea id="ftDesc" rows="4" placeholder="Constats, mesures, éléments matériels, témoins…"></textarea></div>
       <div class="proc-row">
-        <input id="iotaSearch" placeholder="Rechercher rubrique (ex : 3.2.3.0, ‘plans d’eau’)" />
+        <input id="ftRefIota" placeholder="Rubrique(s) IOTA retenue(s)" />
+        <input id="ftRefNatinf" placeholder="NATINF retenu (codes séparés par des virgules)" />
       </div>
-      <div id="iotaList"></div>
-      <div class="note">Coche une ou plusieurs rubriques : elles sont ajoutées à la fiche et au validateur. Appui long sur ⚙️ pour réinitialiser les règles intégrées.</div>
-    </div>
 
-    <!-- BCAE -->
-    <div class="tab" id="tab-bcae" hidden>
-      <div class="proc-row"><input id="bcaeSearch" placeholder="Mot-clé (ex: ‘zone humide’, ‘drainage’, ‘nitrates’)" /></div>
-      <div id="bcaeList"></div>
-    </div>
-
-    <!-- Phyto -->
-    <div class="tab" id="tab-phyto" hidden>
-      <div class="proc-row"><input id="phytoSearch" placeholder="Mot-clé (ex: ‘phytopharmaceutique’, ‘certificat’, ‘néonicotinoïdes’)" /></div>
-      <div id="phytoList"></div>
-    </div>
-
-    <!-- Autre -->
-    <div class="tab" id="tab-autre" hidden>
-      <div class="proc-row"><input id="autreSearch" placeholder="Recherche NATINF (mot-clé ou code)"/></div>
-      <div id="autreList"></div>
-    </div>
-
-    <!-- VALIDATEUR IOTA -->
-    <div class="tab" id="tab-validator" hidden>
+      <!-- Pièces : Photo & Croquis -->
       <div class="proc-row">
-        <input id="valRubrique" placeholder="Rubrique IOTA (ex : 3.2.3.0) – mode simple si aucune case cochée" />
-        <select id="valGeom">
-          <option value="point">Point</option>
-          <option value="line">Ligne</option>
-          <option value="polygon">Polygone</option>
-        </select>
+        <button id="btnPhoto" type="button">📷 Ajouter une photo</button>
+        <button id="btnSketch" type="button">✏️ Croquis</button>
+        <input id="photoInput" type="file" accept="image/*" capture="environment" hidden>
       </div>
-      <div id="valParams" class="proc-row"></div>
-      <div class="proc-row" style="align-items:center">
-        <button id="btnEval" type="button">Évaluer le régime</button>
-        <span id="valResult" class="pill pill-HN">—</span>
+      <div class="proc-row">
+        <div><b>Pièces jointes :</b></div>
+        <div id="piecesList" class="thumbs"></div>
       </div>
-      <div id="valTrace" class="mono"></div>
+
+      <div class="kv">
+        <b>Coordonnées :</b>
+        <span class="badge" id="ftLatLng">—</span>
+        <b>Complétude :</b>
+        <span class="badge" id="ftScore">—</span>
+      </div>
     </div>
 
-    <hr>
-
-    <!-- Fiche terrain -->
-    <div class="proc-row"><input id="ftTitre" placeholder="Titre de l’intervention" /></div>
-    <div class="proc-row"><input id="ftLieu" placeholder="Lieu / commune" /></div>
-    <div class="proc-row"><textarea id="ftDesc" rows="4" placeholder="Constats, mesures, éléments matériels, témoins…"></textarea></div>
-    <div class="proc-row">
-      <input id="ftRefIota" placeholder="Rubriques IOTA retenues" />
-      <input id="ftRefNatinf" placeholder="NATINF retenu (codes séparés par des virgules)" />
-    </div>
-
-    <!-- Pièces : Photo & Croquis -->
-    <div class="proc-row">
-      <button id="btnPhoto" type="button">📷 Ajouter une photo</button>
-      <button id="btnSketch" type="button">✏️ Croquis</button>
-      <input id="photoInput" type="file" accept="image/*" capture="environment" hidden>
-    </div>
-    <div class="proc-row">
-      <div><b>Pièces jointes :</b></div>
-      <div id="piecesList" class="thumbs"></div>
-    </div>
-
-    <div class="kv">
-      <b>Coordonnées :</b> <span class="badge" id="ftLatLng">—</span>
-      <b>Complétude :</b> <span class="badge" id="ftScore">—</span>
+    <div class="proc-actions">
+      <button id="btnResetAll" type="button" style="margin-right:auto">Remettre à zéro</button>
+      <button id="btnProcPDF" type="button">Exporter PDF</button>
+      <button id="btnProcGJ" type="button">Exporter GeoJSON</button>
     </div>
   </div>
 
-  <div class="proc-actions">
-    <button id="btnResetAll" type="button" style="margin-right:auto">Remettre à zéro</button>
-    <button id="btnProcPDF" type="button">Exporter PDF</button>
-    <button id="btnProcGJ" type="button">Exporter GeoJSON</button>
+  <!-- Bouton flottant Procédure -->
+  <div class="layer-toggle-wrap leaflet-control" style="position:absolute;right:10px;top:110px;z-index:3000;">
+    <button id="btnProcOpen" class="layer-toggle-btn" type="button"><span class="icon">🗂️</span><span class="label">Procédure</span></button>
   </div>
-</div>
 
-<!-- Bouton flottant Procédure -->
-<div class="layer-toggle-wrap leaflet-control" style="position:absolute;right:10px;top:110px;z-index:3000;">
-  <button id="btnProcOpen" class="layer-toggle-btn" type="button">
-    <span class="icon">🗂️</span><span class="label">Procédure</span>
-  </button>
-</div>
-
-<!-- ========= PACK IOTA INTÉGRÉ ========= -->
-<script type="application/json" id="iota-pack-officiel">
-{
-  "iota": [
-    {"code":"1.1.1.0","titre":"Sondage, forage (non domestique) – recherche/surveillance d’eaux souterraines"},
-    {"code":"1.1.2.0","titre":"Prélèvements en eaux souterraines (volume annuel)"},
-    {"code":"1.2.1.0","titre":"Prélèvements en cours d’eau/nappe d’accompagnement/plan-canal alimenté"},
-    {"code":"1.2.2.0","titre":"Prélèvements quand l’étiage est majoritairement réalimenté artificiellement"},
-    {"code":"1.3.1.0","titre":"Prélèvements en zone à seuils abaissés (répartition quantitative)"},
-    {"code":"2.1.1.0","titre":"Assainissement collectif / ANC (charge DBO5)"},
-    {"code":"2.1.3.0","titre":"Épandage/stockage de boues en vue d’épandage"},
-    {"code":"2.1.4.0","titre":"Épandage/stockage d’effluents ou de boues (hors 2.1.3.0, effluents d’élevage)"},
-    {"code":"2.1.5.0","titre":"Rejet d’eaux pluviales (surface interceptée)"},
-    {"code":"2.2.1.0","titre":"Rejet susceptible de modifier le régime des eaux en surface"},
-    {"code":"2.2.3.0","titre":"Rejet en surface – flux ≥ niveau R1 pour ≥1 paramètre"},
-    {"code":"2.3.1.0","titre":"Rejets d’effluents sur le sol/sous-sol (hors 2.1.5.0, etc.)"},
-    {"code":"2.3.2.0","titre":"Recharge artificielle des eaux souterraines"},
-    {"code":"3.1.1.0","titre":"Obstacle crues / continuité écologique (différence de niveau)"},
-    {"code":"3.1.2.0","titre":"Modification profil en long/transversal – dérivation d’un cours d’eau"},
-    {"code":"3.1.3.0","titre":"Impact sensible sur la luminosité (longueur)"},
-    {"code":"3.1.4.0","titre":"Consolidation/protection de berges (non végétal)"},
-    {"code":"3.1.5.0","titre":"Destruction de frayères / zones de croissance/alimentation"},
-    {"code":"3.2.1.0","titre":"Entretien de cours d’eau/canaux – volume de sédiments"},
-    {"code":"3.2.2.0","titre":"Installations/ouvrages/remblais dans le lit majeur – surface soustraite"},
-    {"code":"3.2.3.0","titre":"Plans d’eau (création)"},
-    {"code":"3.2.5.0","titre":"Barrages de retenue (classement R.214-112) – y compris vidange (dans l’acte)"},
-    {"code":"3.2.6.0","titre":"Ouvrages de prévention inondations/submersions (SE / aménagement hydraulique)"},
-    {"code":"3.2.7.0","titre":"Piscicultures d’eau douce (L.431-6)"},
-    {"code":"3.3.1.0","titre":"Zones humides : assèchement/mise en eau/imperméabilisation/remblais"},
-    {"code":"3.3.2.0","titre":"Drainage (surface drainée)"},
-    {"code":"3.3.3.0","titre":"Canalisations hydrocarbures/produits chimiques liquides"},
-    {"code":"3.3.4.0","titre":"Recherche/stockage souterrain de déchets radioactifs"},
-    {"code":"3.3.5.0","titre":"Travaux de restauration fonctionnelle des milieux aquatiques"},
-    {"code":"4.1.1.0","titre":"Travaux portuaires/chenal d’accès (création / modification)"},
-    {"code":"4.1.2.0","titre":"Aménagements portuaires (montant des travaux)"},
-    {"code":"4.1.3.0","titre":"Dragage et/ou rejet en milieu marin (teneurs/volumes/distance)"},
-    {"code":"5.1.1.0","titre":"Réinjection dans la même nappe (géothermie, exhaures, génie civil)"},
-    {"code":"5.1.2.0","titre":"Recherche/exploitation de gîtes géothermiques"},
-    {"code":"5.1.3.0","titre":"Travaux miniers – recherches, cavités, forages, essais"},
-    {"code":"5.1.4.0","titre":"Travaux d’exploitation de mines"},
-    {"code":"5.1.5.0","titre":"Exploitation de stockages souterrains de déchets radioactifs"},
-    {"code":"5.1.6.0","titre":"Travaux de recherches des mines"},
-    {"code":"5.1.7.0","titre":"Prospection/exploitation de substances minérales/fossiles en fonds marins"},
-    {"code":"5.2.2.0","titre":"Concessions hydrauliques (Livre V code de l’énergie)"},
-    {"code":"5.2.3.0","titre":"Travaux commission d’aménagement foncier (listés)"},
-    {"code":"5.2.4.0","titre":"Travaux d’exploitation de mines – autorisation L.621-4-1"}
-  ],
-  "rules": {
-    "1.1.1.0": { "label":"Sondage/forage non domestique (recherche/surveillance d’eaux souterraines)","params":[],"logic":[{"else":"D"}],"ref":"R.214-1 1.1.1.0" },
-    "1.1.2.0": { "label":"Prélèvements en eaux souterraines (volume annuel)","params":[{"id":"volume_m3_an","label":"Volume prélevé (m³/an)","type":"number"}],
-      "logic":[{"if":"volume_m3_an >= 200000","regime":"A","ref":"A ≥ 200 000 m³/an"},{"if":"volume_m3_an > 10000 && volume_m3_an < 200000","regime":"D","ref":"10 000–200 000 m³/an"},{"else":"HN"}],
-      "ref":"R.214-1 1.1.2.0"
-    },
-    "1.2.1.0": { "label":"Prélèvements en cours d’eau/nappe d’accompagnement/plan-canal alimenté",
-      "params":[{"id":"capacite_m3_h","label":"Capacité (m³/h)","type":"number"},{"id":"part_pct_debit","label":"Part du débit du cours d’eau (%)","type":"number"}],
-      "logic":[{"if":"capacite_m3_h >= 1000 || part_pct_debit >= 5","regime":"A","ref":"A ≥ 1000 m³/h ou ≥ 5 %"},{"if":"(capacite_m3_h >= 400 && capacite_m3_h < 1000) || (part_pct_debit >= 2 && part_pct_debit < 5)","regime":"D","ref":"400–1000 m³/h ou 2–5 %"},{"else":"HN"}],
-      "ref":"R.214-1 1.2.1.0"
-    },
-    "1.2.2.0": { "label":"Prélèvements avec étiage majoritairement réalimenté artificiellement",
-      "params":[{"id":"rivieres","label":"Seine/Loire/Marne/Yonne ? (oui/non)","type":"text"},{"id":"capacite_m3_h","label":"Capacité (m³/h) – utile si 'oui'","type":"number"}],
-      "logic":[{"if":"rivieres == 'oui' && capacite_m3_h > 80","regime":"A","ref":"Seine/Loire/Marne/Yonne : A si > 80 m³/h"},{"if":"rivieres == 'oui' && capacite_m3_h <= 80","regime":"HN","ref":"Seine/Loire/Marne/Yonne : ≤ 80 m³/h = HN"},{"if":"rivieres != 'oui'","regime":"A","ref":"Autres cours d’eau : A (cas de réalimentation majoritaire en étiage)"},{"else":"HN"}],
-      "ref":"R.214-1 1.2.2.0"
-    },
-    "1.3.1.0": { "label":"Prélèvements en zone à seuils abaissés (répartition quantitative)","params":[{"id":"capacite_m3_h","label":"Capacité (m³/h)","type":"number"}],
-      "logic":[{"if":"capacite_m3_h >= 8","regime":"A","ref":"A ≥ 8 m³/h"},{"else":"D"}],
-      "ref":"R.214-1 1.3.1.0"
-    },
-    "2.1.1.0": { "label":"Systèmes d’assainissement collectif / ANC (charge DBO5)","params":[{"id":"dbo5_kg","label":"Charge brute (kg DBO5)","type":"number"}],
-      "logic":[{"if":"dbo5_kg >= 600","regime":"A","ref":"A ≥ 600 kg DBO5"},{"if":"dbo5_kg > 12 && dbo5_kg < 600","regime":"D","ref":"12–600 kg DBO5"},{"else":"HN"}],
-      "ref":"R.214-1 2.1.1.0"
-    },
-    "2.1.3.0": { "label":"Épandage/stockage de boues",
-      "params":[{"id":"ms_t_an","label":"Matière sèche (t/an)","type":"number"},{"id":"n_t_an","label":"Azote total (t/an)","type":"number"}],
-      "logic":[{"if":"ms_t_an > 800 || n_t_an > 40","regime":"A","ref":"MS > 800 t/an ou N > 40 t/an"},{"if":"(ms_t_an >= 3 && ms_t_an <= 800) || (n_t_an >= 0.15 && n_t_an <= 40)","regime":"D","ref":"MS 3–800 t/an ou N 0,15–40 t/an"},{"else":"HN"}],
-      "ref":"R.214-1 2.1.3.0"
-    },
-    "2.1.4.0": { "label":"Épandage/stockage d’effluents ou de boues (hors 2.1.3.0, effluents d’élevage)",
-      "params":[{"id":"volume_m3_an","label":"Volume annuel (m³/an)","type":"number"},{"id":"n_t_an","label":"Azote total (t/an)","type":"number"},{"id":"dbo5_kg_an","label":"DBO5 (kg/an)","type":"number"}],
-      "logic":[{"if":"volume_m3_an > 50000 || n_t_an > 1 || dbo5_kg_an > 500","regime":"D","ref":"> 50 000 m³/an ou N > 1 t/an ou DBO5 > 500 kg/an"},{"else":"HN"}],
-      "ref":"R.214-1 2.1.4.0"
-    },
-    "2.1.5.0": { "label":"Rejet d’eaux pluviales (surface interceptée)","params":[{"id":"surface_ha","label":"Surface totale interceptée (ha)","type":"number"}],
-      "logic":[{"if":"surface_ha >= 20","regime":"A","ref":"A ≥ 20 ha"},{"if":"surface_ha > 1 && surface_ha < 20","regime":"D","ref":"> 1–20 ha"},{"else":"HN"}],
-      "ref":"R.214-1 2.1.5.0"
-    },
-    "2.2.1.0": { "label":"Rejet en surface susceptible de modifier le régime des eaux",
-      "params":[{"id":"capacite_rejet_m3_j","label":"Capacité totale de rejet (m³/j)","type":"number"},{"id":"part_pct_debit","label":"Part du débit moyen interannuel (%)","type":"number"}],
-      "logic":[{"if":"capacite_rejet_m3_j > 2000 || part_pct_debit >= 5","regime":"D","ref":"> 2 000 m³/j ou ≥ 5 %"},{"else":"HN"}],
-      "ref":"R.214-1 2.2.1.0"
-    },
-    "2.2.3.0": { "label":"Rejet en surface – flux ≥ niveau de référence R1 (≥1 paramètre)","params":[{"id":"r1_ok","label":"Atteint R1 ? (oui/non)","type":"text"}],
-      "logic":[{"if":"r1_ok == 'oui'","regime":"D"},{"else":"HN"}],
-      "ref":"R.214-1 2.2.3.0"
-    },
-    "2.3.1.0": { "label":"Rejets d’effluents sur le sol/sous-sol (hors cas exclus)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 2.3.1.0" },
-    "2.3.2.0": { "label":"Recharge artificielle des eaux souterraines","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 2.3.2.0" },
-
-    "3.1.1.0": { "label":"Obstacle aux crues / continuité écologique (différence de niveau)",
-      "params":[{"id":"delta_cm","label":"Différence de niveau (cm)","type":"number"},{"id":"type","label":"Crues / Continuité","type":"text"}],
-      "logic":[{"if":"type == 'crues'","regime":"A"},{"if":"type == 'continuité' && delta_cm >= 50","regime":"A","ref":"Δ≥50 cm"},{"if":"type == 'continuité' && delta_cm > 20 && delta_cm < 50","regime":"D","ref":"20–50 cm"},{"else":"HN"}],
-      "ref":"R.214-1 3.1.1.0"
-    },
-    "3.1.2.0": { "label":"Modification du lit/dérivation (longueur concernée)",
-      "params":[{"id":"longueur_m","label":"Longueur (m)","type":"number"}],
-      "logic":[{"if":"longueur_m >= 100","regime":"A","ref":"A ≥ 100 m"},{"if":"longueur_m < 100 && longueur_m > 0","regime":"D","ref":"< 100 m"},{"else":"HN"}],
-      "ref":"R.214-1 3.1.2.0"
-    },
-    "3.1.3.0": { "label":"Impact sensible sur la luminosité",
-      "params":[{"id":"longueur_m","label":"Longueur (m)","type":"number"}],
-      "logic":[{"if":"longueur_m >= 100","regime":"A"},{"if":"longueur_m >= 10 && longueur_m < 100","regime":"D"},{"else":"HN"}],
-      "ref":"R.214-1 3.1.3.0"
-    },
-    "3.1.4.0": { "label":"Consolidation/protection des berges (non végétal)",
-      "params":[{"id":"longueur_m","label":"Longueur (m)","type":"number"}],
-      "logic":[{"if":"longueur_m >= 200","regime":"A"},{"if":"longueur_m >= 20 && longueur_m < 200","regime":"D"},{"else":"HN"}],
-      "ref":"R.214-1 3.1.4.0"
-    },
-    "3.1.5.0": { "label":"Destruction de frayères / zones de croissance/alimentation",
-      "params":[{"id":"surface_m2","label":"Surface détruite (m²)","type":"number"}],
-      "logic":[{"if":"surface_m2 > 200","regime":"A"},{"if":"surface_m2 > 0 && surface_m2 <= 200","regime":"D"},{"else":"HN"}],
-      "ref":"R.214-1 3.1.5.0"
-    },
-
-    "3.2.1.0": { "label":"Entretien cours d’eau/canaux – sédiments/an",
-      "params":[{"id":"volume_m3","label":"Volume extrait (m³/an)","type":"number"},{"id":"teneur","label":"Teneur sédiments (\"<S1\" / \">=S1\")","type":"text"}],
-      "logic":[{"if":"volume_m3 > 2000","regime":"A"},{"if":"volume_m3 <= 2000 && teneur == '>=S1'","regime":"A"},{"if":"volume_m3 <= 2000 && teneur == '<S1'","regime":"D"},{"else":"HN"}],
-      "ref":"R.214-1 3.2.1.0"
-    },
-    "3.2.2.0": { "label":"Remblais/installations dans le lit majeur – surface soustraite",
-      "params":[{"id":"surface_m2","label":"Surface soustraite (m²)","type":"number"}],
-      "logic":[{"if":"surface_m2 >= 10000","regime":"A"},{"if":"surface_m2 >= 400 && surface_m2 < 10000","regime":"D"},{"else":"HN"}],
-      "ref":"R.214-1 3.2.2.0"
-    },
-    "3.2.3.0": { "label":"Plans d’eau (création)",
-      "params":[{"id":"surface_m2","label":"Surface du plan d’eau (m²)","type":"number"}],
-      "logic":[{"if":"surface_m2 >= 30000","regime":"A","ref":"A ≥ 3 ha"},{"if":"surface_m2 > 1000 && surface_m2 < 30000","regime":"D","ref":"0,1–3 ha"},{"else":"HN"}],
-      "ref":"R.214-1 3.2.3.0"
-    },
-
-    "3.2.5.0": { "label":"Barrages de retenue (classement R.214-112)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 3.2.5.0" },
-    "3.2.6.0": { "label":"Ouvrages de prévention des inondations/submersions (SE / aménagement)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 3.2.6.0" },
-    "3.2.7.0": { "label":"Piscicultures d’eau douce (L.431-6)","params":[],"logic":[{"else":"D"}],"ref":"R.214-1 3.2.7.0" },
-
-    "3.3.1.0": { "label":"Zones humides : assèchement/mise en eau/imperméabilisation/remblais",
-      "params":[{"id":"surface_m2","label":"Surface affectée (m²)","type":"number"}],
-      "logic":[{"if":"surface_m2 >= 10000","regime":"A"},{"if":"surface_m2 > 1000 && surface_m2 < 10000","regime":"D"},{"else":"HN"}],
-      "ref":"R.214-1 3.3.1.0"
-    },
-    "3.3.2.0": { "label":"Drainage – surface drainée",
-      "params":[{"id":"surface_drainee_m2","label":"Surface drainée (m²)","type":"number"}],
-      "logic":[{"if":"surface_drainee_m2 >= 1000000","regime":"A","ref":"A ≥ 100 ha"},{"if":"surface_drainee_m2 > 200000 && surface_drainee_m2 < 1000000","regime":"D","ref":"20–100 ha"},{"else":"HN"}],
-      "ref":"R.214-1 3.3.2.0"
-    },
-    "3.3.3.0": { "label":"Canalisations hydrocarbures/produits chimiques liquides",
-      "params":[{"id":"longueur_km","label":"Longueur (km)","type":"number"},{"id":"diam_m","label":"Diamètre extérieur (m)","type":"number"}],
-      "logic":[{"if":"longueur_km > 5","regime":"A","ref":"> 5 km"},{"if":"(diam_m * (longueur_km*1000)) > 2000","regime":"A","ref":"Diamètre × longueur > 2000 m²"},{"else":"HN"}],
-      "ref":"R.214-1 3.3.3.0"
-    },
-    "3.3.4.0": { "label":"Recherches/stockages souterrains de déchets radioactifs",
-      "params":[{"id":"type","label":"Type (forages>1 an / autres)","type":"text"}],
-      "logic":[{"if":"type == 'forages>1an'","regime":"A"},{"else":"D"}],
-      "ref":"R.214-1 3.3.4.0"
-    },
-    "3.3.5.0": { "label":"Restauration des fonctionnalités naturelles des milieux aquatiques",
-      "params":[{"id":"categorie","label":"Catégorie (arasement/déplacement/etc.)","type":"text"}],
-      "logic":[{"else":"D"}],
-      "ref":"R.214-1 3.3.5.0"
-    },
-
-    "4.1.1.0": { "label":"Travaux de création/chenal d’accès portuaire / modif. des spécifications","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 4.1.1.0" },
-    "4.1.2.0": { "label":"Aménagements portuaires – incidence directe sur le milieu (montant)","params":[{"id":"montant_eur","label":"Montant des travaux (€)","type":"number"}],
-      "logic":[{"if":"montant_eur >= 1900000","regime":"A"},{"if":"montant_eur >= 160000 && montant_eur < 1900000","regime":"D"},{"else":"HN"}],
-      "ref":"R.214-1 4.1.2.0"
-    },
-    "4.1.3.0": { "label":"Dragage et/ou rejet en milieu marin",
-      "params":[{"id":"teneur","label":"Teneur sédiments (>=N2 / N1-N2 / <=N1)","type":"text"},{"id":"volume_m3_12m","label":"Volume sur 12 mois (m³)","type":"number"},{"id":"facade","label":"Façade (AMN / autre)","type":"text"},{"id":"distance_km","label":"Distance au rejet / zone conchylicole (km)","type":"number"}],
-      "logic":[
-        {"if":"teneur == '>=N2'","regime":"A","ref":"Teneur ≥ N2"},
-        {"if":"teneur == 'N1-N2' && facade == 'AMN' && distance_km <= 1 && volume_m3_12m >= 50000","regime":"A","ref":"AMN/≤1 km, ≥50 000 m³"},
-        {"if":"teneur == 'N1-N2' && facade == 'AMN' && distance_km <= 1 && volume_m3_12m < 50000","regime":"D","ref":"AMN/≤1 km, <50 000 m³"},
-        {"if":"teneur == 'N1-N2' && facade != 'AMN' && distance_km <= 0.5 && volume_m3_12m >= 5000","regime":"A","ref":"ailleurs/≤500 m, ≥5 000 m³"},
-        {"if":"teneur == 'N1-N2' && facade != 'AMN' && distance_km <= 0.5 && volume_m3_12m < 5000","regime":"D","ref":"ailleurs/≤500 m, <5 000 m³"},
-        {"if":"teneur == '<=N1' && volume_m3_12m >= 500000","regime":"A","ref":"≤N1 et ≥500 000 m³"},
-        {"if":"teneur == '<=N1' && volume_m3_12m >= 5000 && volume_m3_12m < 500000","regime":"D","ref":"≤N1 et 5 000–500 000 m³"},
-        {"else":"HN"}
-      ],
-      "ref":"R.214-1 4.1.3.0"
-    },
-
-    "5.1.1.0": { "label":"Réinjection dans la même nappe (géothermie, exhaures, génie civil)","params":[{"id":"capacite_m3_h","label":"Capacité totale de réinjection (m³/h)","type":"number"}],
-      "logic":[{"if":"capacite_m3_h >= 80","regime":"A"},{"if":"capacite_m3_h >= 8 && capacite_m3_h < 80","regime":"D"},{"else":"HN"}],
-      "ref":"R.214-1 5.1.1.0"
-    },
-    "5.1.2.0": { "label":"Recherche/exploitation de gîtes géothermiques","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 5.1.2.0" },
-    "5.1.3.0": { "label":"Travaux miniers (recherches/cavités/forages/essais)","params":[{"id":"categorie","label":"a/b/d/e/f/g (voir texte)","type":"text"}],
-      "logic":[{"if":"categorie == 'a' || categorie == 'b' || categorie == 'd'","regime":"A"},{"if":"categorie == 'e' || categorie == 'f' || categorie == 'g'","regime":"D"},{"else":"HN"}],
-      "ref":"R.214-1 5.1.3.0"
-    },
-    "5.1.4.0": { "label":"Travaux d’exploitation de mines","params":[{"id":"type","label":"Type (a : sous autorisation exploitation / b : autres)","type":"text"}],
-      "logic":[{"if":"type == 'a'","regime":"D"},{"if":"type == 'b'","regime":"A"},{"else":"HN"}],
-      "ref":"R.214-1 5.1.4.0"
-    },
-    "5.1.5.0": { "label":"Exploitation de stockages souterrains de déchets radioactifs","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 5.1.5.0" },
-    "5.1.6.0": { "label":"Travaux de recherches des mines","params":[{"id":"type","label":"a : 2° art.3 / b : autres","type":"text"}],
-      "logic":[{"if":"type == 'a'","regime":"A"},{"if":"type == 'b'","regime":"D"},{"else":"HN"}],
-      "ref":"R.214-1 5.1.6.0"
-    },
-    "5.1.7.0": { "label":"Prospection/recherche/exploitation (fonds marins domaine public)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 5.1.7.0" },
-
-    "5.2.2.0": { "label":"Concessions hydrauliques (Livre V code de l’énergie)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 5.2.2.0" },
-    "5.2.3.0": { "label":"Travaux commission d’aménagement foncier (liste réglementaire)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 5.2.3.0" },
-    "5.2.4.0": { "label":"Travaux d’exploitation de mines (L.621-4-1)","params":[],"logic":[{"else":"D"}],"ref":"R.214-1 5.2.4.0" }
-  }
-}
-</script>
-
-<!-- JS libs -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/proj4leaflet@1.0.2/src/proj4leaflet.min.js"></script>
-<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-
-<script>
-(function(){
-'use strict';
-const $  = (s, r=document)=> r.querySelector(s);
-const $$ = (s, r=document)=> Array.from(r.querySelectorAll(s));
-
-/* ---- Procédure : open/close ---- */
-const PROC_KEY='sd40:procVisible';
-const RULES_KEY='sd40:iota_rules_v1';
-let PACK_RULES=null;
-const procEl = $('#proc');
-const btnOpen = $('#btnProcOpen');
-const btnClose = $('#btnProcClose');
-
-function openProc(){ procEl.hidden = false; try{ localStorage.setItem(PROC_KEY,'1'); }catch(e){} }
-function closeProc(){ procEl.hidden = true;  try{ localStorage.setItem(PROC_KEY,'0'); }catch(e){} }
-btnOpen.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); openProc(); });
-btnClose.addEventListener('click',(e)=>{ e.preventDefault(); e.stopPropagation(); closeProc(); });
-document.addEventListener('click', (e)=>{ if (procEl.hidden) return; const inside = procEl.contains(e.target) || e.target.closest('#btnProcOpen'); if (!inside) closeProc(); });
-document.addEventListener('keydown',(e)=>{ if (e.key === 'Escape') closeProc(); });
-try{ if (localStorage.getItem(PROC_KEY) === '1') openProc(); }catch(e){}
-
-/* ---- COUCHES ---- */
-const LAYERS = [
-  { name:"Axe_realimentes_Institution_Adour", url:"layers/Axe_realimentes_Institution_Adour.geojson" },
-  { name:"BDT_3_5_Bassin_Versant", url:"layers/BDT_3_5_Bassin_Versant.geojson" },
-  { name:"BDT_3_5_Plan_d_eau", url:"layers/BDT_3_5_Plan_d_eau.geojson" },
-  { name:"BDT_3_5_Reservoir", url:"layers/BDT_3_5_Reservoir.geojson" },
-  { name:"Cadastre_parcelles_Flux", url:"layers/Cadastre_parcelles_Flux.geojson" },
-  { name:"DCE_2022_2027_masses_deau_cotiere_Adour_Garonne", url:"layers/DCE_2022_2027_masses_deau_cotiere_Adour_Garonne.geojson" },
-  { name:"DCE_2022_2027_masses_deau_de_transition_Adour_Garonne", url:"layers/DCE_2022_2027_masses_deau_de_transition_Adour_Garonne.geojson" },
-  { name:"DCE__2022_2027__BV_specifique__AG", url:"layers/DCE__2022_2027__BV_specifique__AG.geojson" },
-  { name:"DCE__2022_2027__plans_deau__adour_garonne", url:"layers/DCE__2022_2027__plans_deau__adour_garonne.geojson" },
-  { name:"DDT40_Carto_Cours_d_Eau_validee", url:"layers/DDT40_Carto_Cours_d_Eau_validee.geojson" },
-  { name:"DDT40_Plan_d_Eau_loi_Eau", url:"layers/DDT40_Plan_d_Eau_loi_Eau.geojson" },
-  { name:"DDT40_retenue_d_eau", url:"layers/DDT40_retenue_d_eau.geojson" },
-  { name:"DPT40Masque", url:"layers/DPT40Masque.geojson" },
-  { name:"DREAL_points_nodaux", url:"layers/DREAL_points_nodaux.geojson" },
-  { name:"IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux", url:"layers/IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux.geojson" },
-  { name:"INRAe_carte_sols", url:"layers/INRAe_carte_sols.geojson" },
-  { name:"Isochrones_nappe_alluviale_adour_IA", url:"layers/Isochrones_nappe_alluviale_adour_IA.geojson" },
-  { name:"ONF_Foret", url:"layers/ONF_Foret.geojson" },
-  /* GZIP */
-  { name:"DCE_2022-2027_cours_deau_Adour-Garonne", url:"layers/DCE_2022-2027_cours_deau_Adour-Garonne.geojson.gz" },
-  { name:"DCE_2022_2027__masses_deau_souterraine", url:"layers/DCE_2022_2027__masses_deau_souterraine.geojson.gz" },
-  { name:"BDT_3_5_Surface_hydrographique", url:"layers/BDT_3_5_Surface_hydrographique.geojson.gz" },
-  { name:"IGN_BDHaies_V2_2024", url:"layers/IGN_BDHaies_V2_2024.geojson.gz" },
-  { name:"Nappes_des_sables", url:"layers/Nappes_des_sables.geojson.gz" },
-  { name:"Zones_Restriction_Prelevements_flux", url:"layers/Zones_Restriction_Prelevements_flux.geojson.gz" },
-  { name:"ZAS_sup_40_2024", url:"layers/ZAS_sup_40_2024.geojson" },
-  { name:"ZRE_-_2013", url:"layers/ZRE_-_2013.geojson" },
-  { name:"Zones_port_es_par_les_arr_t_s", url:"layers/Zones_port_es_par_les_arr_t_s.geojson" },
-  { name:"Zones_portes_arretes", url:"layers/Zones_portes_arretes.geojson" },
-  { name:"axes_raliments_l_cde_retenues_l93_institution_adour", url:"layers/axes_raliments_l_cde_retenues_l93_institution_adour.geojson" },
-  { name:"pe_aci_adour", url:"layers/pe_aci_adour.geojson" },
-  { name:"sortie", url:"layers/sortie.geojson" }
-];
-
-/* ---- MAP + Basemaps ---- */
-const map = L.map('map', { zoomControl:true, preferCanvas:true }).setView([43.85,-0.7], 9);
-const baseOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:20, attribution:'© OpenStreetMap' }).addTo(map);
-const baseSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom:20, attribution:'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics' });
-L.control.scale({metric:true, imperial:false, position:'bottomleft'}).addTo(map);
-try{
-  L.control.locate({ position:'topleft', strings:{ title:'Me localiser' }, keepCurrentZoomLevel:true, flyTo:true, drawCircle:true, showPopup:true, cacheLocation:true }).addTo(map);
-}catch(e){}
-const baseMaps = { "Plan (OSM)": baseOSM, "Satellite (Esri)": baseSat };
-const layersControl = L.control.layers(baseMaps, {}, {collapsed:false}).addTo(map);
-const layerGroups = {};
-for (const it of LAYERS){ const grp=L.layerGroup(); layerGroups[it.name]=grp; layersControl.addOverlay(grp, it.name); }
-
-/* Bouton “☰ Couches” */
-const LayerToggleBig = L.Control.extend({
-  options:{ position:'topright' },
-  onAdd(){
-    const wrap = L.DomUtil.create('div','layer-toggle-wrap leaflet-control');
-    const btn = L.DomUtil.create('button','layer-toggle-btn',wrap);
-    btn.type='button';
-    btn.innerHTML = `<span class="icon">☰</span><span class="label">Couches</span>`;
-    L.DomEvent.on(btn,'click', L.DomEvent.stop).on(btn,'click', ()=>{
-      const el = document.querySelector('.leaflet-control-layers');
-      if (el) el.style.display = (el.style.display==='none' ? '' : 'none');
-    });
-    return wrap;
-  }
-});
-map.addControl(new LayerToggleBig());
-
-/* Styles & popups */
-function styleByGeom(feature){
-  const t = feature?.geometry?.type || '';
-  if (t==='Point' || t==='MultiPoint') return {radius:5, fillColor:'#e31a1c', color:'#ffffff', weight:1, opacity:1, fillOpacity:.85};
-  if (t.includes('Line')) return {color:'#1f78b4', weight:2, opacity:.95};
-  return {color:'#33a02c', weight:2, opacity:.95, fillOpacity:.25};
-}
-function toTitle(s){ return s.replace(/_/g,' ').replace(/\s+/g,' ').toLowerCase().replace(/(^|\s)\S/g, t=>t.toUpperCase()); }
-const PRIORITY_FIELDS = ['NOM','NOM_OUVRAG','name','nom','libelle','LIBELLE','titre'];
-function buildPopupHTML(props){
-  const keys = Object.keys(props||{});
-  if (!keys.length) return '<em>Aucun attribut</em>';
-  const titleKey = PRIORITY_FIELDS.find(k => k in props);
-  const title = titleKey ? String(props[titleKey]) : null;
-  const ordered = [...PRIORITY_FIELDS.filter(k => k in props), ...keys.filter(k => !PRIORITY_FIELDS.includes(k))];
-  let rows = '';
-  for (const k of ordered){
-    const v = props[k];
-    if (v==null || String(v).trim()==='') continue;
-    rows += `<tr><th>${toTitle(k)}</th><td>${v}</td></tr>`;
-  }
-  return `<div class="popup-card">${title?`<div class="popup-title">${title}</div>`:''}<table class="popup-table">${rows}</table></div>`;
-}
-function onEachFeature(feature, layer){ layer.bindPopup(buildPopupHTML(feature.properties||{}), {maxWidth:380,minWidth:220,autoPan:true}); }
-
-/* Loader + cache avec fallback couches<->layers */
-const {get:cacheGet, set:cacheSet} = idbKeyval;
-const CACHE_VERSION = 'v3';
-async function loadGeoJSONSmart(url){
-  async function tryFetch(u){
-    const res = await fetch(u, {cache:'no-store'});
-    if (!res.ok) throw new Error(res.status+' '+res.statusText);
-    try {
-      const jj = await res.clone().json();
-      await cacheSet(CACHE_VERSION+':'+u, jj);
-      return jj;
-    } catch(_){}
-    const buf = await res.arrayBuffer();
-    const u8 = new Uint8Array(buf);
-    if (u8.length===0) throw new Error('Fichier vide');
-    const isGzip = (u8[0]===0x1f && u8[1]===0x8b);
-    const looksHTML= (u8[0]===0x3C);
-    if (isGzip){
-      let text;
-      if ('DecompressionStream' in window){
-        const r2 = await fetch(u,{cache:'no-store'});
-        text = await new Response(r2.body.pipeThrough(new DecompressionStream('gzip'))).text();
-      } else if (window.pako){
-        text = pako.ungzip(u8,{to:'string'});
-      } else {
-        throw new Error('GZIP détecté mais pas de décompresseur');
-      }
-      const j = JSON.parse(text);
-      await cacheSet(CACHE_VERSION+':'+u, j);
-      return j;
-    }
-    if (looksHTML) throw new Error('HTML/404 — mauvais chemin/nom');
-    const txt = new TextDecoder().decode(u8);
-    const j = JSON.parse(txt);
-    await cacheSet(CACHE_VERSION+':'+u, j);
-    return j;
-  }
-  try { return await tryFetch(url); }
-  catch(e1){
-    let alt=null;
-    if (typeof url==='string' && url.startsWith('layers/')) alt = url.replace(/^layers\//,'couches/');
-    else if (typeof url==='string' && url.startsWith('couches/')) alt = url.replace(/^couches\//,'layers/');
-    if (alt){
-      try { return await tryFetch(alt); } catch(e2){}
-    }
-    const cached = await cacheGet(CACHE_VERSION+':'+url);
-    if (cached) return cached;
-    throw e1;
-  }
-}
-function normalizeFC(gj){
-  const out={type:'FeatureCollection', features:[]};
-  const feats = Array.isArray(gj?.features)?gj.features:[];
-  for (const f of feats){
-    const g=f?.geometry;
-    if(!g) continue;
-    if (g.type==='GeometryCollection' && Array.isArray(g.geometries) && g.geometries.length){
-      for (const gg of g.geometries){
-        if(!gg) continue;
-        out.features.push({type:'Feature',properties:f.properties||{},geometry:gg});
-      }
-    } else out.features.push(f);
-  }
-  return out;
-}
-const loaded = new Set();
-let maskBounds=null;
-async function ensureLayerLoaded(name){
-  if (loaded.has(name)) return;
-  const it = LAYERS.find(l => l.name===name);
-  if (!it) return;
-  const grp = layerGroups[it.name];
-  try{
-    const gj = await loadGeoJSONSmart(it.url);
-    const fc = normalizeFC(gj);
-    const layer = L.geoJSON(fc,{ style:styleByGeom, pointToLayer:(feat,latlng)=> L.circleMarker(latlng, styleByGeom(feat)), onEachFeature });
-    layer.eachLayer(l=> l.bringToFront());
-    grp.clearLayers(); grp.addLayer(layer); loaded.add(name);
-    try{ if (name==='DPT40Masque'){ maskBounds = layer.getBounds(); } }catch(_){}
-  }catch(err){ console.warn('ERR '+name+':', err); }
-}
-ensureLayerLoaded('DPT40Masque');
-map.on('overlayadd', async (e)=>{
-  const name = Object.keys(layerGroups).find(k => layerGroups[k]===e.layer);
-  if (name) await ensureLayerLoaded(name);
-  try{
-    if (e?.layer?.getBounds){
-      const b=e.layer.getBounds();
-      if (b && b.isValid()) map.fitBounds(b,{padding:[20,20]});
-    }
-  }catch(_){}
-});
-
-/* ---- OUTILS de mesure & annotations ---- */
-const ManualMeasure = L.Control.extend({
-  options:{ position:'topleft' },
-  onAdd(){
-    const wrap = L.DomUtil.create('div','leaflet-bar tool-btn');
-    const d = L.DomUtil.create('a','',wrap); d.href='#'; d.title='Mesurer distance (manuel)'; d.innerHTML='📏';
-    const a = L.DomUtil.create('a','',wrap); a.href='#'; a.title='Mesurer surface (manuel)';  a.innerHTML='▱';
-    const e = L.DomUtil.create('a','',wrap); e.href='#'; e.title='Exporter la mesure (GeoJSON)'; e.innerHTML='📤';
-    L.DomEvent.disableClickPropagation(wrap);
-    L.DomEvent.on(d,'click',L.DomEvent.stop).on(d,'click',()=>startManual('dist',d));
-    L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>startManual('area',a));
-    L.DomEvent.on(e,'click',L.DomEvent.stop).on(e,'click',()=>exportCurrentMeasure());
-    return wrap;
-  }
-});
-map.addControl(new ManualMeasure());
-let manualState = null;
-function resetManual(){
-  if(!manualState) return;
-  if (manualState.line) map.removeLayer(manualState.line);
-  if (manualState.poly) map.removeLayer(manualState.poly);
-  if (manualState.label) map.removeLayer(manualState.label);
-  if (manualState.btn) manualState.btn.classList.remove('active');
-  map.getContainer().style.cursor='';
-  map.doubleClickZoom.enable();
-  map.off('click', onClickManual);
-  map.off('dblclick', finishManual);
-  map.off('contextmenu', finishManual);
-  manualState=null;
-}
-function startManual(mode, btnOn){
-  if (manualState?.mode===mode){ resetManual(); return; }
-  resetManual(); stopGPS();
-  btnOn.classList.add('active');
-  manualState={mode, pts:[], line:null, poly:null, label:null, btn:btnOn};
-  map.getContainer().style.cursor='crosshair';
-  map.doubleClickZoom.disable();
-  map.on('click', onClickManual);
-  map.on('dblclick', finishManual);
-  map.on('contextmenu', finishManual);
-}
-function onClickManual(e){
-  const s=manualState; if(!s) return;
-  s.pts.push(e.latlng);
-  if (s.mode==='dist'){
-    if (!s.line){ s.line=L.polyline([e.latlng],{color:'#1f78b4',weight:3,dashArray:'6,4'}).addTo(map); }
-    else { s.line.addLatLng(e.latlng); }
-    updateManualLabel(e.latlng, fmtLength(computeLengthMeters(s.pts)));
-  }else{
-    if (s.pts.length===1){
-      s.line=L.polyline([e.latlng],{color:'#33a02c',weight:3,dashArray:'6,4'}).addTo(map);
-    } else if (s.pts.length===2){
-      s.line.addLatLng(e.latlng);
-    } else{
-      if (!s.poly){ s.poly=L.polygon(s.pts,{color:'#33a02c',weight:2,fillOpacity:.15}).addTo(map); }
-      else { s.poly.setLatLngs([s.pts]); }
-      updateManualLabel(e.latlng, fmtArea(computeAreaM2(s.pts)));
+  <!-- ========= PACK IOTA INTÉGRÉ ========= -->
+  <script type="application/json" id="iota-pack-officiel">
+  {
+    "iota": [
+      {"code":"1.1.1.0","titre":"Sondage, forage (non domestique) – recherche/surveillance d’eaux souterraines"},
+      {"code":"1.1.2.0","titre":"Prélèvements en eaux souterraines (volume annuel)"},
+      {"code":"1.2.1.0","titre":"Prélèvements en cours d’eau/nappe d’accompagnement/plan-canal alimenté"},
+      {"code":"1.2.2.0","titre":"Prélèvements quand l’étiage est majoritairement réalimenté artificiellement"},
+      {"code":"1.3.1.0","titre":"Prélèvements en zone à seuils abaissés (répartition quantitative)"},
+      {"code":"2.1.1.0","titre":"Assainissement collectif / ANC (charge DBO5)"},
+      {"code":"2.1.3.0","titre":"Épandage/stockage de boues en vue d’épandage"},
+      {"code":"2.1.4.0","titre":"Épandage/stockage d’effluents ou de boues (hors 2.1.3.0, effluents d’élevage)"},
+      {"code":"2.1.5.0","titre":"Rejet d’eaux pluviales (surface interceptée)"},
+      {"code":"2.2.1.0","titre":"Rejet susceptible de modifier le régime des eaux en surface"},
+      {"code":"2.2.3.0","titre":"Rejet en surface – flux ≥ niveau R1 pour ≥1 paramètre"},
+      {"code":"2.3.1.0","titre":"Rejets d’effluents sur le sol/sous-sol (hors 2.1.5.0, etc.)"},
+      {"code":"2.3.2.0","titre":"Recharge artificielle des eaux souterraines"},
+      {"code":"3.1.1.0","titre":"Obstacle crues / continuité écologique (différence de niveau)"},
+      {"code":"3.1.2.0","titre":"Modification profil en long/transversal – dérivation d’un cours d’eau"},
+      {"code":"3.1.3.0","titre":"Impact sensible sur la luminosité (longueur)"},
+      {"code":"3.1.4.0","titre":"Consolidation/protection de berges (non végétal)"},
+      {"code":"3.1.5.0","titre":"Destruction de frayères / zones de croissance/alimentation"},
+      {"code":"3.2.1.0","titre":"Entretien de cours d’eau/canaux – volume de sédiments"},
+      {"code":"3.2.2.0","titre":"Installations/ouvrages/remblais dans le lit majeur – surface soustraite"},
+      {"code":"3.2.3.0","titre":"Plans d’eau (création)"},
+      {"code":"3.2.5.0","titre":"Barrages de retenue (classement R.214-112) – y compris vidange (dans l’acte)"},
+      {"code":"3.2.6.0","titre":"Ouvrages de prévention inondations/submersions (SE / aménagement hydraulique)"},
+      {"code":"3.2.7.0","titre":"Piscicultures d’eau douce (L.431-6)"},
+      {"code":"3.3.1.0","titre":"Zones humides : assèchement/mise en eau/imperméabilisation/remblais"},
+      {"code":"3.3.2.0","titre":"Drainage (surface drainée)"},
+      {"code":"3.3.3.0","titre":"Canalisations hydrocarbures/produits chimiques liquides"},
+      {"code":"3.3.4.0","titre":"Recherche/stockage souterrain de déchets radioactifs"},
+      {"code":"3.3.5.0","titre":"Travaux de restauration fonctionnelle des milieux aquatiques"},
+      {"code":"4.1.1.0","titre":"Travaux portuaires/chenal d’accès (création / modification)"},
+      {"code":"4.1.2.0","titre":"Aménagements portuaires (montant des travaux)"},
+      {"code":"4.1.3.0","titre":"Dragage et/ou rejet en milieu marin (teneurs/volumes/distance)"},
+      {"code":"5.1.1.0","titre":"Réinjection dans la même nappe (géothermie, exhaures, génie civil)"},
+      {"code":"5.1.2.0","titre":"Recherche/exploitation de gîtes géothermiques"},
+      {"code":"5.1.3.0","titre":"Travaux miniers – recherches, cavités, forages, essais"},
+      {"code":"5.1.4.0","titre":"Travaux d’exploitation de mines"},
+      {"code":"5.1.5.0","titre":"Exploitation de stockages souterrains de déchets radioactifs"},
+      {"code":"5.1.6.0","titre":"Travaux de recherches des mines"},
+      {"code":"5.1.7.0","titre":"Prospection/exploitation de substances minérales/fossiles en fonds marins"},
+      {"code":"5.2.2.0","titre":"Concessions hydrauliques (Livre V code de l’énergie)"},
+      {"code":"5.2.3.0","titre":"Travaux commission d’aménagement foncier (listés)"},
+      {"code":"5.2.4.0","titre":"Travaux d’exploitation de mines – autorisation L.621-4-1"}
+    ],
+    "rules": {
+      "1.1.1.0": { "label":"Sondage/forage non domestique (recherche/surveillance d’eaux souterraines)","params":[],"logic":[{"else":"D"}],"ref":"R.214-1 1.1.1.0" },
+      "1.1.2.0": { "label":"Prélèvements en eaux souterraines (volume annuel)","params":[{"id":"volume_m3_an","label":"Volume prélevé (m³/an)","type":"number"}],"logic":[{"if":"volume_m3_an >= 200000","regime":"A","ref":"A ≥ 200 000 m³/an"},{"if":"volume_m3_an > 10000 && volume_m3_an < 200000","regime":"D","ref":"10 000–200 000 m³/an"},{"else":"HN"}],"ref":"R.214-1 1.1.2.0" },
+      "1.2.1.0": { "label":"Prélèvements en cours d’eau/nappe d’accompagnement/plan-canal alimenté","params":[{"id":"capacite_m3_h","label":"Capacité (m³/h)","type":"number"},{"id":"part_pct_debit","label":"Part du débit du cours d’eau (%)","type":"number"}],"logic":[{"if":"capacite_m3_h >= 1000 || part_pct_debit >= 5","regime":"A","ref":"A ≥ 1000 m³/h ou ≥ 5 %"},{"if":"(capacite_m3_h >= 400 && capacite_m3_h < 1000) || (part_pct_debit >= 2 && part_pct_debit < 5)","regime":"D","ref":"400–1000 m³/h ou 2–5 %"},{"else":"HN"}],"ref":"R.214-1 1.2.1.0" },
+      "1.2.2.0": { "label":"Prélèvements avec étiage majoritairement réalimenté artificiellement","params":[{"id":"rivieres","label":"Seine/Loire/Marne/Yonne ? (oui/non)","type":"text"},{"id":"capacite_m3_h","label":"Capacité (m³/h) – utile si 'oui'","type":"number"}],"logic":[{"if":"rivieres == 'oui' && capacite_m3_h > 80","regime":"A","ref":"Seine/Loire/Marne/Yonne : A si > 80 m³/h"},{"if":"rivieres == 'oui' && capacite_m3_h <= 80","regime":"HN","ref":"Seine/Loire/Marne/Yonne : ≤ 80 m³/h = HN"},{"if":"rivieres != 'oui'","regime":"A","ref":"Autres cours d’eau : A (cas de réalimentation majoritaire en étiage)"},{"else":"HN"}],"ref":"R.214-1 1.2.2.0" },
+      "1.3.1.0": { "label":"Prélèvements en zone à seuils abaissés (répartition quantitative)","params":[{"id":"capacite_m3_h","label":"Capacité (m³/h)","type":"number"}],"logic":[{"if":"capacite_m3_h >= 8","regime":"A","ref":"A ≥ 8 m³/h"},{"else":"D"}],"ref":"R.214-1 1.3.1.0" },
+      "2.1.1.0": { "label":"Systèmes d’assainissement collectif / ANC (charge DBO5)","params":[{"id":"dbo5_kg","label":"Charge brute (kg DBO5)","type":"number"}],"logic":[{"if":"dbo5_kg >= 600","regime":"A","ref":"A ≥ 600 kg DBO5"},{"if":"dbo5_kg > 12 && dbo5_kg < 600","regime":"D","ref":"12–600 kg DBO5"},{"else":"HN"}],"ref":"R.214-1 2.1.1.0" },
+      "2.1.3.0": { "label":"Épandage/stockage de boues","params":[{"id":"ms_t_an","label":"Matière sèche (t/an)","type":"number"},{"id":"n_t_an","label":"Azote total (t/an)","type":"number"}],"logic":[{"if":"ms_t_an > 800 || n_t_an > 40","regime":"A","ref":"MS > 800 t/an ou N > 40 t/an"},{"if":"(ms_t_an >= 3 && ms_t_an <= 800) || (n_t_an >= 0.15 && n_t_an <= 40)","regime":"D","ref":"MS 3–800 t/an ou N 0,15–40 t/an"},{"else":"HN"}],"ref":"R.214-1 2.1.3.0" },
+      "2.1.4.0": { "label":"Épandage/stockage d’effluents ou de boues (hors 2.1.3.0, effluents d’élevage)","params":[{"id":"volume_m3_an","label":"Volume annuel (m³/an)","type":"number"},{"id":"n_t_an","label":"Azote total (t/an)","type":"number"},{"id":"dbo5_kg_an","label":"DBO5 (kg/an)","type":"number"}],"logic":[{"if":"volume_m3_an > 50000 || n_t_an > 1 || dbo5_kg_an > 500","regime":"D","ref":"> 50 000 m³/an ou N > 1 t/an ou DBO5 > 500 kg/an"},{"else":"HN"}],"ref":"R.214-1 2.1.4.0" },
+      "2.1.5.0": { "label":"Rejet d’eaux pluviales (surface interceptée)","params":[{"id":"surface_ha","label":"Surface totale interceptée (ha)","type":"number"}],"logic":[{"if":"surface_ha >= 20","regime":"A","ref":"A ≥ 20 ha"},{"if":"surface_ha > 1 && surface_ha < 20","regime":"D","ref":"> 1–20 ha"},{"else":"HN"}],"ref":"R.214-1 2.1.5.0" },
+      "2.2.1.0": { "label":"Rejet en surface susceptible de modifier le régime des eaux","params":[{"id":"capacite_rejet_m3_j","label":"Capacité totale de rejet (m³/j)","type":"number"},{"id":"part_pct_debit","label":"Part du débit moyen interannuel (%)","type":"number"}],"logic":[{"if":"capacite_rejet_m3_j > 2000 || part_pct_debit >= 5","regime":"D","ref":"> 2 000 m³/j ou ≥ 5 %"},{"else":"HN"}],"ref":"R.214-1 2.2.1.0" },
+      "2.2.3.0": { "label":"Rejet en surface – flux ≥ niveau de référence R1 (≥1 paramètre)","params":[{"id":"r1_ok","label":"Atteint R1 ? (oui/non)","type":"text"}],"logic":[{"if":"r1_ok == 'oui'","regime":"D"},{"else":"HN"}],"ref":"R.214-1 2.2.3.0" },
+      "2.3.1.0": { "label":"Rejets d’effluents sur le sol/sous-sol (hors cas exclus)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 2.3.1.0" },
+      "2.3.2.0": { "label":"Recharge artificielle des eaux souterraines","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 2.3.2.0" },
+      "3.1.1.0": { "label":"Obstacle aux crues / continuité écologique (différence de niveau)","params":[{"id":"delta_cm","label":"Différence de niveau (cm)","type":"number"},{"id":"type","label":"Crues / Continuité","type":"text"}],"logic":[{"if":"type == 'crues'","regime":"A"},{"if":"type == 'continuité' && delta_cm >= 50","regime":"A","ref":"Δ≥50 cm"},{"if":"type == 'continuité' && delta_cm > 20 && delta_cm < 50","regime":"D","ref":"20–50 cm"},{"else":"HN"}],"ref":"R.214-1 3.1.1.0" },
+      "3.1.2.0": { "label":"Modification du lit/dérivation (longueur concernée)","params":[{"id":"longueur_m","label":"Longueur (m)","type":"number"}],"logic":[{"if":"longueur_m >= 100","regime":"A","ref":"A ≥ 100 m"},{"if":"longueur_m < 100 && longueur_m > 0","regime":"D","ref":"< 100 m"},{"else":"HN"}],"ref":"R.214-1 3.1.2.0" },
+      "3.1.3.0": { "label":"Impact sensible sur la luminosité","params":[{"id":"longueur_m","label":"Longueur (m)","type":"number"}],"logic":[{"if":"longueur_m >= 100","regime":"A"},{"if":"longueur_m >= 10 && longueur_m < 100","regime":"D"},{"else":"HN"}],"ref":"R.214-1 3.1.3.0" },
+      "3.1.4.0": { "label":"Consolidation/protection des berges (non végétal)","params":[{"id":"longueur_m","label":"Longueur (m)","type":"number"}],"logic":[{"if":"longueur_m >= 200","regime":"A"},{"if":"longueur_m >= 20 && longueur_m < 200","regime":"D"},{"else":"HN"}],"ref":"R.214-1 3.1.4.0" },
+      "3.1.5.0": { "label":"Destruction de frayères / zones de croissance/alimentation","params":[{"id":"surface_m2","label":"Surface détruite (m²)","type":"number"}],"logic":[{"if":"surface_m2 > 200","regime":"A"},{"if":"surface_m2 > 0 && surface_m2 <= 200","regime":"D"},{"else":"HN"}],"ref":"R.214-1 3.1.5.0" },
+      "3.2.1.0": { "label":"Entretien cours d’eau/canaux – sédiments/an","params":[{"id":"volume_m3","label":"Volume extrait (m³/an)","type":"number"},{"id":"teneur","label":"Teneur sédiments (\"<S1\" / \">=S1\")","type":"text"}],"logic":[{"if":"volume_m3 > 2000","regime":"A"},{"if":"volume_m3 <= 2000 && teneur == '>=S1'","regime":"A"},{"if":"volume_m3 <= 2000 && teneur == '<S1'","regime":"D"},{"else":"HN"}],"ref":"R.214-1 3.2.1.0" },
+      "3.2.2.0": { "label":"Remblais/installations dans le lit majeur – surface soustraite","params":[{"id":"surface_m2","label":"Surface soustraite (m²)","type":"number"}],"logic":[{"if":"surface_m2 >= 10000","regime":"A"},{"if":"surface_m2 >= 400 && surface_m2 < 10000","regime":"D"},{"else":"HN"}],"ref":"R.214-1 3.2.2.0" },
+      "3.2.3.0": { "label":"Plans d’eau (création)","params":[{"id":"surface_m2","label":"Surface du plan d’eau (m²)","type":"number"}],"logic":[{"if":"surface_m2 >= 30000","regime":"A","ref":"A ≥ 3 ha"},{"if":"surface_m2 > 1000 && surface_m2 < 30000","regime":"D","ref":"0,1–3 ha"},{"else":"HN"}],"ref":"R.214-1 3.2.3.0" },
+      "3.2.5.0": { "label":"Barrages de retenue (classement R.214-112)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 3.2.5.0" },
+      "3.2.6.0": { "label":"Ouvrages de prévention des inondations/submersions (SE / aménagement)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 3.2.6.0" },
+      "3.2.7.0": { "label":"Piscicultures d’eau douce (L.431-6)","params":[],"logic":[{"else":"D"}],"ref":"R.214-1 3.2.7.0" },
+      "3.3.1.0": { "label":"Zones humides : assèchement/mise en eau/imperméabilisation/remblais","params":[{"id":"surface_m2","label":"Surface affectée (m²)","type":"number"}],"logic":[{"if":"surface_m2 >= 10000","regime":"A"},{"if":"surface_m2 > 1000 && surface_m2 < 10000","regime":"D"},{"else":"HN"}],"ref":"R.214-1 3.3.1.0" },
+      "3.3.2.0": { "label":"Drainage – surface drainée","params":[{"id":"surface_drainee_m2","label":"Surface drainée (m²)","type":"number"}],"logic":[{"if":"surface_drainee_m2 >= 1000000","regime":"A","ref":"A ≥ 100 ha"},{"if":"surface_drainee_m2 > 200000 && surface_drainee_m2 < 1000000","regime":"D","ref":"20–100 ha"},{"else":"HN"}],"ref":"R.214-1 3.3.2.0" },
+      "3.3.3.0": { "label":"Canalisations hydrocarbures/produits chimiques liquides","params":[{"id":"longueur_km","label":"Longueur (km)","type":"number"},{"id":"diam_m","label":"Diamètre extérieur (m)","type":"number"}],"logic":[{"if":"longueur_km > 5","regime":"A","ref":"> 5 km"},{"if":"(diam_m * (longueur_km*1000)) > 2000","regime":"A","ref":"Diamètre × longueur > 2000 m²"},{"else":"HN"}],"ref":"R.214-1 3.3.3.0" },
+      "3.3.4.0": { "label":"Recherches/stockages souterrains de déchets radioactifs","params":[{"id":"type","label":"Type (forages>1 an / autres)","type":"text"}],"logic":[{"if":"type == 'forages>1an'","regime":"A"},{"else":"D"}],"ref":"R.214-1 3.3.4.0" },
+      "3.3.5.0": { "label":"Restauration des fonctionnalités naturelles des milieux aquatiques","params":[{"id":"categorie","label":"Catégorie (arasement/déplacement/etc.)","type":"text"}],"logic":[{"else":"D"}],"ref":"R.214-1 3.3.5.0" },
+      "4.1.1.0": { "label":"Travaux de création/chenal d’accès portuaire / modif. des spécifications","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 4.1.1.0" },
+      "4.1.2.0": { "label":"Aménagements portuaires – incidence directe sur le milieu (montant)","params":[{"id":"montant_eur","label":"Montant des travaux (€)","type":"number"}],"logic":[{"if":"montant_eur >= 1900000","regime":"A"},{"if":"montant_eur >= 160000 && montant_eur < 1900000","regime":"D"},{"else":"HN"}],"ref":"R.214-1 4.1.2.0" },
+      "4.1.3.0": { "label":"Dragage et/ou rejet en milieu marin","params":[{"id":"teneur","label":"Teneur sédiments (>=N2 / N1-N2 / <=N1)","type":"text"},{"id":"volume_m3_12m","label":"Volume sur 12 mois (m³)","type":"number"},{"id":"facade","label":"Façade (AMN / autre)","type":"text"},{"id":"distance_km","label":"Distance au rejet / zone conchylicole (km)","type":"number"}],"logic":[{"if":"teneur == '>=N2'","regime":"A","ref":"Teneur ≥ N2"},{"if":"teneur == 'N1-N2' && facade == 'AMN' && distance_km <= 1 && volume_m3_12m >= 50000","regime":"A","ref":"AMN/≤1 km, ≥50 000 m³"},{"if":"teneur == 'N1-N2' && facade == 'AMN' && distance_km <= 1 && volume_m3_12m < 50000","regime":"D","ref":"AMN/≤1 km, <50 000 m³"},{"if":"teneur == 'N1-N2' && facade != 'AMN' && distance_km <= 0.5 && volume_m3_12m >= 5000","regime":"A","ref":"ailleurs/≤500 m, ≥5 000 m³"},{"if":"teneur == 'N1-N2' && facade != 'AMN' && distance_km <= 0.5 && volume_m3_12m < 5000","regime":"D","ref":"ailleurs/≤500 m, <5 000 m³"},{"if":"teneur == '<=N1' && volume_m3_12m >= 500000","regime":"A","ref":"≤N1 et ≥500 000 m³"},{"if":"teneur == '<=N1' && volume_m3_12m >= 5000 && volume_m3_12m < 500000","regime":"D","ref":"≤N1 et 5 000–500 000 m³"},{"else":"HN"}],"ref":"R.214-1 4.1.3.0" },
+      "5.1.1.0": { "label":"Réinjection dans la même nappe (géothermie, exhaures, génie civil)","params":[{"id":"capacite_m3_h","label":"Capacité totale de réinjection (m³/h)","type":"number"}],"logic":[{"if":"capacite_m3_h >= 80","regime":"A"},{"if":"capacite_m3_h >= 8 && capacite_m3_h < 80","regime":"D"},{"else":"HN"}],"ref":"R.214-1 5.1.1.0" },
+      "5.1.2.0": { "label":"Recherche/exploitation de gîtes géothermiques","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 5.1.2.0" },
+      "5.1.3.0": { "label":"Travaux miniers (recherches/cavités/forages/essais)","params":[{"id":"categorie","label":"a/b/d/e/f/g (voir texte)","type":"text"}],"logic":[{"if":"categorie == 'a' || categorie == 'b' || categorie == 'd'","regime":"A"},{"if":"categorie == 'e' || categorie == 'f' || categorie == 'g'","regime":"D"},{"else":"HN"}],"ref":"R.214-1 5.1.3.0" },
+      "5.1.4.0": { "label":"Travaux d’exploitation de mines","params":[{"id":"type","label":"Type (a : sous autorisation exploitation / b : autres)","type":"text"}],"logic":[{"if":"type == 'a'","regime":"D"},{"if":"type == 'b'","regime":"A"},{"else":"HN"}],"ref":"R.214-1 5.1.4.0" },
+      "5.1.5.0": { "label":"Exploitation de stockages souterrains de déchets radioactifs","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 5.1.5.0" },
+      "5.1.6.0": { "label":"Travaux de recherches des mines","params":[{"id":"type","label":"a : 2° art.3 / b : autres","type":"text"}],"logic":[{"if":"type == 'a'","regime":"A"},{"if":"type == 'b'","regime":"D"},{"else":"HN"}],"ref":"R.214-1 5.1.6.0" },
+      "5.1.7.0": { "label":"Prospection/recherche/exploitation (fonds marins domaine public)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 5.1.7.0" },
+      "5.2.2.0": { "label":"Concessions hydrauliques (Livre V code de l’énergie)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 5.2.2.0" },
+      "5.2.3.0": { "label":"Travaux commission d’aménagement foncier (liste réglementaire)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 5.2.3.0" },
+      "5.2.4.0": { "label":"Travaux d’exploitation de mines (L.621-4-1)","params":[],"logic":[{"else":"D"}],"ref":"R.214-1 5.2.4.0" }
     }
   }
-}
-function finishManual(){ resetManual(); }
+  </script>
 
-/* Lien mesures ↔ validateur */
-let lastMeasure = { mode:null, length_m:0, area_m2:0 };
-function ensureParamInputFor(code, id, label, type='number'){
-  const cont = document.getElementById('valParams'); if (!cont) return;
-  const htmlId = code ? `param_${code}_${id}` : `param_${id}`;
-  if (!document.getElementById(htmlId)){
-    const wrap=document.createElement('div');
-    const lab=document.createElement('label');
-    lab.textContent=label; lab.style.fontSize='13px';
-    const inp=document.createElement('input');
-    inp.type=type; inp.id=htmlId; inp.placeholder=label;
-    wrap.appendChild(lab); wrap.appendChild(inp); cont.appendChild(wrap);
-  }
-}
-function pushMeasureToValidator(autoEval=true){
-  const selected = Array.from(SELECTED_IOTA);
-  if (selected.length){
-    selected.forEach(code=>{
-      ensureParamInputFor(code,'surface_m2','Surface (m²)','number');
-      ensureParamInputFor(code,'longueur_m','Longueur (m)','number');
-      if (lastMeasure.area_m2>0){ const el = document.getElementById(`param_${code}_surface_m2`); if (el) el.value = (Math.round(lastMeasure.area_m2*100)/100).toString(); }
-      if (lastMeasure.length_m>0){ const el = document.getElementById(`param_${code}_longueur_m`); if (el) el.value = (Math.round(lastMeasure.length_m*100)/100).toString(); }
-      if (code==='3.3.2.0' && lastMeasure.area_m2>0){
-        ensureParamInputFor(code,'surface_drainee_m2','Surface drainée (m²)','number');
-        const el2 = document.getElementById(`param_${code}_surface_drainee_m2`);
-        if (el2) el2.value = (Math.round(lastMeasure.area_m2*100)/100).toString();
-      }
-    });
-  } else {
-    ensureParamInputFor(null,'surface_m2','Surface (m²)','number');
-    ensureParamInputFor(null,'longueur_m','Longueur (m)','number');
-    if (lastMeasure.area_m2>0){ const el = document.getElementById('param_surface_m2'); if (el) el.value = (Math.round(lastMeasure.area_m2*100)/100).toString(); }
-    if (lastMeasure.length_m>0){ const el = document.getElementById('param_longueur_m'); if (el) el.value = (Math.round(lastMeasure.length_m*100)/100).toString(); }
-  }
-  if (autoEval) $('#btnEval')?.click();
-}
-function updateManualLabel(latlng, text){
-  if (manualState?.label) map.removeLayer(manualState.label);
-  manualState.label = L.tooltip({permanent:true, direction:'top', offset:[0,-10], className:'measure-label'})
-    .setLatLng(latlng).setContent(text).addTo(map);
-  if (manualState){
-    if (manualState.mode==='dist'){ lastMeasure.length_m = computeLengthMeters(manualState.pts); lastMeasure.area_m2 = 0; }
-    else { lastMeasure.area_m2 = computeAreaM2(manualState.pts); lastMeasure.length_m = computeLengthMeters(manualState.pts); }
-    pushMeasureToValidator(true);
-  }
-}
+  <!-- JS libs -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/proj4leaflet@1.0.2/src/proj4leaflet.min.js"></script>
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
-/* GPS */
-const GPSMeasure = L.Control.extend({
-  options:{ position:'topleft' },
-  onAdd(){
-    const w = L.DomUtil.create('div','leaflet-bar tool-btn');
-    const d = L.DomUtil.create('a','',w); d.href='#'; d.title='Mesurer distance (GPS)'; d.innerHTML='📍📏';
-    const a = L.DomUtil.create('a','',w); a.href='#'; a.title='Mesurer surface (GPS)'; a.innerHTML='📍▱';
-    const e = L.DomUtil.create('a','',w); e.href='#'; e.title='Exporter la mesure (GeoJSON)'; e.innerHTML='📤';
-    L.DomEvent.disableClickPropagation(w);
-    L.DomEvent.on(d,'click',L.DomEvent.stop).on(d,'click',()=>startGPS('dist',d));
-    L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>startGPS('area',a));
-    L.DomEvent.on(e,'click',L.DomEvent.stop).on(e,'click',()=>exportCurrentMeasure());
-    return w;
-  }
-});
-map.addControl(new GPSMeasure());
-let gpsState=null;
-function stopGPS(){
-  if(!gpsState) return;
-  if (gpsState.watchId!=null) navigator.geolocation.clearWatch(gpsState.watchId);
-  if (gpsState.line) map.removeLayer(gpsState.line);
-  if (gpsState.poly) map.removeLayer(gpsState.poly);
-  if (gpsState.label) map.removeLayer(gpsState.label);
-  if (gpsState.btn) gpsState.btn.classList.remove('active');
-  gpsState=null;
-  map.off('contextmenu', stopGPS);
-}
-function startGPS(mode,btnOn){
-  if (gpsState?.mode===mode){ stopGPS(); return; }
-  stopGPS(); resetManual();
-  gpsState={mode, pts:[], line:null, poly:null, label:null, btn:btnOn, watchId:null};
-  btnOn.classList.add('active');
-  if (!('geolocation' in navigator)){ alert('Géolocalisation non disponible.'); stopGPS(); return; }
-  try{
-    gpsState.watchId = navigator.geolocation.watchPosition(onGPS, onGPSError, { enableHighAccuracy:true, maximumAge:1000, timeout:20000 });
-    map.on('contextmenu', stopGPS);
-  }catch(e){ alert('Impossible de démarrer la géolocalisation.'); stopGPS(); }
-}
-function onGPS(pos){
-  const { latitude, longitude } = pos.coords; const ll=L.latLng(latitude,longitude); const s=gpsState; if(!s) return;
-  if (s.pts.length){
-    const last=s.pts[s.pts.length-1];
-    const d=turf.distance([last.lng,last.lat],[ll.lng,ll.lat],{units:'meters'});
-    if (d<3) return;
-  }
-  s.pts.push(ll);
-  if (s.mode==='dist'){
-    if (!s.line){ s.line=L.polyline([ll],{color:'#1f78b4',weight:3,dashArray:'6,4'}).addTo(map); }
-    else { s.line.addLatLng(ll); }
-    const m = turf.length(turf.lineString(s.pts.map(p=>[p.lng,p.lat])), {units:'kilometers'})*1000;
-    updateGPSLabel(ll, fmtLength(m));
-  } else {
-    if (!s.poly){ s.poly=L.polygon(s.pts,{color:'#33a02c',weight:2,fillOpacity:.15}).addTo(map); }
-    else { s.poly.setLatLngs([s.pts]); }
-    updateGPSLabel(ll, fmtArea(computeAreaM2(s.pts)));
-  }
-}
-function onGPSError(err){ alert('Erreur géolocalisation : ' + (err?.message || err)); stopGPS(); }
-function updateGPSLabel(latlng, text){
-  if (gpsState?.label) map.removeLayer(gpsState.label);
-  gpsState.label = L.tooltip({permanent:true, direction:'top', offset:[0,-10], className:'measure-label'}).setLatLng(latlng).setContent(text).addTo(map);
-  if (gpsState){
-    if (gpsState.mode==='dist'){
-      lastMeasure.length_m = turf.length(turf.lineString(gpsState.pts.map(p=>[p.lng,p.lat])), {units:'kilometers'})*1000;
-      lastMeasure.area_m2 = 0;
-    } else {
-      lastMeasure.area_m2 = computeAreaM2(gpsState.pts);
-      lastMeasure.length_m = turf.length(turf.lineString(gpsState.pts.concat([gpsState.pts[0]]).map(p=>[p.lng,p.lat])), {units:'kilometers'})*1000;
+  <script>
+  (function(){
+  'use strict';
+
+  // ===== Helpers sélecteurs sûrs (IDs avec des points bien gérés) =====
+  const $ = (sel, root=document)=>{
+    if (typeof sel==='string' && sel[0]==='#' && !/[ >:[\]]/.test(sel) && root===document){
+      return document.getElementById(sel.slice(1)); // prend en charge les points dans l'id
     }
-    pushMeasureToValidator(true);
-  }
-}
-function exportCurrentMeasure(){
-  let pts=null, mode=null;
-  if (manualState){ pts=manualState.pts; mode=manualState.mode; }
-  else if (gpsState){ pts=gpsState.pts; mode=gpsState.mode; }
-  if (!pts || pts.length < (mode==='area'?3:2)){ alert('Aucune mesure à exporter.'); return; }
-  let gj;
-  if (mode==='dist'){
-    gj={ type:'FeatureCollection', features:[{ type:'Feature', properties:{ type:'measure_distance', date:new Date().toISOString() }, geometry:{ type:'LineString', coordinates: pts.map(ll=>[ll.lng,ll.lat]) } }]};
-  }else{
-    const ring=[...pts.map(ll=>[ll.lng,ll.lat]), [pts[0].lng,pts[0].lat]];
-    gj={ type:'FeatureCollection', features:[{ type:'Feature', properties:{ type:'measure_area', date:new Date().toISOString() }, geometry:{ type:'Polygon', coordinates:[ring] } }]};
-  }
-  const blob=new Blob([JSON.stringify(gj)],{type:'application/geo+json'});
-  const url=URL.createObjectURL(blob); const a=document.createElement('a');
-  a.href=url; a.download = (mode==='dist'?'mesure_distance':'mesure_surface')+'.geojson';
-  a.click(); URL.revokeObjectURL(url);
-}
+    return root.querySelector(sel);
+  };
+  const $$ = (sel, root=document)=> Array.from(root.querySelectorAll(sel));
 
-/* Annotations Leaflet.Draw */
-const annotations = new L.FeatureGroup().addTo(map);
-layersControl.addOverlay(annotations, 'Annotations (dessins)');
-const drawControl = new L.Control.Draw({
-  position:'topleft',
-  edit: { featureGroup: annotations, poly:{allowIntersection:false}, remove:true },
-  draw: {
-    marker:{ repeatMode:true },
-    polyline:{ shapeOptions:{ color:'#ff7f00', weight:3 } },
-    polygon:{ allowIntersection:false, showArea:true, shapeOptions:{ color:'#ff7f00', weight:2, fillOpacity:.2 } },
-    rectangle:false, circle:false, circlemarker:false
+  function safeEvalExpr(expr, ctx){
+    const safe = String(expr)
+      .replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, id => (id in ctx ? String(ctx[id] ?? 0) : id))
+      .replace(/[^0-9<>=!&|().+*\-\/ %]/g,'');
+    try{ return !!eval(safe); }catch{ return false; }
   }
-});
-map.addControl(drawControl);
-const ANNOS_KEY='sd40:annotations';
-function saveAnnotations(){ try{ localStorage.setItem(ANNOS_KEY, JSON.stringify(annotations.toGeoJSON())); }catch(_){ } }
-function loadAnnotations(){
-  try{
-    const raw=localStorage.getItem(ANNOS_KEY); if(!raw) return;
-    const gj=JSON.parse(raw);
-    L.geoJSON(gj,{ style:()=>({color:'#ff7f00',weight:2,fillOpacity:.2}), pointToLayer:(_f,latlng)=>L.marker(latlng)}).eachLayer(l=>annotations.addLayer(l));
-  }catch(_){}
-}
-loadAnnotations();
-map.on(L.Draw.Event.CREATED, e => {
-  annotations.addLayer(e.layer); saveAnnotations();
-  try{
-    const gj = e.layer.toGeoJSON(); const g = gj.geometry || {};
-    if (g.type === 'Polygon' || g.type === 'MultiPolygon'){
-      lastMeasure.area_m2 = turf.area(gj);
-      const ring = g.type==='Polygon' ? g.coordinates[0] : g.coordinates[0][0];
-      lastMeasure.length_m = turf.length(turf.lineString(ring), {units:'kilometers'})*1000;
-    } else if (g.type === 'LineString' || g.type === 'MultiLineString'){
-      lastMeasure.length_m = turf.length(gj, {units:'kilometers'})*1000; lastMeasure.area_m2 = 0;
+
+  // ----- Procédure : open/close -----
+  const PROC_KEY='sd40:procVisible'; const RULES_KEY='sd40:iota_rules_v1';
+  let PACK_RULES=null;
+  const procEl = $('#proc');
+  const btnOpen = $('#btnProcOpen');
+  const btnClose = $('#btnProcClose');
+  function openProc(){ procEl.hidden=false; try{localStorage.setItem(PROC_KEY,'1');}catch(e){} }
+  function closeProc(){ procEl.hidden=true; try{localStorage.setItem(PROC_KEY,'0');}catch(e){} }
+  btnOpen.addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); openProc(); });
+  btnClose.addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); closeProc(); });
+  document.addEventListener('click', e=>{ if(procEl.hidden) return; const inside=procEl.contains(e.target)||e.target.closest('#btnProcOpen'); if(!inside) closeProc(); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeProc(); });
+  try{ if(localStorage.getItem(PROC_KEY)==='1') openProc(); }catch(e){}
+
+  // ----- MAP minimal + basemaps -----
+  const map = L.map('map', { zoomControl:true, preferCanvas:true }).setView([43.85,-0.7], 9);
+  const baseOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:20, attribution:'© OpenStreetMap' }).addTo(map);
+  const baseSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom:20, attribution:'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics' });
+  L.control.scale({metric:true, imperial:false, position:'bottomleft'}).addTo(map);
+  try{ L.control.locate({ position:'topleft', strings:{ title:'Me localiser' }, keepCurrentZoomLevel:true, flyTo:true, drawCircle:true, showPopup:true, cacheLocation:true }).addTo(map); }catch(e){}
+  const baseMaps = { "Plan (OSM)": baseOSM, "Satellite (Esri)": baseSat };
+  L.control.layers(baseMaps, {}, {collapsed:false}).addTo(map);
+
+  // ===== UI Procédure – Données =====
+  let IOTA=[], NATINF=[];
+  const DEMO_IOTA=[ {code:"3.2.3.0", titre:"Plans d’eau (permanents ou non)"},
+                    {code:"3.1.4.0", titre:"Consolidation/protection de berges (techniques non végétales)"},
+                    {code:"3.3.1.0", titre:"Zones humides : assèchement, mise en eau, remblais"} ];
+  const DEMO_NATINF=[ {natinf:"32673", intitule:"Non-respect d'une prescription attachée à une déclaration IOTA", type:"C5"} ];
+
+  const RESULT_LABELS = { HN:'Hors nomenclature', A:'Autorisation', D:'Déclaration' };
+  const RESULT_ICON = { HN:'⚪', A:'🔴', D:'🟠' };
+
+  function applyResultBadge(codeOrLabel){
+    let code = codeOrLabel;
+    if (!['A','D','HN'].includes(code)) {
+      const s = String(codeOrLabel||'').toLowerCase();
+      if (s.includes('autor')) code='A'; else if (s.includes('décla')||s.includes('decla')) code='D'; else code='HN';
     }
-    pushMeasureToValidator(true);
-  }catch(_){}
-});
-map.on(L.Draw.Event.EDITED, () => saveAnnotations());
-map.on(L.Draw.Event.DELETED, () => saveAnnotations());
-
-const AnnoExport = L.Control.extend({
-  options:{ position:'topleft' },
-  onAdd(){
-    const w=L.DomUtil.create('div','leaflet-bar tool-btn');
-    const s=L.DomUtil.create('a','',w); s.href='#'; s.title='Exporter annotations (GeoJSON)'; s.innerHTML='💾';
-    const c=L.DomUtil.create('a','',w); c.href='#'; c.title='Vider toutes les annotations'; c.innerHTML='🧹';
-    L.DomEvent.disableClickPropagation(w);
-    L.DomEvent.on(s,'click',L.DomEvent.stop).on(s,'click',()=>{
-      if (annotations.getLayers().length===0){ alert('Aucune annotation.'); return; }
-      const gj=annotations.toGeoJSON(); const blob=new Blob([JSON.stringify(gj)],{type:'application/geo+json'});
-      const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='annotations.geojson'; a.click(); URL.revokeObjectURL(url);
-    });
-    L.DomEvent.on(c,'click',L.DomEvent.stop).on(c,'click',()=>{
-      if (!confirm('Supprimer toutes les annotations ?')) return; annotations.clearLayers(); saveAnnotations();
-    });
-    return w;
+    const el = $('#valResult');
+    el.classList.remove('pill-A','pill-D','pill-HN');
+    el.classList.add('pill', 'pill-'+code);
+    el.textContent = `${RESULT_ICON[code]} ${RESULT_LABELS[code]}`;
   }
-});
-map.addControl(new AnnoExport());
 
-/* Home Landes */
-const HomeControl = L.Control.extend({
-  options:{ position:'topright' },
-  onAdd(){
-    const d=L.DomUtil.create('div','leaflet-bar tool-btn');
-    const a=L.DomUtil.create('a','',d); a.href='#'; a.title='Recentrer sur Landes'; a.innerHTML='🏠';
-    L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>{
-      if (maskBounds && maskBounds.isValid()) map.fitBounds(maskBounds,{padding:[20,20]}); else map.setView([43.85,-0.7],9);
+  function getEmbeddedPack(){
+    try{ const el=document.getElementById('iota-pack-officiel'); return el? JSON.parse(el.textContent) : null; }
+    catch(_){ return null; }
+  }
+  function setRules(obj){ try{ localStorage.setItem(RULES_KEY, JSON.stringify(obj)); }catch(_){ } }
+  function getRules(){ try{ const raw=localStorage.getItem(RULES_KEY); return raw? JSON.parse(raw):{}; }catch(_){ return {}; } }
+
+  (async()=>{
+    const pack = getEmbeddedPack();
+    if (!pack) { IOTA=DEMO_IOTA; setRules({}); console.warn('Pack IOTA intégré introuvable → démo.'); }
+    else { IOTA = Array.isArray(pack.iota)? pack.iota : DEMO_IOTA; if (pack.rules){ PACK_RULES = pack.rules; setRules(pack.rules); } }
+    try{ const r = await fetch('data/natinf_env_2023-10.json',{cache:'no-store'}); NATINF = r.ok ? await r.json() : DEMO_NATINF; }
+    catch(_){ NATINF = DEMO_NATINF; }
+    initProc();
+  })();
+
+  function normG(s){ return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
+
+  function natinfSuggestForIota(iotaCode){
+    const fam = String(iotaCode||'').split('.')[0];
+    let kw = ['iota','declaration','autorisation','prescription','opposition'];
+    if (fam==='1'){ kw = kw.concat(['prelev','pompage','ouvrage','eau']); }
+    else if (fam==='2'){ kw = kw.concat(['rejet','effluent','assainissement','eaux pluviales']); }
+    else if (fam==='3'){ kw = kw.concat(['installation','ouvrage','cours','plan','berge','continuite','zone humide']); }
+    else if (fam==='4'){ kw = kw.concat(['marin','dragage','port']); }
+    const scored = (Array.isArray(NATINF)? NATINF : []).map(n=>{
+      const t = normG(n.intitule)+' '+normG(n.type||''); let s = 0; kw.forEach(k=>{ if (t.includes(k)) s++; }); if (t.includes('iota')) s+=2;
+      return { n, score:s };
+    }).filter(x=>x.score>0).sort((a,b)=> b.score - a.score);
+    return scored.slice(0,8).map(x=>({natinf:x.n.natinf, intitule:x.n.intitule}));
+  }
+
+  // ===== Gestion sélection multiple IOTA =====
+  window.SELECTED_IOTA = new Set();
+
+  function renderSelectedPills(){
+    const cont = $('#iotaSelected'); cont.innerHTML='';
+    if (!window.SELECTED_IOTA.size) return;
+    window.SELECTED_IOTA.forEach(code=>{
+      const span=document.createElement('span'); span.className='iota-pill'; span.textContent=code;
+      cont.appendChild(span);
     });
-    return d;
+    // Renseigne le champ fiche
+    $('#ftRefIota').value = Array.from(window.SELECTED_IOTA).join(' + ');
+    // Met à jour l’UI des paramètres
+    buildValParams();
   }
-});
-map.addControl(new HomeControl());
 
-/* Toggle global outils */
-const ToolsToggle = L.Control.extend({
-  options:{ position:'topleft' },
-  onAdd(){
-    const w=L.DomUtil.create('div','tools-toggle leaflet-control');
-    const b=L.DomUtil.create('button','',w); b.type='button'; b.title='Afficher/masquer les outils'; b.innerHTML='🧰 Outils';
-    L.DomEvent.on(b,'click',L.DomEvent.stop).on(b,'click',()=>{ document.body.classList.toggle('tools-hidden'); });
-    return w;
-  }
-});
-map.addControl(new ToolsToggle());
-
-/* ---- PROCÉDURE – DATASETS & UI ---- */
-let IOTA=[], NATINF=[];
-const DEMO_IOTA=[ {code:"3.2.3.0", titre:"Plans d’eau (permanents ou non)"}, {code:"3.1.4.0", titre:"Consolidation/protection de berges (techniques non végétales)"}, {code:"3.3.1.0", titre:"Zones humides : assèchement, mise en eau, remblais"} ];
-const DEMO_NATINF=[ {natinf:"32673", intitule:"Non-respect d'une prescription attachée à une déclaration IOTA", type:"C5"} ];
-const RESULT_LABELS = { HN:'Hors nomenclature', A:'Autorisation', D:'Déclaration' };
-const RESULT_ICON   = { HN:'⚪', A:'🔴', D:'🟠' };
-
-/* Badges résultat */
-function applyResultBadge(codeOrLabel){
-  let code = codeOrLabel;
-  if (!['A','D','HN'].includes(code)) {
-    const s = String(codeOrLabel||'').toLowerCase();
-    if (s.includes('autor')) code='A';
-    else if (s.includes('décla')||s.includes('decla')) code='D';
-    else code='HN';
-  }
-  const el = $('#valResult');
-  el.classList.remove('pill-A','pill-D','pill-HN');
-  el.classList.add('pill', 'pill-'+code);
-  el.textContent = `${RESULT_ICON[code]} ${RESULT_LABELS[code]}`;
-}
-
-/* Règles pack embarqué + localStorage */
-function getEmbeddedPack(){ try{ const el=document.getElementById('iota-pack-officiel'); return el? JSON.parse(el.textContent) : null; }catch(_){ return null; } }
-function setRules(obj){ try{ localStorage.setItem(RULES_KEY, JSON.stringify(obj)); }catch(_){ } }
-function getRules(){ try{ const raw=localStorage.getItem(RULES_KEY); return raw? JSON.parse(raw):{}; }catch(_){ return {}; } }
-
-/* Sélection multiple des rubriques IOTA */
-const SELECTED_IOTA = new Set();
-
-function normG(s){ return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
-function natinfSuggestForIota(iotaCode){
-  const fam = String(iotaCode||'').split('.')[0];
-  let kw = ['iota','declaration','autorisation','prescription','opposition'];
-  if (fam==='1'){ kw = kw.concat(['prelev','pompage','ouvrage','eau']); }
-  else if (fam==='2'){ kw = kw.concat(['rejet','effluent','assainissement','eaux pluviales']); }
-  else if (fam==='3'){ kw = kw.concat(['installation','ouvrage','cours','plan','berge','continuite','zone humide']); }
-  else if (fam==='4'){ kw = kw.concat(['marin','dragage','port']); }
-  const scored = (Array.isArray(NATINF)? NATINF : []).map(n=>{
-    const t = normG(n.intitule)+' '+normG(n.type||''); let s = 0;
-    kw.forEach(k=>{ if (t.includes(k)) s++; });
-    if (t.includes('iota')) s+=2;
-    return { n, score:s };
-  }).filter(x=>x.score>0).sort((a,b)=> b.score - a.score);
-  return scored.slice(0,8).map(x=>({natinf:x.n.natinf, intitule:x.n.intitule}));
-}
-
-(async()=>{
-  const pack = getEmbeddedPack();
-  if (!pack) { IOTA=DEMO_IOTA; setRules({}); console.warn('Pack IOTA intégré introuvable → démo.'); }
-  else { IOTA = Array.isArray(pack.iota)? pack.iota : DEMO_IOTA; if (pack.rules){ PACK_RULES = pack.rules; setRules(pack.rules); } }
-  try{
-    const r = await fetch('data/natinf_env_2023-10.json',{cache:'no-store'});
-    NATINF = r.ok ? await r.json() : DEMO_NATINF;
-  }catch(_){ NATINF = DEMO_NATINF; }
-  initProc();
-})();
-
-/* UI Procédure */
-function initProc(){
-  // Onglets
-  $$('.proc-tabs button').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      $$('.proc-tabs button').forEach(x=>x.classList.remove('active'));
-      b.classList.add('active');
-      const tab=b.dataset.tab; $$('.tab').forEach(x=>x.hidden=(x.id!=='tab-'+tab));
-    });
-  });
-
-  // IOTA search + liste (checkbox)
-  const iotaList = $('#iotaList');
-  function renderIota(q=''){
-    q=q.trim().toLowerCase();
-    const out = IOTA.filter(x=> (x.code||'').includes(q) || (x.titre||'').toLowerCase().includes(q));
-    iotaList.innerHTML = out.map(x=>`
-      <div class="row" style="padding:4px 0">
-        <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
-          <input type="checkbox" name="iotaPick" value="${x.code}" ${SELECTED_IOTA.has(x.code)?'checked':''}>
-          <div><b>${x.code}</b> — ${x.titre}</div>
-        </label>
-      </div>
-    `).join('') || '<em>Aucune rubrique</em>';
-    $$('input[name=iotaPick]', iotaList).forEach(cb=>{
-      cb.addEventListener('change', ()=>{
-        if (cb.checked) SELECTED_IOTA.add(cb.value); else SELECTED_IOTA.delete(cb.value);
-        // maj fiche + validateur
-        const arr = Array.from(SELECTED_IOTA);
-        $('#ftRefIota').value = arr.join(', ');
-        // NATINF suggérés (union des 3 meilleurs par rubrique)
-        const sugg = [...new Set(arr.flatMap(c => natinfSuggestForIota(c).slice(0,3).map(x=>x.natinf)))];
-        if (sugg.length) $('#ftRefNatinf').value = sugg.join(', ');
-        buildValParams();
+  function initProc(){
+    // Onglets
+    $$('.proc-tabs button').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        $$('.proc-tabs button').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+        const tab=b.dataset.tab; $$('.tab').forEach(x=>x.hidden=(x.id!=='tab-'+tab));
       });
     });
-  }
-  renderIota();
-  $('#iotaSearch').addEventListener('input', (e)=>renderIota(e.target.value));
 
-  // NATINF helpers
-  function pickNatinf(listEl, arr){
-    listEl.innerHTML = arr.slice(0,200).map(n=>`
-      <div class="row" style="padding:4px 0">
-        <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
-          <input type="radio" name="${listEl.id}-pick" value="${n.natinf}">
-          <div><b>${n.natinf}</b> — ${n.intitule} ${n.type?`<span class="badge">${n.type}</span>`:''}</div>
-        </label>
-      </div>
-    `).join('') || '<em>Aucun résultat</em>';
-    $$('input[type=radio]', listEl).forEach(r=>{
-      r.addEventListener('change', ()=>{ $('#ftRefNatinf').value = r.value; });
-    });
-  }
-  const BCAE_KEYS = ['bcae','zone humide','drainage','nitrates','programme d\'action','bande tampon','haie','prairie'];
-  const PHYTO_KEYS= ['phytopharmaceutique','phytosanitaire','certificat individuel','neonicotinoide','amm','znt','biocide'];
-  const bcaeList = $('#bcaeList'), phytoList = $('#phytoList'), autreList = $('#autreList');
-  function filterBCAE(q){ const n=normG(q); return NATINF.filter(nf=>{ const t=normG(nf.intitule); return BCAE_KEYS.some(k=>t.includes(normG(k))) || t.includes(n); }); }
-  function filterPHYTO(q){ const n=normG(q); return NATINF.filter(nf=>{ const t=normG(nf.intitule); return PHYTO_KEYS.some(k=>t.includes(normG(k))) || t.includes(n); }); }
-  $('#bcaeSearch').addEventListener('input', (e)=> pickNatinf(bcaeList, filterBCAE(e.target.value)));
-  pickNatinf(bcaeList, filterBCAE('zone humide'));
-  $('#phytoSearch').addEventListener('input', (e)=> pickNatinf(phytoList, filterPHYTO(e.target.value)));
-  pickNatinf(phytoList, filterPHYTO('phytopharmaceutique'));
-  $('#autreSearch').addEventListener('input', (e)=>{ const q=normG(e.target.value); const out=NATINF.filter(nf=> normG(nf.intitule).includes(q) || (nf.natinf||'').includes(q)); pickNatinf(autreList, out); });
-
-  // Badge lat/lng + complétude
-  function updateLatLngBadge(ll){ $('#ftLatLng').textContent = ll ? `Lat ${ll.lat.toFixed(5)} / Lng ${ll.lng.toFixed(5)}` : '—'; }
-  map.on('click', (e)=> updateLatLngBadge(e.latlng));
-  updateLatLngBadge(map.getCenter());
-  function evalScore(){
-    const f=[ $('#ftTitre').value, $('#ftDesc').value, $('#ftRefIota').value, $('#ftRefNatinf').value ];
-    const n=f.filter(x=>String(x||'').trim().length>0).length;
-    $('#ftScore').textContent = (n>=4? 'OK (4/4)': n+'/4');
-  }
-  ['#ftTitre','#ftDesc','#ftRefIota','#ftRefNatinf'].forEach(sel=> $(sel).addEventListener('input', evalScore));
-  evalScore();
-
-  // === Photos & Croquis ===
-  const photos=[]; const sketches=[];
-  function refreshPieces(){ const cont = $('#piecesList'); cont.innerHTML=''; [...photos, ...sketches].forEach(p=>{ const im = document.createElement('img'); im.src=p.dataUrl; im.title=p.label||'Pièce'; cont.appendChild(im); }); }
-  $('#btnPhoto').addEventListener('click', ()=> $('#photoInput').click());
-  $('#photoInput').addEventListener('change', async (e)=>{
-    const f=e.target.files?.[0]; if(!f) return;
-    const dataUrl = await fileToDataURL(f); const img = await dataUrlToImage(dataUrl);
-    photos.push({ id:'ph'+Date.now(), dataUrl, w:img.width, h:img.height, label:'Photo '+new Date().toLocaleString() });
-    refreshPieces(); e.target.value='';
-  });
-
-  // Croquis modal (identique à ta base, condensé)
-  let skModal=null, skCanvas=null, skCtx=null, skDrawing=false, skLast=null, skColor='#111827', skSize=3, skBg='blank';
-  function openSketch(){
-    if (skModal) return;
-    skModal = document.createElement('div');
-    skModal.className='sketch-modal';
-    skModal.innerHTML = `
-      <div class="sketch-card">
-        <div class="sketch-toolbar">
-          <div class="sketch-left">
-            <select id="skBgSel" title="Fond">
-              <option value="blank">Fond blanc</option>
-              <option value="map">Fond = carte actuelle</option>
-              <option value="photo">Fond = une photo</option>
-            </select>
-            <label>Couleur <input id="skColor" type="color" value="#111827"></label>
-            <label>Épaisseur <input id="skSize" type="range" min="1" max="20" value="3"></label>
-            <button id="skUndo" type="button">↶ Annuler</button>
-            <button id="skClear" type="button">🧹 Vider</button>
-          </div>
-          <div class="sketch-right">
-            <button id="skSave" type="button">💾 Enregistrer</button>
-            <button id="skClose" type="button">Fermer</button>
-          </div>
+    // IOTA search + liste (CHECKBOX MULTI)
+    const iotaList = $('#iotaList');
+    function renderIota(q=''){
+      q=q.trim().toLowerCase();
+      const out = IOTA.filter(x=> (x.code||'').includes(q) || (x.titre||'').toLowerCase().includes(q));
+      iotaList.innerHTML = out.map(x=>`
+        <div class="row" style="padding:4px 0">
+          <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
+            <input type="checkbox" name="iotaPick" value="${x.code}" ${window.SELECTED_IOTA.has(x.code)?'checked':''}>
+            <div><b>${x.code}</b> — ${x.titre}</div>
+          </label>
         </div>
-        <canvas id="skCanvas" class="sketch-canvas"></canvas>
-      </div>`;
-    document.body.appendChild(skModal);
-    skCanvas = $('#skCanvas', skModal); skCtx = skCanvas.getContext('2d');
+      `).join('') || '<em>Aucune rubrique</em>';
 
-    function drawImageCover(ctx, img, w, h){ const r = Math.max(w / img.width, h / img.height); const dw = img.width * r, dh = img.height * r; const dx = (w - dw) / 2, dy = (h - dh) / 2; ctx.drawImage(img, dx, dy, dw, dh); }
-    function redrawSketch(bgImg=null){
-      const rect = skCanvas.getBoundingClientRect(); const w = Math.max(1, Math.round(rect.width)); const h = Math.max(1, Math.round(rect.height));
-      skCtx.clearRect(0, 0, w, h); skCtx.fillStyle = '#fff'; skCtx.fillRect(0, 0, w, h); if (bgImg){ drawImageCover(skCtx, bgImg, w, h); }
-      skStack.forEach(st=>{ skCtx.strokeStyle = st.color; skCtx.lineWidth = st.size; skCtx.lineJoin = skCtx.lineCap = 'round'; skCtx.beginPath(); st.pts.forEach((p,i)=>{ if(i===0) skCtx.moveTo(p.x,p.y); else skCtx.lineTo(p.x,p.y); }); skCtx.stroke(); });
+      $$('input[name=iotaPick]', iotaList).forEach(chk=>{
+        chk.addEventListener('change', ()=>{
+          const code=chk.value;
+          if (chk.checked){ window.SELECTED_IOTA.add(code); }
+          else { window.SELECTED_IOTA.delete(code); }
+          // Si 1ère sélection, proposer NATINF par défaut (optionnel)
+          if (window.SELECTED_IOTA.size===1){
+            const [first] = Array.from(window.SELECTED_IOTA);
+            $('#valRubrique').value = first;
+            const suggested = natinfSuggestForIota(first).slice(0,3).map(x=>x.natinf);
+            if (suggested.length) $('#ftRefNatinf').value = suggested.join(', ');
+          }
+          renderSelectedPills();
+        });
+      });
     }
-    function resizeSketch(){ const rect = skCanvas.getBoundingClientRect(); const cssW = Math.max(1, Math.round(rect.width)); const cssH = Math.max(1, Math.round(rect.height)); const dpr = window.devicePixelRatio || 1; skCanvas.width = Math.round(cssW * dpr); skCanvas.height = Math.round(cssH * dpr); skCtx.setTransform(dpr, 0, 0, dpr, 0, 0); redrawSketch(); }
-    async function setSketchBg(mode){
-      skBg = mode;
-      if (mode==='blank'){ redrawSketch(); return; }
-      if (mode==='photo'){
-        if (!photos.length){ alert('Aucune photo disponible.'); $('#skBgSel').value='blank'; redrawSketch(); return; }
-        const img = await dataUrlToImage(photos[0].dataUrl); redrawSketch(img); return;
+    renderIota();
+    $('#iotaSearch').addEventListener('input', (e)=>renderIota(e.target.value));
+
+    // NATINF helpers
+    const bcaeList = $('#bcaeList'), phytoList = $('#phytoList'), autreList = $('#autreList');
+    const BCAE_KEYS = ['bcae','zone humide','drainage','nitrates','programme d\'action','bande tampon','haie','prairie'];
+    const PHYTO_KEYS = ['phytopharmaceutique','phytosanitaire','certificat individuel','neonicotinoide','amm','znt','biocide'];
+    function pickNatinf(listEl, arr){
+      listEl.innerHTML = arr.slice(0,200).map(n=>`
+        <div class="row" style="padding:4px 0">
+          <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
+            <input type="radio" name="${listEl.id}-pick" value="${n.natinf}">
+            <div><b>${n.natinf}</b> — ${n.intitule} ${n.type?`<span class="badge">${n.type}</span>`:''}</div>
+          </label>
+        </div>`).join('') || '<em>Aucun résultat</em>';
+      $$('input[type=radio]', listEl).forEach(r=>{
+        r.addEventListener('change', ()=>{ $('#ftRefNatinf').value = r.value; });
+      });
+    }
+    function filterBCAE(q){ const n=normG(q);
+      return NATINF.filter(nf=>{ const t=normG(nf.intitule); return BCAE_KEYS.some(k=>t.includes(normG(k))) || t.includes(n); });
+    }
+    function filterPHYTO(q){ const n=normG(q);
+      return NATINF.filter(nf=>{ const t=normG(nf.intitule); return PHYTO_KEYS.some(k=>t.includes(normG(k))) || t.includes(n); });
+    }
+    $('#bcaeSearch').addEventListener('input', (e)=> pickNatinf(bcaeList, filterBCAE(e.target.value)));
+    pickNatinf(bcaeList, filterBCAE('zone humide'));
+    $('#phytoSearch').addEventListener('input', (e)=> pickNatinf(phytoList, filterPHYTO(e.target.value)));
+    pickNatinf(phytoList, filterPHYTO('phytopharmaceutique'));
+    $('#autreSearch').addEventListener('input', (e)=>{ const q=normG(e.target.value);
+      const out=NATINF.filter(nf=> normG(nf.intitule).includes(q) || (nf.natinf||'').includes(q)); pickNatinf(autreList, out);
+    });
+
+    // Badge lat/lng + complétude
+    function updateLatLngBadge(ll){ $('#ftLatLng').textContent = ll ? `Lat ${ll.lat.toFixed(5)} / Lng ${ll.lng.toFixed(5)}` : '—'; }
+    map.on('click', (e)=> updateLatLngBadge(e.latlng));
+    updateLatLngBadge(map.getCenter());
+    function evalScore(){
+      const f=[ $('#ftTitre').value, $('#ftDesc').value, $('#ftRefIota').value, $('#ftRefNatinf').value ];
+      const n=f.filter(x=>String(x||'').trim().length>0).length;
+      $('#ftScore').textContent = (n>=4? 'OK (4/4)': n+'/4');
+    }
+    ['#ftTitre','#ftDesc','#ftRefIota','#ftRefNatinf'].forEach(sel=> $(sel).addEventListener('input', evalScore));
+    evalScore();
+
+    // === Photos & Croquis (simplifié) ===
+    const photos=[]; const sketches=[];
+    function refreshPieces(){ const cont = $('#piecesList'); cont.innerHTML=''; [...photos, ...sketches].forEach(p=>{ const im = document.createElement('img'); im.src=p.dataUrl; im.title=p.label||'Pièce'; cont.appendChild(im); }); }
+    $('#btnPhoto').addEventListener('click', ()=> $('#photoInput').click());
+    $('#photoInput').addEventListener('change', async (e)=>{
+      const f=e.target.files?.[0]; if(!f) return;
+      const dataUrl = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); });
+      const img = await new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=dataUrl; });
+      photos.push({ id:'ph'+Date.now(), dataUrl, w:img.width, h:img.height, label:'Photo '+new Date().toLocaleString() });
+      refreshPieces(); e.target.value='';
+    });
+    let skModal=null, skCanvas=null, skCtx=null, skBg='blank';
+    function openSketch(){
+      if (skModal) return;
+      skModal = document.createElement('div');
+      skModal.className='sketch-modal';
+      skModal.innerHTML = `
+        <div class="sketch-card">
+          <div class="sketch-toolbar">
+            <div class="sketch-left">
+              <select id="skBgSel" title="Fond">
+                <option value="blank">Fond blanc</option>
+              </select>
+              <label>Couleur <input id="skColor" type="color" value="#111827"></label>
+              <label>Épaisseur <input id="skSize" type="range" min="1" max="20" value="3"></label>
+              <button id="skUndo" type="button">↶ Annuler</button>
+              <button id="skClear" type="button">🧹 Vider</button>
+            </div>
+            <div class="sketch-right">
+              <button id="skSave" type="button">💾 Enregistrer</button>
+              <button id="skClose" type="button">Fermer</button>
+            </div>
+          </div>
+          <canvas id="skCanvas" class="sketch-canvas"></canvas>
+        </div>`;
+      document.body.appendChild(skModal);
+      skCanvas = $('#skCanvas', skModal); skCtx = skCanvas.getContext('2d');
+
+      function resizeSketch(){
+        const rect = skCanvas.getBoundingClientRect();
+        const cssW = Math.max(1, Math.round(rect.width));
+        const cssH = Math.max(1, Math.round(rect.height));
+        const dpr = window.devicePixelRatio || 1;
+        skCanvas.width = Math.round(cssW * dpr);
+        skCanvas.height = Math.round(cssH * dpr);
+        skCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        skCtx.fillStyle='#fff'; skCtx.fillRect(0,0,cssW,cssH);
+        skStack.forEach(st=>{
+          skCtx.strokeStyle = st.color; skCtx.lineWidth = st.size; skCtx.lineJoin = skCtx.lineCap = 'round';
+          skCtx.beginPath(); st.pts.forEach((p,i)=>{ if(i===0) skCtx.moveTo(p.x,p.y); else skCtx.lineTo(p.x,p.y); }); skCtx.stroke();
+        });
       }
-      if (mode==='map'){
-        try{ const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, backgroundColor:'#fff', scale:1}); const img = await dataUrlToImage(canvas.toDataURL('image/jpeg',0.9)); redrawSketch(img); }
-        catch(e){ alert('Impossible de capturer la carte (CORS). Fond blanc utilisé.'); redrawSketch(); }
+      const skStack=[];
+      $('#skUndo', skModal).addEventListener('click', ()=>{ skStack.pop(); resizeSketch(); });
+      $('#skClear', skModal).addEventListener('click', ()=>{ skStack.length=0; resizeSketch(); });
+      let skDrawing=false, skLast=null, skColor='#111827', skSize=3;
+      $('#skColor', skModal).addEventListener('input', e=> skColor=e.target.value);
+      $('#skSize', skModal).addEventListener('input', e=> skSize=+e.target.value);
+
+      function pt(e){ const r=skCanvas.getBoundingClientRect(); const cx=(e.touches?e.touches[0].clientX:e.clientX), cy=(e.touches?e.touches[0].clientY:e.clientY); return {x:cx-r.left,y:cy-r.top}; }
+      function down(e){ e.preventDefault(); skDrawing=true; const p=pt(e); skLast=p; skStack.push({color:skColor,size:skSize,pts:[p]}); }
+      function move(e){ if(!skDrawing) return; const p=pt(e); const cur=skStack[skStack.length-1];
+        cur.pts.push(p); skCtx.strokeStyle=cur.color; skCtx.lineWidth=cur.size; skCtx.lineJoin=skCtx.lineCap='round';
+        skCtx.beginPath(); skCtx.moveTo(skLast.x,skLast.y); skCtx.lineTo(p.x,p.y); skCtx.stroke(); skLast=p;
       }
+      function up(){ skDrawing=false; }
+      skCanvas.addEventListener('mousedown', down); skCanvas.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+      skCanvas.addEventListener('touchstart', down, {passive:false}); skCanvas.addEventListener('touchmove', move, {passive:false}); window.addEventListener('touchend', up);
+
+      $('#skSave', skModal).addEventListener('click', ()=>{
+        const dataUrl = skCanvas.toDataURL('image/png');
+        sketches.push({ id:'sk'+Date.now(), dataUrl, w:skCanvas.width, h:skCanvas.height, label:'Croquis '+new Date().toLocaleString() });
+        refreshPieces(); alert('Croquis enregistré.');
+      });
+      $('#skClose', skModal).addEventListener('click', ()=>{ if (!skModal) return; skModal.remove(); skModal=null; });
+
+      const obs = new ResizeObserver(resizeSketch); obs.observe($('.sketch-card', skModal)); resizeSketch();
     }
-    function pt(e){ const rect = skCanvas.getBoundingClientRect(); const cx = (e.touches ? e.touches[0].clientX : e.clientX); const cy = (e.touches ? e.touches[0].clientY : e.clientY); return { x: cx - rect.left, y: cy - rect.top }; }
-    const skStack=[];
-    $('#skBgSel', skModal).addEventListener('change', (e)=> setSketchBg(e.target.value));
-    $('#skColor', skModal).addEventListener('input', (e)=> skColor = e.target.value);
-    $('#skSize', skModal).addEventListener('input', (e)=> skSize = +e.target.value);
-    $('#skUndo', skModal).addEventListener('click', ()=>{ skStack.pop(); redrawSketch(); });
-    $('#skClear', skModal).addEventListener('click', ()=>{ skStack.length=0; setSketchBg(skBg); });
-    function down(e){ e.preventDefault(); skDrawing=true; const p=pt(e); skLast=p; skStack.push({color:skColor,size:skSize,pts:[p]}); }
-    function move(e){ if(!skDrawing) return; const p=pt(e); const cur=skStack[skStack.length-1]; cur.pts.push(p); skCtx.strokeStyle = cur.color; skCtx.lineWidth = cur.size; skCtx.lineJoin=skCtx.lineCap='round'; skCtx.beginPath(); skCtx.moveTo(skLast.x, skLast.y); skCtx.lineTo(p.x, p.y); skCtx.stroke(); skLast=p; }
-    function up(){ skDrawing=false; }
-    skCanvas.addEventListener('mousedown', down); skCanvas.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
-    skCanvas.addEventListener('touchstart', down, {passive:false}); skCanvas.addEventListener('touchmove', move, {passive:false}); window.addEventListener('touchend', up);
-    $('#skSave', skModal).addEventListener('click', ()=>{ const dataUrl = skCanvas.toDataURL('image/png'); sketches.push({ id:'sk'+Date.now(), dataUrl, w:skCanvas.width, h:skCanvas.height, label:'Croquis '+new Date().toLocaleString() }); refreshPieces(); alert('Croquis enregistré dans les pièces.'); });
-    $('#skClose', skModal).addEventListener('click', ()=>{ skModal.remove(); skModal=null; skCanvas=null; skCtx=null; });
-    const obs = new ResizeObserver(resizeSketch); obs.observe($('.sketch-card', skModal)); resizeSketch(); setSketchBg('blank');
-  }
-  $('#btnSketch').addEventListener('click', openSketch);
+    $('#btnSketch').addEventListener('click', openSketch);
 
-  // Exports fiche
-  $('#btnProcGJ').addEventListener('click', ()=>{
-    const ll = map.getCenter();
-    const props = { titre:$('#ftTitre').value, lieu:$('#ftLieu').value, desc:$('#ftDesc').value, iota:$('#ftRefIota').value, natinf:$('#ftRefNatinf').value, date:new Date().toISOString() };
-    const gj = { type:'FeatureCollection', features:[{ type:'Feature', properties:props, geometry:{ type:'Point', coordinates:[ll.lng,ll.lat] } }]};
-    const blob = new Blob([JSON.stringify(gj)], {type:'application/geo+json'});
-    const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href = url; a.download = 'fiche-terrain.geojson'; a.click(); URL.revokeObjectURL(url);
-  });
+    // === Exports ===
+    $('#btnProcGJ').addEventListener('click', ()=>{
+      const ll = map.getCenter();
+      const props = { titre:$('#ftTitre').value, lieu:$('#ftLieu').value, desc:$('#ftDesc').value, iota:$('#ftRefIota').value, natinf:$('#ftRefNatinf').value, date:new Date().toISOString() };
+      const gj = { type:'FeatureCollection', features:[{ type:'Feature', properties:props, geometry:{ type:'Point', coordinates:[ll.lng,ll.lat] } }]};
+      const blob = new Blob([JSON.stringify(gj)], {type:'application/geo+json'});
+      const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href = url; a.download = 'fiche-terrain.geojson'; a.click(); URL.revokeObjectURL(url);
+    });
 
-  // === PDF narratif pro (condensé) ===
-  $('#btnProcPDF').addEventListener('click', async ()=>{
-    const Titre = $('#ftTitre').value || 'Intervention';
-    const Lieu  = $('#ftLieu').value || '—';
-    const Iota  = $('#ftRefIota').value || '—';
-    const Natinf= $('#ftRefNatinf').value || '—';
-    const Desc  = $('#ftDesc').value || '';
-    const Reg   = $('#valResult').textContent.replace(/^[🔴🟠⚪]\s*/,'') || '—';
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({unit:'pt', format:'a4'}); const W = pdf.internal.pageSize.getWidth();
+    $('#btnProcPDF').addEventListener('click', async ()=>{
+      const Titre = $('#ftTitre').value || 'Intervention';
+      const Lieu = $('#ftLieu').value || '—';
+      const Iota = $('#ftRefIota').value || '—';
+      const Natinf= $('#ftRefNatinf').value || '—';
+      const Desc = $('#ftDesc').value || '';
+      const Reg = $('#valResult').textContent.replace(/^[🔴🟠⚪]\s*/,'') || '—';
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({unit:'pt', format:'a4'});
+      const W = pdf.internal.pageSize.getWidth();
 
-    pdf.setFillColor(11,34,57); pdf.rect(0,0,W,72,'F'); pdf.setTextColor(255,255,255);
-    pdf.setFont('helvetica','bold'); pdf.setFontSize(16); pdf.text('FICHE TERRAIN – Procédure', 40, 46);
-    pdf.setFont('helvetica','normal'); pdf.setFontSize(10); pdf.text(new Date().toLocaleString(), W-40, 46, {align:'right'});
+      pdf.setFillColor(11,34,57); pdf.rect(0,0,W,72,'F');
+      pdf.setTextColor(255,255,255); pdf.setFont('helvetica','bold'); pdf.setFontSize(16);
+      pdf.text('FICHE TERRAIN – Procédure', 40, 46);
+      pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
+      pdf.text(new Date().toLocaleString(), W-40, 46, {align:'right'});
 
-    pdf.setTextColor(0,0,0); pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.text(Titre, 40, 100);
-    pdf.setFontSize(11); pdf.setFont('helvetica','normal');
-    const narrative = [
-      `Contexte et lieu : ${Lieu}.`,
-      (Iota!=='—' ? `Références IOTA pressenties/retenues : ${Iota}.` : `Aucune rubrique IOTA retenue.`),
-      (Natinf!=='—' ? `Qualification pénale (NATINF) envisagée : ${Natinf}.` : `Aucun code NATINF ciblé pour l’instant.`),
-      `Évaluation réglementaire : ${Reg}.`,
-      (Desc? `Constats : ${Desc}` : `Constats : —`)
-    ].join(' ');
-    const narrWrapped = pdf.splitTextToSize(narrative, W-80);
-    pdf.text(narrWrapped, 40, 124);
+      pdf.setTextColor(0,0,0); pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.text(Titre, 40, 100);
+      pdf.setFontSize(11); pdf.setFont('helvetica','normal');
+      const narrative = [
+        `Contexte et lieu : intervention à ${Lieu}.`,
+        Iota!=='—' ? `Références IOTA : ${Iota}.` : `Aucune rubrique IOTA retenue à ce stade.`,
+        Natinf!=='—' ? `Qualification pénale (NATINF) envisagée : ${Natinf}.` : `Aucun code NATINF ciblé pour l’instant.`,
+        `Évaluation réglementaire : ${Reg}.`,
+        Desc ? `Constats : ${Desc}` : `Constats : —`
+      ].join(' ');
+      const narrWrapped = pdf.splitTextToSize(narrative, W-80); pdf.text(narrWrapped, 40, 124);
 
-    let col=[55,65,81]; const res = $('#valResult').textContent;
-    if (res.includes('Autorisation')) col=[185,28,28]; else if (res.includes('Déclaration')) col=[154,52,18];
-    pdf.setFillColor(col[0],col[1],col[2]); pdf.setTextColor(255,255,255);
-    const resText = `${res}` ; const tw = pdf.getTextWidth(resText) + 10;
-    pdf.roundedRect(40, 168, tw, 18, 9, 9, 'F'); pdf.text(resText, 45, 181);
+      let col=[55,65,81]; const res = $('#valResult').textContent;
+      if (res.includes('Autorisation')) col=[185,28,28]; else if (res.includes('Déclaration')) col=[154,52,18];
+      pdf.setFillColor(col[0],col[1],col[2]); pdf.setTextColor(255,255,255);
+      const resText = `${res}`; const tw = pdf.getTextWidth(resText) + 10; pdf.roundedRect(40, 168, tw, 18, 9, 9, 'F'); pdf.text(resText, 45, 181);
 
-    pdf.setTextColor(0,0,0); pdf.setFont('helvetica','bold'); pdf.text('Références & paramètres', 40, 212);
-    pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
-    const refs = [ `Rubriques IOTA : ${Iota}`, `NATINF : ${Natinf}` ];
-    const trace = $('#valTrace').innerText || '';
-    const refWrapped = pdf.splitTextToSize(refs.join(' • ') + (trace ? ' • ' + trace : ''), W-80);
-    pdf.text(refWrapped, 40, 228);
+      pdf.setTextColor(0,0,0); pdf.setFont('helvetica','bold'); pdf.text('Références & paramètres', 40, 212);
+      pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
+      const trace = $('#valTrace').innerText || '';
+      const refs = [ `Rubrique(s) IOTA : ${Iota}`, `NATINF : ${Natinf}` ];
+      const refWrapped = pdf.splitTextToSize(refs.join(' • ') + (trace ? ' • ' + trace : ''), W-80); pdf.text(refWrapped, 40, 228);
 
-    try{
-      const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, scale:1});
-      const img = canvas.toDataURL('image/jpeg', 0.85); const w = W-80, h = w * (canvas.height/canvas.width);
-      pdf.addPage(); pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.text('Localisation – aperçu carte', 40, 60);
-      pdf.addImage(img, 'JPEG', 40, 80, w, Math.min(h, 680));
-    }catch(_){}
+      try{
+        const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, scale:1});
+        const img = canvas.toDataURL('image/jpeg', 0.85);
+        const w = W-80, h = w * (canvas.height/canvas.width);
+        pdf.addPage(); pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.text('Localisation – aperçu carte', 40, 60);
+        pdf.addImage(img, 'JPEG', 40, 80, w, Math.min(h, 680));
+      }catch(_){}
 
-    pdf.addPage(); pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.text('Pièces jointes', 40, 60);
-    pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
-    let x=40, y=76, maxH=0, pad=8, boxW=180, boxH=120; const items = [...photos, ...sketches];
-    if (items.length===0){ pdf.text('Aucune pièce jointe.', 40, 90); }
-    for (const it of items){
-      const img = it.dataUrl; pdf.setDrawColor(229,231,235); pdf.rect(x-2,y-2,boxW+4,boxH+4);
-      pdf.addImage(img, 'JPEG', x, y, boxW, boxH, undefined, 'FAST'); pdf.text((it.label||'Pièce'), x, y+boxH+14);
-      x += boxW + pad; maxH = Math.max(maxH, boxH);
-      if (x + boxW > W-40){ x=40; y += maxH + 36; maxH=0; if (y > 740){ pdf.addPage(); y=60; } }
+      pdf.save('fiche-terrain.pdf');
+    });
+
+    // Reset
+    $('#btnResetAll').addEventListener('click', ()=>{
+      ['#ftTitre','#ftLieu','#ftDesc','#ftRefIota','#ftRefNatinf','#valRubrique'].forEach(s=> { const el=$(s); if(el) el.value=''; });
+      $('#ftScore').textContent='—'; $('#ftLatLng').textContent='—';
+      $('#valParams').innerHTML=''; applyResultBadge('HN'); $('#valTrace').innerHTML='';
+      window.SELECTED_IOTA.clear(); renderIota(); renderSelectedPills();
+    });
+
+    // Règles – éditeur + reset (appui long)
+    function resetRules(){
+      const pack = getEmbeddedPack();
+      if (pack && pack.rules){ setRules(pack.rules); alert('Règles réinstallées (pack intégré).'); buildValParams(); }
+      else { alert('Pack intégré absent.'); }
     }
-    pdf.save('fiche-terrain.pdf');
-  });
-
-  // Reset total
-  $('#btnResetAll').addEventListener('click', ()=>{
-    ['#ftTitre','#ftLieu','#ftDesc','#ftRefIota','#ftRefNatinf'].forEach(s=> $(s).value='');
-    $('#ftScore').textContent='—'; $('#ftLatLng').textContent='—';
-    $('#valRubrique').value=''; $('#valParams').innerHTML=''; applyResultBadge('HN'); $('#valTrace').innerHTML='';
-    lastMeasure = { mode:null, length_m:0, area_m2:0 }; resetManual(); stopGPS(); photos.length=0; sketches.length=0; refreshPieces();
-    if (typeof annotations !== 'undefined'){ annotations.clearLayers(); try{ localStorage.removeItem('sd40:annotations'); }catch(_){ } }
-    SELECTED_IOTA.clear(); // décoche tout
-    // Re-rendre la liste pour décocher visuellement
-    const curQ = $('#iotaSearch').value||''; document.getElementById('iotaList').innerHTML=''; // clean
-    // petit délai pour laisser l'UI respirer
-    setTimeout(()=>{ const iotaList = $('#iotaList'); },0);
-  });
-
-  /* ===== VALIDATEUR IOTA ===== */
-  function resetRules(){
-    const pack = getEmbeddedPack();
-    if (pack && pack.rules){ setRules(pack.rules); alert('Règles réinstallées (pack intégré).'); buildValParams(); }
-    else { alert('Pack intégré absent.'); }
+    $('#btnRules').addEventListener('click', ()=>{
+      const now = JSON.stringify(getRules(), null, 2);
+      const txt = prompt('Édite les règles (JSON strict)\nEx. {"if":"surface_m2 >= 1000","regime":"D"}', now);
+      if (txt==null) return;
+      try{ const obj=JSON.parse(txt); setRules(obj); alert('Règles enregistrées.'); buildValParams(); }
+      catch(e){ alert('JSON invalide : '+e.message); }
+    });
+    let rulesPressTimer=null;
+    $('#btnRules').addEventListener('mousedown', ()=>{ rulesPressTimer = setTimeout(()=> resetRules(), 800); });
+    ['mouseup','mouseleave'].forEach(ev=> $('#btnRules').addEventListener(ev, ()=>{ if (rulesPressTimer){ clearTimeout(rulesPressTimer); rulesPressTimer=null; } }));
   }
+
+  // ====== VALIDATEUR – paramètres dynamiques (multi/single) ======
   function fmtNum(x){ const n=Number(x); if(!isFinite(n)) return String(x||''); return n.toLocaleString('fr-FR'); }
   function humanizeCond(raw, def){
     let s = String(raw);
     (def?.params||[]).forEach(p=>{
-      const re=new RegExp(`\\b${p.id}\\b`,'g'); s=s.replace(re, p.label||p.id);
+      const re = new RegExp(`\\b${p.id}\\b`,'g'); s=s.replace(re, p.label||p.id);
     });
     s = s.replace(/\s*>=\s*/g,' ≥ ').replace(/\s*<=\s*/g,' ≤ ').replace(/\s*>\s*/g,' > ').replace(/\s*<\s*/g,' < ')
-         .replace(/\s*==\s*/g,' = ').replace(/\s*&&\s*/g,' ET ').replace(/\s*\|\|\s*/g,' OU ')
-         .replace(/'([^']+)'/g,'$1');
+         .replace(/\s*==\s*/g,' = ').replace(/\s*&&\s*/g,' ET ').replace(/\s*\|\|\s*/g,' OU ').replace(/'([^']+)'/g,'$1');
     return s.trim();
   }
   function buildHumanExplanation(def, ctx, logic, hitIndex, decisionLabel, ref){
@@ -1250,7 +694,7 @@ function initProc(){
       html += `<div class="kv" style="margin-bottom:6px">`;
       def.params.forEach(p=>{
         const v = ctx[p.id]; const u = (p.label||'').match(/\(([^)]+)\)/)?.[1] || '';
-        html += `<b>${p.label} :</b> <span>${typeof v==='number'&&isFinite(v)?fmtNum(v):String(v||'—')}${u?` ${u.split('/')[0]||''}`:''}</span>`;
+        html += `<b>${p.label} :</b> <span>${fmtNum(v)}${u?` ${u.split('/')[0]||''}`:''}</span>`;
       });
       html += `</div>`;
     }
@@ -1258,184 +702,159 @@ function initProc(){
       html += `<div style="font-weight:600;margin:6px 0 2px">Critères évalués :</div><ul style="margin:.15rem 0 .5rem .9rem">`;
       logic.forEach((rule, i)=>{
         if (rule.if){
-          const txt = humanizeCond(rule.if, def);
-          const regime = rule.regime || '';
-          const ok = (i === hitIndex);
+          const txt = humanizeCond(rule.if, def); const regime = rule.regime || ''; const ok = (i === hitIndex);
           html += `<li>${txt} <span class="badge" style="margin-left:.35rem">${regime||'—'}</span> — ${ok?'<b>rempli</b>':'non rempli'}</li>`;
         } else {
-          const r = rule.else || 'HN';
-          const ok = (i === hitIndex);
+          const r = rule.else || 'HN'; const ok = (i === hitIndex);
           html += `<li>Sinon <span class="badge" style="margin-left:.35rem">${r}</span> — ${ok?'<b>appliqué</b>':'non appliqué'}</li>`;
         }
       });
       html += `</ul>`;
     }
+    html += `<div style="margin:.25rem 0"><b>Régime :</b> <span class="pill ${decisionLabel.includes('Autorisation')?'pill-A':decisionLabel.includes('Déclaration')?'pill-D':'pill-HN'}" style="margin-left:.35rem">${decisionLabel}</span>${ref? ` <span class="note">(${ref})</span>`:''}</div>`;
     html += `<div class="note" style="margin-top:.25rem">Résultat indicatif, à confronter aux textes en vigueur.</div>`;
     return html;
   }
 
-  /* Éval “sûre” */
-  function safeEvalExpr(expr, ctx){
-    const replaced = String(expr).replace(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g, id => (id in ctx ? JSON.stringify(ctx[id]) : id));
-    try{ return Function('"use strict";return('+replaced+')')(); }catch(_){ return false; }
-  }
-
   function buildValParams(){
-    const cont = $('#valParams'); cont.innerHTML = '';
+    const cont = $('#valParams'); cont.innerHTML='';
     const rules = getRules();
-    const selected = Array.from(SELECTED_IOTA);
-
-    // Mode multi : un bloc de paramètres par rubrique cochée
+    const selected = Array.from(window.SELECTED_IOTA||[]);
     if (selected.length){
+      // Multi : une section par rubrique
       selected.forEach(code=>{
         const def = rules[code];
-        const box = document.createElement('div');
-        box.style.border = '1px solid #e5e7eb';
-        box.style.borderRadius = '8px';
-        box.style.padding = '8px';
-        box.style.marginBottom = '8px';
-
-        const title = document.createElement('div');
-        title.innerHTML = `<b>${code}</b> — ${(def?.label||'Paramètres')}`;
-        title.style.marginBottom = '6px';
-        box.appendChild(title);
-
+        const box = document.createElement('div'); box.style.flex='1 1 100%'; box.style.border='1px solid #e5e7eb'; box.style.borderRadius='8px'; box.style.padding='8px';
+        box.innerHTML = `<div style="font-weight:700;margin-bottom:6px">${code} — ${def?.label||'Paramètres'}</div>`;
         if (def?.params?.length){
           def.params.forEach(p=>{
-            const wrap = document.createElement('div');
-            const lab  = document.createElement('label');
-            const inp  = document.createElement('input');
-            lab.textContent = p.label; lab.style.fontSize = '13px';
-            inp.type = (p.type==='number'?'number':'text');
-            inp.id   = `param_${code}_${p.id}`;
-            inp.placeholder = p.label;
+            const wrap=document.createElement('div'); wrap.style.display='flex'; wrap.style.flexDirection='column'; wrap.style.gap='2px'; wrap.style.marginBottom='6px';
+            const lab=document.createElement('label'); lab.textContent=p.label; lab.style.fontSize='13px';
+            const inp=document.createElement('input'); inp.type=p.type||'text'; inp.id=`param_${code}_${p.id}`; inp.placeholder=p.label;
             wrap.appendChild(lab); wrap.appendChild(inp); box.appendChild(wrap);
           });
         } else {
-          // expose Surface/Longueur par défaut si pas de params
-          [['surface_m2','Surface (m²)'],['longueur_m','Longueur (m)']].forEach(([fid,labTxt])=>{
-            const wrap = document.createElement('div'); const lab = document.createElement('label'); const inp = document.createElement('input');
-            lab.textContent=labTxt; lab.style.fontSize='13px'; inp.type='number'; inp.id=`param_${code}_${fid}`; inp.placeholder=labTxt;
-            wrap.appendChild(lab); wrap.appendChild(inp); box.appendChild(wrap);
-          });
+          const note=document.createElement('div'); note.className='note'; note.textContent='Aucun paramètre requis pour cette rubrique.';
+          box.appendChild(note);
         }
         cont.appendChild(box);
       });
+    } else {
+      // Single : se base sur valRubrique
+      const code = ($('#valRubrique').value||'').trim();
+      const def = rules[code];
+      if (!def){ // mode secours
+        const note = document.createElement('div'); note.className='note';
+        note.textContent = "Mode secours : aucun paramètre car la règle n’est pas chargée ou le code est vide.";
+        cont.appendChild(note);
+        return;
+      }
+      def.params?.forEach(p=>{
+        const wrap=document.createElement('div'); const lab=document.createElement('label');
+        lab.textContent=p.label; lab.style.fontSize='13px';
+        const inp=document.createElement('input'); inp.type=p.type||'text'; inp.id=`param_${p.id}`; inp.placeholder=p.label;
+        wrap.appendChild(lab); wrap.appendChild(inp); cont.appendChild(wrap);
+      });
+    }
+  }
+  $('#valRubrique').addEventListener('input', buildValParams);
+
+  // Mesures → injection param (compatible multi)
+  function setValidatorParam(paramId, value){
+    const val = (Math.round(Number(value||0)*100)/100).toString();
+    const inputs = Array.from(document.querySelectorAll('input[id^="param_"]'));
+    inputs.forEach(inp=>{
+      const id = inp.id || '';
+      if (id === 'param_'+paramId || id.endsWith('_'+paramId)) { inp.value = val; }
+    });
+  }
+
+  // Évaluer le régime (multi→ plus restrictif)
+  document.getElementById('btnEval').addEventListener('click', ()=>{
+    const rules = (function(){
+      try { const raw = localStorage.getItem('sd40:iota_rules_v1'); if (raw) return JSON.parse(raw); } catch(_){}
+      try {
+        const packEl = document.getElementById('iota-pack-officiel');
+        const pack = packEl ? JSON.parse(packEl.textContent) : null;
+        if (pack?.rules){ try { localStorage.setItem('sd40:iota_rules_v1', JSON.stringify(pack.rules)); } catch(_){}
+          return pack.rules;
+        }
+      } catch(_){}
+      return {};
+    })();
+    if (!rules || !Object.keys(rules).length){
+      alert('Règles IOTA introuvables. Maintiens ⚙️ pour réinstaller.');
+      const btn = document.querySelector('.proc-tabs button[data-tab="validator"]'); if (btn) btn.click();
       return;
     }
 
-    // Mode simple (fallback avec #valRubrique)
-    const code = ($('#valRubrique').value||'').trim();
-    const def = rules[code];
-    if (!def){
-      [['surface_m2','Surface (m²)'],['longueur_m','Longueur (m)']].forEach(([fid,labTxt])=>{
-        const wrap = document.createElement('div'); const lab = document.createElement('label'); const inp = document.createElement('input');
-        lab.textContent=labTxt; lab.style.fontSize='13px'; inp.type='number'; inp.id=`param_${fid}`; inp.placeholder=labTxt;
-        wrap.appendChild(lab); wrap.appendChild(inp); cont.appendChild(wrap);
-      });
-      const note = document.createElement('div'); note.className='note'; note.textContent = "Mode secours : Surface/Longueur visibles même sans règle chargée.";
-      cont.appendChild(note); return;
-    }
-    def.params?.forEach(p=>{
-      const wrap=document.createElement('div'); const lab=document.createElement('label'); lab.textContent=p.label; lab.style.fontSize='13px';
-      const inp=document.createElement('input'); inp.type=(p.type==='number'?'number':'text'); inp.id='param_'+p.id; inp.placeholder=p.label;
-      wrap.appendChild(lab); wrap.appendChild(inp); cont.appendChild(wrap);
-    });
-  }
-  $('#valRubrique').addEventListener('input', buildValParams);
-  buildValParams();
-
-  $('#btnEval').addEventListener('click', ()=>{
-    // Restaure règles si besoin
-    let rules = getRules();
-    if (!rules || !Object.keys(rules).length){
-      const pack = getEmbeddedPack();
-      if (pack?.rules){ setRules(pack.rules); rules = pack.rules; }
-    }
-    const selected = Array.from(SELECTED_IOTA);
+    const REG_ORDER = { A:3, D:2, HN:1 };
+    const selected = Array.from(window.SELECTED_IOTA || []);
     const traces = [];
     let globalReg = 'HN';
 
-    function evalOne(code, prefix=false){
-      const def = rules[code]; if (!def) return { reg:'HN', trace:'' };
+    function readParam(htmlId, isNumber){
+      const el = document.getElementById(htmlId);
+      if (!el) return isNumber ? 0 : '';
+      if (isNumber){
+        const v = parseFloat(String(el.value).replace(',','.'));
+        return Number.isFinite(v) ? v : 0;
+      }
+      return String(el.value||'').trim().toLowerCase();
+    }
+
+    function evalOne(code, prefix){
+      const def = rules[code];
+      if (!def){
+        return { reg:'HN', trace:`<div style="border:1px dashed #e5e7eb;border-radius:8px;padding:8px;margin:6px 0"><b>${code}</b> — règle absente</div>` };
+      }
       const ctx={};
       (def.params||[]).forEach(p=>{
         const id = prefix ? `param_${code}_${p.id}` : `param_${p.id}`;
-        const raw = ($('#'+id)?.value ?? '');
-        if ((p.type||'text') === 'number'){
-          const v = parseFloat(String(raw).replace(',','.')); ctx[p.id] = isFinite(v) ? v : 0;
-        } else { ctx[p.id] = String(raw).trim().toLowerCase(); }
+        ctx[p.id] = readParam(id, (p.type||'text')==='number');
       });
 
-      let decision='HN', ref=''; let hitIndex=-1;
-      for (let i=0; i<(def.logic||[]).length; i++){
+      let decision='HN', ref=''; let hit=-1;
+      for (let i=0;i<(def.logic||[]).length;i++){
         const rule = def.logic[i];
-        if (rule.if){
-          const ok = safeEvalExpr(rule.if, ctx);
-          if (ok){ decision=rule.regime||'HN'; ref=rule.ref||''; hitIndex=i; break; }
-        } else { decision=rule.else||'HN'; ref=rule.ref||''; hitIndex=i; break; }
+        if (rule.if){ if (safeEvalExpr(rule.if, ctx)){ decision=rule.regime||'HN'; ref=rule.ref||''; hit=i; break; } }
+        else { decision=rule.else||'HN'; ref=rule.ref||''; hit=i; break; }
       }
-      const labelMap = RESULT_LABELS;
-      const block = `
-        <div style="border:1px dashed #e5e7eb;border-radius:8px;padding:8px;margin:6px 0">
-          <div><b>${code}</b> — ${(def.label||'')}</div>
-          ${buildHumanExplanation(def, ctx, def.logic, hitIndex, labelMap[decision]||decision, ref)}
-        </div>`;
+
+      const labelMap = {A:'Autorisation', D:'Déclaration', HN:'Hors nomenclature'};
+      const block = `<div style="border:1px dashed #e5e7eb;border-radius:8px;padding:8px;margin:6px 0">
+        <div><b>${code}</b> — ${def.label||''}</div>
+        ${buildHumanExplanation(def, ctx, def.logic, hit, labelMap[decision]||decision, ref)}
+      </div>`;
       return { reg:decision, trace:block };
     }
 
     if (selected.length){
-      const REG_ORDER = { A:3, D:2, HN:1 };
-      const regs = [];
+      const regs=[];
       selected.forEach(code=>{
         const r = evalOne(code, true);
         regs.push(r.reg); traces.push(r.trace);
       });
-      globalReg = regs.reduce((acc, r)=> (REG_ORDER[r] > REG_ORDER[acc] ? r : acc), 'HN');
+      globalReg = regs.reduce((acc,r)=> (REG_ORDER[r]>REG_ORDER[acc]? r:acc), 'HN');
       applyResultBadge(globalReg);
-      $('#valTrace').innerHTML = traces.join('') || '<em>Aucune règle applicable avec les paramètres saisis.</em>';
-      if (!$('#ftRefIota').value) $('#ftRefIota').value = selected.join(', ');
-      const sugg = [...new Set(selected.flatMap(c => natinfSuggestForIota(c).slice(0,3).map(x=>x.natinf)))];
-      if (sugg.length && !$('#ftRefNatinf').value) $('#ftRefNatinf').value = sugg.join(', ');
-      return;
+      document.getElementById('valTrace').innerHTML = traces.join('');
+    } else {
+      const code = (document.getElementById('valRubrique').value||'').trim();
+      if (!code){
+        applyResultBadge('HN');
+        document.getElementById('valTrace').innerHTML = '<em>Ajoute au moins une rubrique IOTA (cases à cocher) ou saisis un code.</em>';
+        const btn = document.querySelector('.proc-tabs button[data-tab="validator"]'); if (btn) btn.click();
+        return;
+      }
+      const r = evalOne(code, false);
+      applyResultBadge(r.reg);
+      document.getElementById('valTrace').innerHTML = r.trace;
     }
 
-    // Fallback : mode simple
-    const code = ($('#valRubrique').value||'').trim();
-    if (!code || !rules[code]){
-      applyResultBadge('HN');
-      $('#valTrace').innerHTML = '<em>Sélectionnez au moins une rubrique IOTA ou saisissez un code dans le champ dédié.</em>';
-      return;
-    }
-    const r = evalOne(code, false);
-    applyResultBadge(r.reg);
-    $('#valTrace').innerHTML = r.trace;
+    const btn = document.querySelector('.proc-tabs button[data-tab="validator"]'); if (btn) btn.click();
   });
 
-  // Éditeur de règles + reset (appui long)
-  $('#btnRules').addEventListener('click', ()=>{
-    const now = JSON.stringify(getRules(), null, 2);
-    const txt = prompt('Édite les règles (JSON strict : guillemets doubles, pas de virgule traînante)\nExemple: {"if":"surface_m2 >= 1000","regime":"D"}', now);
-    if (txt==null) return;
-    try{ const obj=JSON.parse(txt); setRules(obj); alert('Règles enregistrées.'); buildValParams(); }
-    catch(e){ alert('JSON invalide : '+e.message); }
-  });
-  let rulesPressTimer=null;
-  $('#btnRules').addEventListener('mousedown', ()=>{ rulesPressTimer = setTimeout(()=> resetRules(), 800); });
-  ['mouseup','mouseleave'].forEach(ev=> $('#btnRules').addEventListener(ev, ()=>{ if (rulesPressTimer){ clearTimeout(rulesPressTimer); rulesPressTimer=null; } }));
-}
-
-/* ---- Utils ---- */
-async function fileToDataURL(file){ return await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); }); }
-async function dataUrlToImage(dataUrl){ return await new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=dataUrl; }); }
-
-proj4.defs('EPSG:2154', '+proj=lcc +lat_1=49 +lat_2=44 +lat_0=46.5 +lon_0=3 +x_0=700000 +y_0=6600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs');
-
-function computeLengthMeters(latlngs){ if (latlngs.length<2) return 0; const line=turf.lineString(latlngs.map(ll=>[ll.lng,ll.lat])); return turf.length(line,{units:'kilometers'})*1000; }
-function computeAreaM2(latlngs){ if (latlngs.length<3) return 0; const ring=[...latlngs.map(ll=>[ll.lng,ll.lat]), [latlngs[0].lng,latlngs[0].lat]]; return turf.area(turf.polygon([ring])); }
-function fmtLength(m){ return m<1000 ? `${m.toFixed(1)} m` : `${(m/1000).toFixed(3)} km`; }
-function fmtArea(m2){ if (m2<10000) return `${m2.toFixed(0)} m²`; const ha=m2/10000; if (ha<100) return `${ha.toFixed(2)} ha`; return `${(m2/1e6).toFixed(3)} km²`; }
-})();
-</script>
+  })();
+  </script>
 </body>
 </html>
