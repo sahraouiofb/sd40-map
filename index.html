@@ -321,14 +321,8 @@
   (function(){
     'use strict';
 
-    // ==== SÉLECTEURS SÛRS (corrige l'erreur avec les ID contenant des points) ====
-    const $ = (sel, scope=document) => {
-      if (typeof sel === 'string' && sel.startsWith('#') && !sel.includes(' ')) {
-        return scope.getElementById(sel.slice(1));
-      }
-      return scope.querySelector(sel);
-    };
-    const $$ = (sel, scope=document) => Array.from(scope.querySelectorAll(sel));
+    const $  = (s, r=document)=> r.querySelector(s);
+    const $$ = (s, r=document)=> Array.from(r.querySelectorAll(s));
 
     /* ---- Procédure : open/close ---- */
     const PROC_KEY='sd40:procVisible';
@@ -876,8 +870,8 @@
     const RESULT_ICON   = { HN:'⚪', A:'🔴', D:'🟠' };
 
     // === Multi-IOTA ===
-    const SELECTED_IOTA = new Set();
-    const REG_ORDER = { A:3, D:2, HN:1 };
+    const SELECTED_IOTA = new Set();                 // Ensemble des rubriques cochées
+    const REG_ORDER = { A:3, D:2, HN:1 };            // Hiérarchie de sévérité
     function mostRestrictive(regs){
       return regs.reduce((acc, r)=> (REG_ORDER[r] > REG_ORDER[acc] ? r : acc), 'HN');
     }
@@ -950,14 +944,17 @@
       const iotaList = $('#iotaList');
 
       function syncIotaSelections(){
+        // 1) Fiche : IOTA retenues
         const arr = Array.from(SELECTED_IOTA);
         $('#ftRefIota').value = arr.join(', ');
 
+        // 2) Fiche : NATINF suggérés (fusion unique)
         const sugg = [...new Set(
           arr.flatMap(c => natinfSuggestForIota(c).slice(0,3).map(x=>x.natinf))
         )];
         if (sugg.length) $('#ftRefNatinf').value = sugg.join(', ');
 
+        // 3) Validateur : reconstruit les paramètres si l’onglet est utilisé
         buildValParams();
       }
 
@@ -976,6 +973,7 @@
           </div>
         `).join('') || '<em>Aucune rubrique</em>';
 
+        // Écouteurs de coche/décoche
         $$('input[type=checkbox][data-code]', iotaList).forEach(cb=>{
           cb.addEventListener('change', ()=>{
             const code = cb.dataset.code;
@@ -1189,7 +1187,7 @@
       }
       $('#btnSketch').addEventListener('click', openSketch);
 
-      // Exports fiche GEOJSON
+      // Exports fiche
       $('#btnProcGJ').addEventListener('click', ()=>{
         const ll = map.getCenter();
         const props = {
@@ -1203,183 +1201,79 @@
         URL.revokeObjectURL(url);
       });
 
-      // ============ EXPORT PDF — VERSION STRUCTURÉE & NARRATIVE ============
+      // === PDF narratif pro ===
       $('#btnProcPDF').addEventListener('click', async ()=>{
-        const Titre = ($('#ftTitre').value || 'Intervention');
-        const Lieu = ($('#ftLieu').value || '—');
-        const Iota = ($('#ftRefIota').value || '—');
-        const Natinf= ($('#ftRefNatinf').value || '—');
-        const Desc = ($('#ftDesc').value || '');
-        const RegText = $('#valResult').textContent.replace(/^[🔴🟠⚪]\s*/,'') || '—';
-        const TraceHTML = $('#valTrace').innerHTML || '';
-
-        // Helpers PDF
+        const Titre = $('#ftTitre').value || 'Intervention';
+        const Lieu = $('#ftLieu').value || '—';
+        const Iota = $('#ftRefIota').value || '—';
+        const Natinf= $('#ftRefNatinf').value || '—';
+        const Desc = $('#ftDesc').value || '';
+        const Reg = $('#valResult').textContent.replace(/^[🔴🟠⚪]\s*/,'') || '—';
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({unit:'pt', format:'a4'});
         const W = pdf.internal.pageSize.getWidth();
-        const H = pdf.internal.pageSize.getHeight();
-        const margin = 40;
-        const brand = {r:11,g:34,b:57};
-        let y = margin + 30;
 
-        function hdr(title, subtitle=''){
-          pdf.setFillColor(brand.r,brand.g,brand.b); pdf.rect(0,0,W,60,'F');
-          pdf.setTextColor(255,255,255); pdf.setFont('helvetica','bold'); pdf.setFontSize(14);
-          pdf.text('OFB – SD40 • Fiche intervention', margin, 38);
-          pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
-          const ds = new Date().toLocaleString();
-          pdf.text(ds, W - margin, 38, {align:'right'});
-          // Ruban titre
-          pdf.setFillColor(244,246,248); pdf.rect(0,60,W,32,'F');
-          pdf.setTextColor(0,0,0); pdf.setFont('helvetica','bold'); pdf.setFontSize(13);
-          pdf.text(title, margin, 81);
-          if (subtitle){
-            pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
-            pdf.text(subtitle, margin, 96);
-          }
-          y = 110;
-        }
+        // Couverture / Titre
+        pdf.setFillColor(11,34,57); pdf.rect(0,0,W,72,'F');
+        pdf.setTextColor(255,255,255); pdf.setFont('helvetica','bold'); pdf.setFontSize(16);
+        pdf.text('FICHE TERRAIN – Procédure', 40, 46);
+        pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
+        pdf.text(new Date().toLocaleString(), W-40, 46, {align:'right'});
 
-        function section(title){
-          y += 10;
-          if (y > H - 60){ pdf.addPage(); y = margin; }
-          pdf.setFont('helvetica','bold'); pdf.setFontSize(12);
-          pdf.setTextColor(brand.r,brand.g,brand.b);
-          pdf.text('■ '+title, margin, y);
-          y += 10;
-          pdf.setTextColor(0,0,0);
-          pdf.setFont('helvetica','normal'); pdf.setFontSize(10.5);
-        }
-
-        function par(text){
-          const lines = pdf.splitTextToSize(text, W - margin*2);
-          lines.forEach(line=>{
-            if (y > H - 60){ pdf.addPage(); y = margin; }
-            pdf.text(line, margin, y);
-            y += 14;
-          });
-        }
-
-        function kv(label, value){
-          if (y > H - 60){ pdf.addPage(); y = margin; }
-          pdf.setFont('helvetica','bold'); pdf.text(label+' :', margin, y);
-          pdf.setFont('helvetica','normal'); pdf.text(String(value||'—'), margin+120, y);
-          y += 14;
-        }
-
-        function table2col(rows){
-          const col1 = margin, col2 = margin + (W - margin*2)/2 + 10;
-          let yy = y;
-          rows.forEach((r,i)=>{
-            const [l1,v1,l2,v2] = r;
-            pdf.setFont('helvetica','bold'); pdf.text(l1+':', col1, yy);
-            pdf.setFont('helvetica','normal'); pdf.text(String(v1||'—'), col1+120, yy);
-            pdf.setFont('helvetica','bold'); pdf.text(l2+':', col2, yy);
-            pdf.setFont('helvetica','normal'); pdf.text(String(v2||'—'), col2+120, yy);
-            yy += 14;
-            if (yy > H - 60){ pdf.addPage(); yy = margin; }
-          });
-          y = yy;
-        }
-
-        function stripHTML(html){
-          const tmp = document.createElement('div'); tmp.innerHTML = html;
-          // convert <li> to " - " prefixed lines
-          tmp.querySelectorAll('li').forEach(li=>{ li.textContent = '• ' + li.textContent; });
-          return tmp.textContent || tmp.innerText || '';
-        }
-
-        async function addMapAnnex(){
-          try{
-            const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, scale:1});
-            const img = canvas.toDataURL('image/jpeg', 0.9);
-            pdf.addPage();
-            hdr('Annexe – Carte');
-            const maxW = W - margin*2, maxH = H - (y + 40);
-            let drawW = maxW, drawH = drawW * (canvas.height/canvas.width);
-            if (drawH > maxH){ drawH = maxH; drawW = drawH * (canvas.width/canvas.height); }
-            pdf.addImage(img, 'JPEG', (W-drawW)/2, y, drawW, drawH, undefined, 'FAST');
-            y += drawH + 10;
-          }catch(e){
-            pdf.addPage(); hdr('Annexe – Carte'); par('Carte non intégrée (CORS).');
-          }
-        }
-
-        function addPieces(){
-          const items = [...photos, ...sketches];
-          pdf.addPage(); hdr('Annexe – Pièces jointes', `${items.length} élément(s)`);
-          if (!items.length){ par('Aucune pièce jointe.'); return; }
-
-          const gap = 12;
-          const cols = 2;
-          const cellW = (W - margin*2 - gap*(cols-1)) / cols;
-          const cellH = 160;
-
-          let col = 0;
-          items.forEach((it, idx)=>{
-            if (y + cellH + 30 > H - margin){
-              pdf.addPage(); hdr('Annexe – Pièces jointes (suite)');
-            }
-            const x = margin + col*(cellW + gap);
-            pdf.setDrawColor(229,231,235);
-            pdf.rect(x-2, y-2, cellW+4, cellH+4);
-            pdf.addImage(it.dataUrl, 'JPEG', x, y, cellW, cellH, undefined, 'FAST');
-            pdf.setFont('helvetica','normal'); pdf.setFontSize(9.5);
-            const label = it.label || ('Pièce '+(idx+1));
-            pdf.text(label, x, y + cellH + 13);
-            col++;
-            if (col >= cols){ col = 0; y += cellH + 36; }
-          });
-        }
-
-        function addFooters(){
-          const pageCount = pdf.getNumberOfPages();
-          for (let i=1;i<=pageCount;i++){
-            pdf.setPage(i);
-            pdf.setFont('helvetica','normal'); pdf.setFontSize(9);
-            pdf.setTextColor(120,130,140);
-            pdf.text(`Page ${i} / ${pageCount}`, W - margin, H - 18, {align:'right'});
-            pdf.text('OFB – SD40', margin, H - 18);
-          }
-        }
-
-        // ==== PAGE 1 : En-tête + Résumé opérationnel ====
-        hdr(Titre, 'Fiche technique d’intervention');
-        section('Résumé opérationnel');
-        const resume = [
-          Lieu !== '—' ? `Intervention réalisée à ${Lieu}.` : `Lieu non précisé à ce stade.`,
-          Iota !== '—' ? `Références IOTA pressenties/retenues : ${Iota}.` : `Aucune rubrique IOTA retenue à ce stade.`,
-          Natinf !== '—' ? `Qualification(s) pénale(s) envisagée(s) (NATINF) : ${Natinf}.` : `Aucun code NATINF ciblé pour l’instant.`,
-          `Évaluation réglementaire : ${RegText}.`
+        // Cadre résumé narratif
+        pdf.setTextColor(0,0,0); pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.text(Titre, 40, 100);
+        pdf.setFontSize(11); pdf.setFont('helvetica','normal');
+        const narrative = [
+          `Contexte et lieu : l’intervention s’est déroulée à ${Lieu}.`,
+          Iota!=='—' ? `Références IOTA pressenties ou retenues : ${Iota}.` : `Aucune rubrique IOTA retenue à ce stade.`,
+          Natinf!=='—' ? `Qualification pénale (NATINF) envisagée : ${Natinf}.` : `Aucun code NATINF ciblé pour l’instant.`,
+          `Évaluation réglementaire : ${Reg}.`,
+          Desc ? `Constats : ${Desc}` : `Constats : —`
         ].join(' ');
-        par(resume);
+        const narrWrapped = pdf.splitTextToSize(narrative, W-80);
+        pdf.text(narrWrapped, 40, 124);
 
-        section('Contexte et constats');
-        par(Desc || '—');
+        // Pastille résultat
+        const res = $('#valResult').textContent;
+        let col=[55,65,81]; // HN
+        if (res.includes('Autorisation')) col=[185,28,28];
+        else if (res.includes('Déclaration')) col=[154,52,18];
+        pdf.setFillColor(col[0],col[1],col[2]); pdf.setTextColor(255,255,255);
+        const resText = `${res}`; const tw = pdf.getTextWidth(resText) + 10;
+        pdf.roundedRect(40, 168, tw, 18, 9, 9, 'F'); pdf.text(resText, 45, 181);
 
-        // ==== PAGE 2 : Références & paramètres ====
-        pdf.addPage(); hdr('Références et paramètres');
-        section('Synthèse réglementaire');
-        table2col([
-          ['Régime évalué', RegText, 'Date/heure', new Date().toLocaleString()],
-          ['Rubriques IOTA', Iota, 'Codes NATINF', Natinf]
-        ]);
+        // Encadré références
+        pdf.setTextColor(0,0,0); pdf.setFont('helvetica','bold'); pdf.text('Références & paramètres', 40, 212);
+        pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
+        const refs = [ `Rubrique IOTA : ${Iota}`, `NATINF : ${Natinf}` ];
+        const trace = $('#valTrace').innerText || '';
+        const refWrapped = pdf.splitTextToSize(refs.join(' • ') + (trace ? ' • ' + trace : ''), W-80);
+        pdf.text(refWrapped, 40, 228);
 
-        section('Éléments matériels');
-        kv('Coordonnées', $('#ftLatLng').textContent || '—');
-        kv('Complétude de la fiche', $('#ftScore').textContent || '—');
+        // Capture carte
+        try{
+          const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, scale:1});
+          const img = canvas.toDataURL('image/jpeg', 0.85);
+          const w = W-80, h = w * (canvas.height/canvas.width);
+          pdf.addPage(); pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.text('Localisation – aperçu carte', 40, 60);
+          pdf.addImage(img, 'JPEG', 40, 80, w, Math.min(h, 680));
+        }catch(_){}
 
-        section('Détail de l’évaluation');
-        const traceText = stripHTML(TraceHTML).replace(/\n\s*\n/g,'\n').trim() || '—';
-        par(traceText);
-
-        // ==== ANNEXES ====
-        await addMapAnnex();
-        addPieces();
-
-        // Footers
-        addFooters();
-
+        // Pièces (photos + croquis)
+        pdf.addPage(); pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.text('Pièces jointes', 40, 60);
+        pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
+        let x=40, y=76, maxH=0, pad=8, boxW=180, boxH=120;
+        const items = [...photos, ...sketches];
+        if (items.length===0){ pdf.text('Aucune pièce jointe.', 40, 90); }
+        for (const it of items){
+          const img = it.dataUrl;
+          pdf.setDrawColor(229,231,235);
+          pdf.rect(x-2,y-2,boxW+4,boxH+4);
+          pdf.addImage(img, 'JPEG', x, y, boxW, boxH, undefined, 'FAST');
+          pdf.text((it.label||'Pièce'), x, y+boxH+14);
+          x += boxW + pad; maxH = Math.max(maxH, boxH);
+          if (x + boxW > W-40){ x=40; y += maxH + 36; maxH=0; if (y > 740){ pdf.addPage(); y=60; } }
+        }
         pdf.save('fiche-terrain.pdf');
       });
 
@@ -1399,7 +1293,7 @@
         SELECTED_IOTA.clear();
       });
 
-      /* ===== VALIDATEUR IOTA ===== */
+      /* ===== VALIDATEUR IOTA (corrigé pour params texte/numériques) ===== */
       function resetRules(){
         const pack = getEmbeddedPack();
         if (pack && pack.rules){ setRules(pack.rules); alert('Règles réinstallées (pack intégré).'); buildValParams(); }
@@ -1424,7 +1318,7 @@
           def.params.forEach(p=>{
             const v = ctx[p.id];
             const u = (p.label||'').match(/\(([^)]+)\)/)?.[1] || '';
-            html += `<b>${p.label} :</b> <span>${fmtNum(v)}${u? ` ${u.split('/')[0]||''}`:''}</span>`;
+            html += `<b>${p.label} :</b> <span>${(p.type==='number') ? fmtNum(v) : (v||'—')}${u? ` ${u.split('/')[0]||''}`:''}</span>`;
           });
           html += `</div>`;
         }
@@ -1482,7 +1376,7 @@
                 wrap.appendChild(lab); wrap.appendChild(inp); box.appendChild(wrap);
               });
             } else {
-              // Pas de params définis : expose Surface/Longueur usuelles si pertinentes
+              // Pas de params : expose Surface/Longueur usuelles
               ['surface_m2','longueur_m'].forEach(fid=>{
                 const wrap = document.createElement('div');
                 const lab  = document.createElement('label');
@@ -1505,6 +1399,7 @@
         const def = rules[code];
 
         if (!def){
+          // Mode secours : expose Surface/Longueur génériques
           ['surface_m2','longueur_m'].forEach(fid=>{
             const wrap = document.createElement('div');
             const lab  = document.createElement('label');
@@ -1533,34 +1428,47 @@
       $('#valRubrique').addEventListener('input', buildValParams);
       buildValParams();
 
+      // ********* ÉVALUATION corrigée : respecte type number/text + strings quotées *********
       $('#btnEval').addEventListener('click', ()=>{
         const rules = getRules();
         const selected = Array.from(SELECTED_IOTA);
         const traces = [];
         let globalReg = 'HN';
 
-        function evalOne(code, ctxOverride={}, paramPrefix=false){
+        function evalOne(code, paramPrefix=false){
           const def = rules[code];
           if (!def) return { reg:'HN', trace:'', hit:-1, ref:'' };
+
+          // Lecture typée des paramètres
           const ctx={};
           (def.params||[]).forEach(p=>{
             const id = paramPrefix ? `param_${code}_${p.id}` : `param_${p.id}`;
             const el = document.getElementById(id);
-            const v=parseFloat(((el?.value)||'').replace(',','.'));
-            ctx[p.id] = isFinite(v)? v : 0;
+            if (p.type === 'number'){
+              const v = parseFloat(String(el?.value||'').replace(',','.'));
+              ctx[p.id] = Number.isFinite(v) ? v : 0;
+            } else {
+              ctx[p.id] = String(el?.value||'').trim().toLowerCase();
+            }
           });
+
+          // Éval sûre : les chaînes sont JSON.stringify-ées
+          function safeEval(expr, ctx){
+            const safe = String(expr)
+              .replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, id => {
+                if (!(id in ctx)) return id;
+                const v = ctx[id];
+                return (typeof v === 'string') ? JSON.stringify(v) : String(v ?? 0);
+              })
+              .replace(/[^0-9<>=!&|().+*\-\/ %"'a-zA-Z_]/g,''); // ménage
+            try{ return !!eval(safe); }catch{ return false; }
+          }
 
           let decision='HN', ref=''; let hitIndex=-1;
           for (let i=0; i<(def.logic||[]).length; i++){
             const rule = def.logic[i];
             if (rule.if){
-              const ok = (function(expr, ctx){
-                const safe = expr
-                  .replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, (id)=> (id in ctx ? String(ctx[id]??0) : id))
-                  .replace(/[^0-9<>=!&|().+*\-\/ %]/g,'');
-                try{ return !!eval(safe); }catch(_){ return false; }
-              })(rule.if, ctx);
-              if (ok){ decision=rule.regime||'HN'; ref=rule.ref||''; hitIndex=i; break; }
+              if (safeEval(rule.if, ctx)){ decision=rule.regime||'HN'; ref=rule.ref||''; hitIndex=i; break; }
             } else { decision=rule.else||'HN'; ref=rule.ref||''; hitIndex=i; break; }
           }
 
@@ -1576,7 +1484,7 @@
         if (selected.length){
           const regs = [];
           selected.forEach(code=>{
-            const r = evalOne(code, {}, true);
+            const r = evalOne(code, true);
             regs.push(r.reg); traces.push(r.trace);
           });
           globalReg = mostRestrictive(regs);
@@ -1592,7 +1500,7 @@
         const code = ($('#valRubrique').value||'').trim();
         if (!code || !rules[code]){ applyResultBadge('HN'); $('#valTrace').innerHTML = ''; return; }
 
-        const r = evalOne(code, {}, false);
+        const r = evalOne(code, false);
         globalReg = r.reg;
         applyResultBadge(globalReg);
         $('#valTrace').innerHTML = r.trace;
