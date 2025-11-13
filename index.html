@@ -315,6 +315,8 @@
   <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <!-- AutoTable (nouveau) -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
   <script>
@@ -1201,81 +1203,315 @@
         URL.revokeObjectURL(url);
       });
 
-      // === PDF narratif pro ===
-      $('#btnProcPDF').addEventListener('click', async ()=>{
-        const Titre = $('#ftTitre').value || 'Intervention';
-        const Lieu = $('#ftLieu').value || '—';
-        const Iota = $('#ftRefIota').value || '—';
-        const Natinf= $('#ftRefNatinf').value || '—';
-        const Desc = $('#ftDesc').value || '';
-        const Reg = $('#valResult').textContent.replace(/^[🔴🟠⚪]\s*/,'') || '—';
+      /* ===================== PDF “fiche technique” PRO (nouveau) ===================== */
+      $('#btnProcPDF').addEventListener('click', async ()=>{ await exportPDFPro(); });
+
+      async function exportPDFPro(){
         const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({unit:'pt', format:'a4'});
+        const pdf = new jsPDF({unit:'pt', format:'a4', compress:true});
         const W = pdf.internal.pageSize.getWidth();
+        const H = pdf.internal.pageSize.getHeight();
+        const M = 40; // marge
+        const brand = { r:11, g:34, b:57 }; // #0b2239
+        const colHN = [55,65,81], colA=[185,28,28], colD=[154,52,18];
 
-        // Couverture / Titre
-        pdf.setFillColor(11,34,57); pdf.rect(0,0,W,72,'F');
-        pdf.setTextColor(255,255,255); pdf.setFont('helvetica','bold'); pdf.setFontSize(16);
-        pdf.text('FICHE TERRAIN – Procédure', 40, 46);
-        pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
-        pdf.text(new Date().toLocaleString(), W-40, 46, {align:'right'});
+        // Assure une évaluation à jour avant export
+        try { document.querySelector('#btnEval')?.click(); } catch(_){}
 
-        // Cadre résumé narratif
-        pdf.setTextColor(0,0,0); pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.text(Titre, 40, 100);
-        pdf.setFontSize(11); pdf.setFont('helvetica','normal');
-        const narrative = [
-          `Contexte et lieu : l’intervention s’est déroulée à ${Lieu}.`,
-          Iota!=='—' ? `Références IOTA pressenties ou retenues : ${Iota}.` : `Aucune rubrique IOTA retenue à ce stade.`,
-          Natinf!=='—' ? `Qualification pénale (NATINF) envisagée : ${Natinf}.` : `Aucun code NATINF ciblé pour l’instant.`,
-          `Évaluation réglementaire : ${Reg}.`,
+        // Collecte des champs UI
+        const Titre  = ($('#ftTitre').value||'Intervention');
+        const Lieu   = ($('#ftLieu').value||'—');
+        const Desc   = ($('#ftDesc').value||'');
+        const IotaStr= ($('#ftRefIota').value||'').trim();
+        const NatinfStr= ($('#ftRefNatinf').value||'').trim();
+        const RegimeTxt = ($('#valResult').textContent||'—').replace(/^[🔴🟠⚪]\s*/,'');
+        const llBadge = ($('#ftLatLng').textContent||'—');
+
+        // Mesures (issues des outils)
+        const area = (typeof lastMeasure?.area_m2==='number') ? lastMeasure.area_m2 : 0;
+        const length = (typeof lastMeasure?.length_m==='number') ? lastMeasure.length_m : 0;
+        const fmtLen = (m)=> m<1000 ? `${m.toFixed(1)} m` : `${(m/1000).toFixed(3)} km`;
+        const fmtArea = (m2)=>{
+          if (m2<10000) return `${m2.toFixed(0)} m²`;
+          const ha=m2/10000; if (ha<100) return `${ha.toFixed(2)} ha`;
+          return `${(m2/1e6).toFixed(3)} km²`;
+        };
+
+        // Accès aux règles/IOTA/NATINF
+        const rules = (typeof getRules==='function') ? getRules() : {};
+        const selectedIota = (typeof SELECTED_IOTA!=='undefined' && SELECTED_IOTA.size)
+          ? Array.from(SELECTED_IOTA)
+          : (IotaStr ? IotaStr.split(',').map(s=>s.trim()).filter(Boolean) : []);
+        const iotaDefs = selectedIota.map(code => ({ code, label: rules?.[code]?.label || code }));
+
+        // Tooling PDF
+        function headerCover(){
+          pdf.setFillColor(brand.r,brand.g,brand.b);
+          pdf.rect(0,0,W,80,'F');
+          pdf.setTextColor(255,255,255);
+          pdf.setFont('helvetica','bold'); pdf.setFontSize(16);
+          pdf.text('FICHE TERRAIN – Procédure', M, 48);
+          pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
+          pdf.text(new Date().toLocaleString(), W-M, 48, {align:'right'});
+        }
+        function pageFooter(){
+          const total = pdf.internal.getNumberOfPages();
+          for (let i=1;i<=total;i++){
+            pdf.setPage(i);
+            pdf.setDrawColor(230); pdf.line(M, H-30, W-M, H-30);
+            pdf.setFont('helvetica','normal'); pdf.setFontSize(9);
+            pdf.setTextColor(90);
+            pdf.text(`${Titre.substring(0,60)} — ${new Date().toLocaleDateString('fr-FR')}`, M, H-14);
+            pdf.text(`Page ${i}/${total}`, W-M, H-14, {align:'right'});
+          }
+        }
+        function sectionTitle(n, idx){
+          const y = pdf.lastAutoTable ? pdf.lastAutoTable.finalY + 24 : (pdf.__y||M) + (idx ? 24 : 0);
+          pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.setTextColor(brand.r,brand.g,brand.b);
+          pdf.text(`${idx}. ${n}`, M, y);
+          pdf.__y = y + 10;
+        }
+        function ensureSpace(h){
+          const y = pdf.__y || (M+10);
+          if (y + h > H - 60){ pdf.addPage(); pdf.__y = M; }
+        }
+        function addParagraph(text, sz=11, clr=[0,0,0]){
+          const y0 = pdf.__y || (M+10); pdf.setFont('helvetica','normal'); pdf.setFontSize(sz); pdf.setTextColor(...clr);
+          const lines = pdf.splitTextToSize(text, W - 2*M);
+          let y = y0;
+          lines.forEach(line=>{
+            ensureSpace(16);
+            pdf.text(line, M, (pdf.__y||M)+14);
+            pdf.__y = (pdf.__y||M)+14;
+          });
+        }
+
+        // Couv
+        headerCover();
+        pdf.setFont('helvetica','bold'); pdf.setFontSize(18); pdf.setTextColor(0);
+        pdf.text(Titre, M, 120);
+        pdf.setFont('helvetica','normal'); pdf.setFontSize(12);
+        pdf.text(`Lieu : ${Lieu}`, M, 140);
+        pdf.text(`Coordonnées : ${llBadge}`, M, 156);
+        // Pastille régime
+        let col = colHN; if (/Autorisation/i.test(RegimeTxt)) col = colA; else if (/Décla/i.test(RegimeTxt)) col = colD;
+        const rText = RegimeTxt || '—';
+        pdf.setFillColor(...col); pdf.setTextColor(255,255,255);
+        const tw = pdf.getTextWidth(rText) + 12;
+        pdf.roundedRect(M, 170, tw, 20, 10, 10, 'F'); pdf.text(rText, M+6, 184);
+
+        // Sommaire (on remplit à la fin)
+        pdf.addPage(); const tocPage = pdf.internal.getNumberOfPages();
+        pdf.setFont('helvetica','bold'); pdf.setFontSize(16); pdf.setTextColor(0);
+        pdf.text('Sommaire', M, 80);
+        pdf.setFont('helvetica','normal'); pdf.setFontSize(11);
+        pdf.text('(rempli automatiquement)', M, 100);
+
+        const toc = []; // {title, page}
+
+        // 1. Synthèse opérationnelle
+        pdf.addPage(); toc.push({title:'Synthèse opérationnelle', page: pdf.internal.getNumberOfPages()});
+        sectionTitle('Synthèse opérationnelle', 1);
+        const synth = [
+          `L’intervention s’est déroulée à ${Lieu || '—'}.`,
+          IotaStr ? `Rubriques IOTA pressenties ou retenues : ${IotaStr}.` : `Aucune rubrique IOTA retenue à ce stade.`,
+          NatinfStr ? `Qualification(s) pénale(s) envisagée(s) : ${NatinfStr}.` : `Aucun code NATINF ciblé pour l’instant.`,
+          `Évaluation réglementaire : ${RegimeTxt || '—'}.`,
           Desc ? `Constats : ${Desc}` : `Constats : —`
         ].join(' ');
-        const narrWrapped = pdf.splitTextToSize(narrative, W-80);
-        pdf.text(narrWrapped, 40, 124);
+        addParagraph(synth);
 
-        // Pastille résultat
-        const res = $('#valResult').textContent;
-        let col=[55,65,81]; // HN
-        if (res.includes('Autorisation')) col=[185,28,28];
-        else if (res.includes('Déclaration')) col=[154,52,18];
-        pdf.setFillColor(col[0],col[1],col[2]); pdf.setTextColor(255,255,255);
-        const resText = `${res}`; const tw = pdf.getTextWidth(resText) + 10;
-        pdf.roundedRect(40, 168, tw, 18, 9, 9, 'F'); pdf.text(resText, 45, 181);
+        // 2. Données terrain (tableaux)
+        pdf.addPage(); toc.push({title:'Données terrain', page: pdf.internal.getNumberOfPages()});
+        sectionTitle('Données terrain', 2);
+        const kv1 = [
+          ['Titre', Titre],
+          ['Lieu', Lieu],
+          ['Coordonnées', llBadge],
+          ['Mesures – Surface', area>0 ? fmtArea(area) : '—'],
+          ['Mesures – Longueur', length>0 ? fmtLen(length) : '—'],
+          ['IOTA retenue(s)', IotaStr || '—'],
+          ['NATINF retenu(s)', NatinfStr || '—'],
+        ];
+        pdf.autoTable({
+          head:[['Champ','Valeur']],
+          body:kv1,
+          startY: (pdf.__y||M)+16,
+          styles:{ font:'helvetica', fontSize:10, cellPadding:5, overflow:'linebreak' },
+          headStyles:{ fillColor:[240,242,246], textColor:0 },
+          columnStyles:{ 0:{cellWidth:160} }
+        });
+        pdf.__y = pdf.lastAutoTable.finalY + 10;
 
-        // Encadré références
-        pdf.setTextColor(0,0,0); pdf.setFont('helvetica','bold'); pdf.text('Références & paramètres', 40, 212);
-        pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
-        const refs = [ `Rubrique IOTA : ${Iota}`, `NATINF : ${Natinf}` ];
-        const trace = $('#valTrace').innerText || '';
-        const refWrapped = pdf.splitTextToSize(refs.join(' • ') + (trace ? ' • ' + trace : ''), W-80);
-        pdf.text(refWrapped, 40, 228);
+        // 3. Évaluation IOTA (tableau structuré)
+        pdf.addPage(); toc.push({title:'Évaluation IOTA', page: pdf.internal.getNumberOfPages()});
+        sectionTitle('Évaluation IOTA', 3);
 
-        // Capture carte
-        try{
-          const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, scale:1});
-          const img = canvas.toDataURL('image/jpeg', 0.85);
-          const w = W-80, h = w * (canvas.height/canvas.width);
-          pdf.addPage(); pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.text('Localisation – aperçu carte', 40, 60);
-          pdf.addImage(img, 'JPEG', 40, 80, w, Math.min(h, 680));
-        }catch(_){}
+        function evalOne(code){
+          const def = rules[code] || {label:code, params:[], logic:[]};
+          const ctx = {};
+          (def.params||[]).forEach(p=>{
+            const el = document.getElementById(`param_${code}_${p.id}`) || document.getElementById(`param_${p.id}`);
+            const v = parseFloat((el?.value||'').replace(',','.')); ctx[p.id] = isFinite(v)? v : 0;
+          });
+          let decision='HN', ref='', hit=-1;
+          (def.logic||[]).some((rule,i)=>{
+            if (rule.if){
+              // Eval simple et sécurisé
+              const safe = rule.if.replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, id => (id in ctx ? String(ctx[id]??0) : id))
+                                 .replace(/[^0-9<>=!&|().+\-/* %]/g,'');
+              let ok=false; try{ ok = !!eval(safe); }catch(_){ ok=false; }
+              if (ok){ decision = rule.regime||'HN'; ref = rule.ref||''; hit=i; return true; }
+            } else { decision = rule.else||'HN'; ref=rule.ref||''; hit=i; return true; }
+            return false;
+          });
+          // Paramètres saisis, version lisible
+          const paramsText = (def.params||[]).map(p=>{
+            const v = (ctx[p.id] ?? '');
+            return `${p.label} : ${Number.isFinite(v)? v : (v||'—')}`;
+          }).join('\n') || '—';
 
-        // Pièces (photos + croquis)
-        pdf.addPage(); pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.text('Pièces jointes', 40, 60);
-        pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
-        let x=40, y=76, maxH=0, pad=8, boxW=180, boxH=120;
-        const items = [...photos, ...sketches];
-        if (items.length===0){ pdf.text('Aucune pièce jointe.', 40, 90); }
-        for (const it of items){
-          const img = it.dataUrl;
-          pdf.setDrawColor(229,231,235);
-          pdf.rect(x-2,y-2,boxW+4,boxH+4);
-          pdf.addImage(img, 'JPEG', x, y, boxW, boxH, undefined, 'FAST');
-          pdf.text((it.label||'Pièce'), x, y+boxH+14);
-          x += boxW + pad; maxH = Math.max(maxH, boxH);
-          if (x + boxW > W-40){ x=40; y += maxH + 36; maxH=0; if (y > 740){ pdf.addPage(); y=60; } }
+          // Critère déclenchant (humanisé)
+          function humanizeCond(raw){
+            let s = String(raw||'');
+            (def.params||[]).forEach(p=>{
+              const re = new RegExp(`\\b${p.id}\\b`,'g'); s = s.replace(re, p.label||p.id);
+            });
+            return s.replace(/\s*>=\s*/g,' ≥ ').replace(/\s*<=\s*/g,' ≤ ')
+                    .replace(/\s*>\s*/g,' > ').replace(/\s*<\s*/g,' < ')
+                    .replace(/\s*==\s*/g,' = ').replace(/\s*&&\s*/g,' ET ')
+                    .replace(/\s*\|\|\s*/g,' OU ').replace(/'([^']+)'/g,'$1');
+          }
+          const crit = (def.logic||[]).length
+            ? (def.logic[hit]?.if ? humanizeCond(def.logic[hit].if) : 'Sinon')
+            : '—';
+          const regimeLabel = /A/i.test(decision) ? 'Autorisation' : /D/i.test(decision) ? 'Déclaration' : 'Hors nomenclature';
+          return { code, lib: def.label||code, paramsText, crit, regime:regimeLabel, ref:ref||'' };
         }
-        pdf.save('fiche-terrain.pdf');
-      });
+
+        const iotaRows = (iotaDefs.length ? iotaDefs : [{code:'—',label:'—'}]).map(x=>evalOne(x.code));
+        pdf.autoTable({
+          head:[['Rubrique','Libellé','Paramètres saisis','Critère déclenchant','Régime','Réf.']],
+          body: iotaRows.map(r=>[r.code, r.lib, r.paramsText, r.crit, r.regime, r.ref]),
+          startY: (pdf.__y||M)+16,
+          styles:{ font:'helvetica', fontSize:9, cellPadding:4, overflow:'linebreak' },
+          headStyles:{ fillColor:[240,242,246], textColor:0 },
+          columnStyles:{ 0:{cellWidth:60}, 1:{cellWidth:160}, 4:{cellWidth:90}, 5:{cellWidth:80} },
+          didParseCell: data=>{
+            if (data.section==='body' && data.column.index===4){
+              const val = String(data.cell.text||'');
+              if (/Autorisation/i.test(val)) data.cell.styles.textColor = colA;
+              else if (/Déclaration/i.test(val)) data.cell.styles.textColor = colD;
+              else data.cell.styles.textColor = colHN;
+              data.cell.styles.fontStyle='bold';
+            }
+          }
+        });
+        pdf.__y = pdf.lastAutoTable.finalY + 6;
+
+        // 4. NATINF – détail titres (si disponibles)
+        if (NatinfStr){
+          const codes = NatinfStr.split(',').map(s=>s.trim()).filter(Boolean);
+          const natList = (Array.isArray(NATINF)?NATINF:[]).reduce((acc,n)=>{ acc[n.natinf]=n.intitule; return acc; },{});
+          const rows = codes.map(c=>[c, natList[c] || '—']);
+          ensureSpace(80);
+          pdf.setFont('helvetica','bold'); pdf.setFontSize(12); pdf.setTextColor(0);
+          pdf.text('NATINF – Intitulés', M, (pdf.__y||M)+18);
+          pdf.autoTable({
+            head:[['Code','Intitulé']],
+            body: rows,
+            startY: (pdf.__y||M)+24,
+            styles:{ font:'helvetica', fontSize:9, cellPadding:4, overflow:'linebreak' },
+            headStyles:{ fillColor:[240,242,246], textColor:0 },
+            columnStyles:{ 0:{cellWidth:80} }
+          });
+          pdf.__y = pdf.lastAutoTable.finalY + 6;
+        }
+
+        // 5. Carte – plein format
+        try{
+          const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, backgroundColor:'#fff', scale:1});
+          pdf.addPage(); toc.push({title:'Aperçu cartographique', page: pdf.internal.getNumberOfPages()});
+          sectionTitle('Aperçu cartographique', 4);
+          const img = canvas.toDataURL('image/jpeg', 0.9);
+          const w = W - 2*M, h = w * (canvas.height/canvas.width);
+          pdf.addImage(img, 'JPEG', M, (pdf.__y||M)+12, w, Math.min(h, H-2*M));
+          pdf.__y = (pdf.__y||M) + 12 + Math.min(h, H-2*M);
+        }catch(_){ /* pas de carte, on continue */ }
+
+        // 6. Pièces jointes – grille auto
+        const items = [...photos, ...sketches];
+        if (items.length){
+          pdf.addPage(); toc.push({title:'Pièces jointes', page: pdf.internal.getNumberOfPages()});
+          sectionTitle('Pièces jointes', 5);
+          const perRow = 2;
+          const gutter = 14;
+          const cellW = (W - 2*M - gutter*(perRow-1)) / perRow;
+          let x = M, y = (pdf.__y||M)+8, rowH = 0;
+
+          for (let i=0;i<items.length;i++){
+            const it = items[i];
+            try{
+              const image = await dataUrlToImage(it.dataUrl);
+              const ratio = image.height / image.width;
+              const targetW = cellW, targetH = Math.min(targetW * ratio, 220);
+              if (y + targetH + 40 > H - M){ pdf.addPage(); x=M; y=M; rowH=0; }
+              pdf.addImage(it.dataUrl, 'JPEG', x, y, targetW, targetH, undefined, 'FAST');
+              pdf.setFont('helvetica','normal'); pdf.setFontSize(9); pdf.setTextColor(90);
+              pdf.text((it.label||'Pièce'), x, y + targetH + 12, {maxWidth:targetW});
+              rowH = Math.max(rowH, targetH + 26);
+              if ((i % perRow) === perRow-1){ x=M; y += rowH + 10; rowH=0; }
+              else { x += cellW + gutter; }
+            }catch(_){ /* image HS */ }
+          }
+          pdf.__y = y + rowH;
+        }
+
+        // 7. Annexes – Détail des évaluations (version texte)
+        if (iotaRows.length){
+          pdf.addPage(); toc.push({title:'Annexes – Détail des évaluations', page: pdf.internal.getNumberOfPages()});
+          sectionTitle('Annexes – Détail des évaluations', 6);
+          iotaRows.forEach(r=>{
+            ensureSpace(80);
+            pdf.setFont('helvetica','bold'); pdf.setFontSize(11); pdf.setTextColor(0);
+            pdf.text(`${r.code} — ${r.lib}`, M, (pdf.__y||M)+14); pdf.__y = (pdf.__y||M)+18;
+            pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
+            const lines = pdf.splitTextToSize(
+              `Paramètres : ${r.paramsText.replace(/\n/g,' · ')}\nCritère : ${r.crit}\nRégime : ${r.regime}${r.ref?` (${r.ref})`:''}`,
+              W - 2*M
+            );
+            lines.forEach(line=>{
+              ensureSpace(14);
+              pdf.text(line, M, (pdf.__y||M)+12);
+              pdf.__y = (pdf.__y||M)+12;
+            });
+            pdf.__y += 6;
+          });
+          pdf.setFont('helvetica','italic'); pdf.setFontSize(9); pdf.setTextColor(110);
+          ensureSpace(14);
+          pdf.text('Note : Évaluation indicative à confronter aux textes en vigueur et aux spécificités de l’opération.', M, (pdf.__y||M)+12);
+          pdf.__y += 12;
+        }
+
+        // Remplit le sommaire
+        pdf.setPage(tocPage);
+        pdf.setFont('helvetica','normal'); pdf.setFontSize(12); pdf.setTextColor(0);
+        let yT = 120;
+        toc.forEach((it, i)=>{
+          const txt = `${i+1}. ${it.title}`;
+          const pageStr = String(it.page);
+          const dots = '.'.repeat(Math.max(4, Math.floor((W - 2*M - pdf.getTextWidth(txt) - 30)/4)));
+          pdf.text(`${txt} ${dots} ${pageStr}`, M, yT);
+          yT += 18;
+        });
+
+        // Footer
+        pageFooter();
+
+        // Sauvegarde
+        pdf.save('fiche-terrain_pro.pdf');
+      }
+      /* ===================== fin PDF PRO ===================== */
 
       // Reset total
       $('#btnResetAll').addEventListener('click', ()=>{
@@ -1293,7 +1529,7 @@
         SELECTED_IOTA.clear();
       });
 
-      /* ===== VALIDATEUR IOTA (corrigé pour params texte/numériques) ===== */
+      /* ===== VALIDATEUR IOTA ===== */
       function resetRules(){
         const pack = getEmbeddedPack();
         if (pack && pack.rules){ setRules(pack.rules); alert('Règles réinstallées (pack intégré).'); buildValParams(); }
@@ -1318,7 +1554,7 @@
           def.params.forEach(p=>{
             const v = ctx[p.id];
             const u = (p.label||'').match(/\(([^)]+)\)/)?.[1] || '';
-            html += `<b>${p.label} :</b> <span>${(p.type==='number') ? fmtNum(v) : (v||'—')}${u? ` ${u.split('/')[0]||''}`:''}</span>`;
+            html += `<b>${p.label} :</b> <span>${fmtNum(v)}${u? ` ${u.split('/')[0]||''}`:''}</span>`;
           });
           html += `</div>`;
         }
@@ -1376,7 +1612,7 @@
                 wrap.appendChild(lab); wrap.appendChild(inp); box.appendChild(wrap);
               });
             } else {
-              // Pas de params : expose Surface/Longueur usuelles
+              // Pas de params définis : expose Surface/Longueur usuelles si pertinentes
               ['surface_m2','longueur_m'].forEach(fid=>{
                 const wrap = document.createElement('div');
                 const lab  = document.createElement('label');
@@ -1428,47 +1664,33 @@
       $('#valRubrique').addEventListener('input', buildValParams);
       buildValParams();
 
-      // ********* ÉVALUATION corrigée : respecte type number/text + strings quotées *********
       $('#btnEval').addEventListener('click', ()=>{
         const rules = getRules();
         const selected = Array.from(SELECTED_IOTA);
         const traces = [];
         let globalReg = 'HN';
 
-        function evalOne(code, paramPrefix=false){
+        function evalOne(code, ctxOverride={}, paramPrefix=false){
           const def = rules[code];
           if (!def) return { reg:'HN', trace:'', hit:-1, ref:'' };
-
-          // Lecture typée des paramètres
           const ctx={};
           (def.params||[]).forEach(p=>{
             const id = paramPrefix ? `param_${code}_${p.id}` : `param_${p.id}`;
-            const el = document.getElementById(id);
-            if (p.type === 'number'){
-              const v = parseFloat(String(el?.value||'').replace(',','.'));
-              ctx[p.id] = Number.isFinite(v) ? v : 0;
-            } else {
-              ctx[p.id] = String(el?.value||'').trim().toLowerCase();
-            }
+            const v=parseFloat(($('#'+id)?.value||'').replace(',','.'));
+            ctx[p.id] = isFinite(v)? v : 0;
           });
-
-          // Éval sûre : les chaînes sont JSON.stringify-ées
-          function safeEval(expr, ctx){
-            const safe = String(expr)
-              .replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, id => {
-                if (!(id in ctx)) return id;
-                const v = ctx[id];
-                return (typeof v === 'string') ? JSON.stringify(v) : String(v ?? 0);
-              })
-              .replace(/[^0-9<>=!&|().+*\-\/ %"'a-zA-Z_]/g,''); // ménage
-            try{ return !!eval(safe); }catch{ return false; }
-          }
 
           let decision='HN', ref=''; let hitIndex=-1;
           for (let i=0; i<(def.logic||[]).length; i++){
             const rule = def.logic[i];
             if (rule.if){
-              if (safeEval(rule.if, ctx)){ decision=rule.regime||'HN'; ref=rule.ref||''; hitIndex=i; break; }
+              const ok = (function(expr, ctx){
+                const safe = expr
+                  .replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, (id)=> (id in ctx ? String(ctx[id]??0) : id))
+                  .replace(/[^0-9<>=!&|().+*\-\/ %]/g,'');
+                try{ return !!eval(safe); }catch(_){ return false; }
+              })(rule.if, ctx);
+              if (ok){ decision=rule.regime||'HN'; ref=rule.ref||''; hitIndex=i; break; }
             } else { decision=rule.else||'HN'; ref=rule.ref||''; hitIndex=i; break; }
           }
 
@@ -1484,7 +1706,7 @@
         if (selected.length){
           const regs = [];
           selected.forEach(code=>{
-            const r = evalOne(code, true);
+            const r = evalOne(code, {}, true);
             regs.push(r.reg); traces.push(r.trace);
           });
           globalReg = mostRestrictive(regs);
@@ -1500,7 +1722,7 @@
         const code = ($('#valRubrique').value||'').trim();
         if (!code || !rules[code]){ applyResultBadge('HN'); $('#valTrace').innerHTML = ''; return; }
 
-        const r = evalOne(code, false);
+        const r = evalOne(code, {}, false);
         globalReg = r.reg;
         applyResultBadge(globalReg);
         $('#valTrace').innerHTML = r.trace;
