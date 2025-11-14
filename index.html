@@ -1201,365 +1201,383 @@
         URL.revokeObjectURL(url);
       });
 
-// === PDF narratif pro — V3 homogène (police, espacement, évaluation détaillée lisible) ===
+<script>
+// === PDF narratif pro — V3 (police homogène, ventilation soignée, croquis = carte) ===
 $('#btnProcPDF').addEventListener('click', async ()=>{
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit:'pt', format:'a4' });
 
-  // ====== Réglages typographiques homogènes ======
-  const M = { left:44, right:44, top:84, bottom:60 };
-  const W = pdf.internal.pageSize.getWidth();
-  const H = pdf.internal.pageSize.getHeight();
-  const LINE = 16;                   // interligne
-  const GAP_P  = 8;                  // espace après paragraphe
-  const GAP_TB = 12;                 // espace après titre de section
-  let y = M.top;
+  // ---------- Mise en page homogène ----------
+  const PAGE = {
+    W: pdf.internal.pageSize.getWidth(),
+    H: pdf.internal.pageSize.getHeight(),
+    M: { left:44, right:44, top:84, bottom:60 },
+    font: { base:11, h1:14, h2:13, small:10 },
+    leading: { base:16, tight:14, roomy:18 },
+    gaps: { afterTitle:8, betweenPara:6, section:14 }
+  };
+  let y = PAGE.M.top;
 
-  const F = { body:11, h1:14, h2:12, small:10 };
-
-  // Sanitize : supprime ou remplace les glyphes non sûrs pour jsPDF standard
-  function asciiSafe(s){
-    if (!s) return '';
-    return String(s)
-      .replace(/\u00A0/g, ' ')           // nbsp -> espace
-      .replace(/[•·]/g, '-')             // puces -> tiret
-      .replace(/[–—]/g, '-')             // tirets longs -> -
-      .replace(/[“”«»]/g, '"')           // guillemets -> "
-      .replace(/[’]/g, "'")              // apostrophe courbe -> '
-      .replace(/≥/g, '>=')
-      .replace(/≤/g, '<=')
-      .replace(/→|⇒/g, '=>')
-      .replace(/\s+/g, s => s);          // garde les espaces
-  }
-
-  function setFont(size, weight='normal', color=[0,0,0]){
-    pdf.setTextColor(...color);
+  // Helpers typographiques
+  function setFont(size=PAGE.font.base, weight='normal', color=[0,0,0]){
     pdf.setFont('helvetica', weight);
     pdf.setFontSize(size);
+    pdf.setTextColor(...color);
   }
-  function ensure(h){ if (y + h > H - M.bottom) { pdf.addPage(); y = M.top; } }
-
-  function para(txt, {indent=0, after=GAP_P, size=F.body, color=[0,0,0]}={}){
-    const text = asciiSafe((txt && String(txt).trim().length) ? String(txt).trim() : 'Informations non disponibles à ce stade.');
-    setFont(size, 'normal', color);
-    const maxW = W - M.left - M.right - indent;
-    const lines = pdf.splitTextToSize(text, maxW);
-    const h = lines.length * LINE;
+  function ensure(h){ if (y + h > PAGE.H - PAGE.M.bottom) addPage(); }
+  function addPage(){ pdf.addPage(); y = PAGE.M.top; footerQueue.push(pdf.getCurrentPageInfo().pageNumber); }
+  function linewrap(txt, maxW){ return pdf.splitTextToSize(txt, maxW ?? (PAGE.W - PAGE.M.left - PAGE.M.right)); }
+  function para(text, opts={}){
+    const t = (text || '').toString().trim() || 'Informations non disponibles à ce stade.';
+    const size = opts.size ?? PAGE.font.base;
+    const lh   = opts.lineHeight ?? PAGE.leading.base;
+    const x    = PAGE.M.left + (opts.indent ?? 0);
+    const maxW = (PAGE.W - PAGE.M.left - PAGE.M.right) - (opts.indent ?? 0);
+    setFont(size, 'normal', opts.color ?? [0,0,0]);
+    const lines = linewrap(t, maxW);
+    const h = lines.length * lh;
     ensure(h);
-    const x = M.left + indent;
-    lines.forEach(line => { pdf.text(line, x, y); y += LINE; });
-    y += after;
+    lines.forEach(line => { pdf.text(line, x, y); y += lh; });
+    y += (opts.after ?? PAGE.gaps.betweenPara);
   }
-  function sectionTitle(txt){
-    setFont(F.h1, 'bold', [11,34,57]);
-    ensure(LINE);
-    pdf.text(asciiSafe(txt), M.left, y);
-    y += GAP_TB;
-  }
-  function subTitle(txt){
-    setFont(F.h2, 'bold', [11,34,57]);
-    ensure(LINE);
-    pdf.text(asciiSafe(txt), M.left, y);
-    y += 6;
-  }
-  function pageHeader(titre, regimeTxt){
-    // Bandeau haut
-    pdf.setFillColor(11,34,57);
-    pdf.rect(0,0,W,56,'F');
-    setFont(16,'bold',[255,255,255]);
-    pdf.text('FICHE TERRAIN – Procédure', M.left, 38);
-    setFont(F.small,'normal',[255,255,255]);
-    pdf.text(new Date().toLocaleString(), W - M.right, 38, {align:'right'});
+  function h1(txt){ ensure(24); setFont(PAGE.font.h1, 'bold', [11,34,57]); pdf.text(txt, PAGE.M.left, y); y += PAGE.gaps.afterTitle; }
+  function h2(txt){ ensure(22); setFont(PAGE.font.h2, 'bold', [11,34,57]); pdf.text(txt, PAGE.M.left, y); y += 4; }
 
-    // Titre
-    y = M.top;
-    setFont(F.h1,'bold',[0,0,0]);
-    pdf.text(asciiSafe(titre || 'Intervention'), M.left, y);
-    y += GAP_TB;
-
-    // Pastille simple (texte à droite)
-    setFont(F.small,'bold',[55,65,81]);
-    const reg = asciiSafe((regimeTxt||'').trim() || 'Hors nomenclature');
-    pdf.text(`Régime (évaluation outil) : ${reg}`, W - M.right, M.top - 22, {align:'right'});
+  // Bandeau d’en-tête sobre
+  function headerPage(titre){
+    pdf.setFillColor(11,34,57); pdf.rect(0,0,PAGE.W,56,'F');
+    setFont(16,'bold',[255,255,255]); pdf.text('FICHE TERRAIN – Procédure', PAGE.M.left, 38);
+    setFont(10,'normal',[255,255,255]); pdf.text(new Date().toLocaleString(), PAGE.W-PAGE.M.right, 38, {align:'right'});
+    y = PAGE.M.top;
+    setFont(PAGE.font.h1,'bold',[0,0,0]); pdf.text((titre||'Intervention'), PAGE.M.left, y); y += PAGE.gaps.afterTitle;
   }
-  function pageFooterNumbers(){
+
+  // Pied de page sur toutes pages (réalisé en fin)
+  const footerQueue = [pdf.getCurrentPageInfo().pageNumber];
+  function applyFooters(){
     const n = pdf.getNumberOfPages();
     for (let i=1;i<=n;i++){
       pdf.setPage(i);
       setFont(9,'normal',[100,116,139]);
-      pdf.text('OFB – SD40', M.left, H - 26);
-      pdf.text(`Page ${i} / ${n}`, W - M.right, H - 26, {align:'right'});
+      pdf.text('OFB – SD40', PAGE.M.left, PAGE.H-26);
+      pdf.text(`Page ${i} / ${n}`, PAGE.W-PAGE.M.right, PAGE.H-26, {align:'right'});
     }
   }
 
-  async function addMapBlock(){
-    sectionTitle('Localisation');
+  // Bloc image large (carte ou croquis) avec même logique de taille
+  async function addLargeImageSection(title, dataURLOrCanvas){
+    h1(title);
     try{
-      const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, scale:1, backgroundColor:'#ffffff'});
-      const img = canvas.toDataURL('image/jpeg', 0.9);
-      const maxW = W - M.left - M.right;
-      let w = maxW, h = w * (canvas.height/canvas.width);
-      const maxH = 0.58 * (H - M.top - M.bottom); // un peu plus bas que 60%
-      if (h > maxH){ h = maxH; w = h * (canvas.width/canvas.height); }
-      ensure(h + LINE*2);
-      pdf.addImage(img, 'JPEG', M.left, y, w, h, undefined, 'FAST');
-      y += h + 6;
-      para('Extrait cartographique centré sur la zone d’intervention (fond OSM). Emprise indicative.', {size:F.small, color:[71,85,105]});
+      let imgData, cW, cH;
+      if (dataURLOrCanvas instanceof HTMLCanvasElement){
+        cW = dataURLOrCanvas.width; cH = dataURLOrCanvas.height;
+        imgData = dataURLOrCanvas.toDataURL('image/jpeg', 0.9);
+      } else {
+        const isPNG = (dataURLOrCanvas||'').startsWith('data:image/png');
+        const img = await dataUrlToImage(dataURLOrCanvas);
+        cW = img.width; cH = img.height;
+        // Re-encode en JPEG pour jsPDF si nécessaire
+        const off = document.createElement('canvas'); off.width=cW; off.height=cH;
+        const ctx = off.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,cW,cH); ctx.drawImage(img,0,0);
+        imgData = off.toDataURL('image/jpeg', 0.9);
+      }
+      const maxW = PAGE.W - PAGE.M.left - PAGE.M.right;
+      let w = maxW, h = w * (cH / cW);
+      const maxH = 0.62 * (PAGE.H - PAGE.M.top - PAGE.M.bottom); // même cap que la carte
+      if (h > maxH){ h = maxH; w = h * (cW / cH); }
+      ensure(h + 20);
+      pdf.addImage(imgData, 'JPEG', PAGE.M.left, y, w, h, undefined, 'FAST');
+      y += h + 10;
+      setFont(PAGE.font.small,'normal',[71,85,105]);
+      pdf.text('Aperçu illustratif. Emprise indicative.', PAGE.M.left, y);
+      y += PAGE.gaps.betweenPara;
     }catch(_){
-      para('La carte n’a pas pu être insérée (CORS). La localisation reste disponible dans l’outil.', {size:F.small, color:[71,85,105]});
+      para('Illustration non disponible.', {size:PAGE.font.small, color:[71,85,105]});
     }
   }
 
-  function addPiecesGrid(items){
-    sectionTitle('Pièces et illustrations');
-    if (!items.length){ para('Aucune pièce jointe.'); return; }
-
-    const gap = 12;
-    const cols = 2; // lisible
-    const boxW = Math.floor((W - M.left - M.right - (gap*(cols-1))) / cols);
-    const baseH = Math.floor(boxW * 0.48); // hauteur réduite
-
-    let col=0, rowH=0;
-    for (let i=0;i<items.length;i++){
-      const it = items[i];
-      const isPNG = (it.dataUrl||'').startsWith('data:image/png');
-      const label = asciiSafe(it.label || `Pièce ${i+1}`);
-
-      const ratio = (it.w && it.h) ? (it.h/it.w) : (0.48);
-      // Croquis: encore un peu plus “aplatis”
-      const targetH = label.toLowerCase().startsWith('croquis') ? Math.min(baseH, Math.floor(boxW * Math.min(ratio, 0.45))) 
-                                                                : Math.min(baseH, Math.floor(boxW * Math.min(ratio, 0.65)));
-
-      ensure(targetH + LINE*2);
-      const x = M.left + col * (boxW + gap);
-
-      pdf.setDrawColor(229,231,235);
-      pdf.rect(x-2, y-2, boxW+4, targetH+4);
-      pdf.addImage(it.dataUrl, isPNG?'PNG':'JPEG', x, y, boxW, targetH, undefined, 'FAST');
-
-      y += targetH + 10;
-      setFont(F.small,'normal',[55,65,81]);
-      const lines = pdf.splitTextToSize(label, boxW);
-      lines.forEach(l=>{ pdf.text(l, x, y); y += LINE; });
-
-      // fin cellule
-      y -= LINE; // on retire le GAP_P implicite
-      col++; rowH = Math.max(rowH, targetH + LINE);
-      if (col >= cols){ col=0; y += 8; rowH=0; }
-      else { y -= (targetH + 10 + (lines.length-1)*LINE); } // remonte pour dessiner la deuxième colonne à la même hauteur
-    }
-    // si dernière ligne incomplète, descendre
-    if (col!==0) y += rowH + GAP_P;
-  }
-
-  // ===== Accès aux données de l'UI =====
-  const Titre = ($('#ftTitre').value||'Intervention').trim();
-  const Lieu = ($('#ftLieu').value||'').trim();
-  const Desc = ($('#ftDesc').value||'').trim();
-  const IotaStr = ($('#ftRefIota').value||'').trim();
+  // ---------- Données depuis l’UI ----------
+  const Titre     = ($('#ftTitre').value||'Intervention').trim();
+  const Lieu      = ($('#ftLieu').value||'').trim();
+  const Desc      = ($('#ftDesc').value||'').trim();
+  const IotaStr   = ($('#ftRefIota').value||'').trim();
   const NatinfStr = ($('#ftRefNatinf').value||'').trim();
-  const RegimeTxt = ($('#valResult').textContent||'—').replace(/^[🔴🟠⚪]\s*/,'');
+  const RegimeTxt = ($('#valResult').textContent||'—').replace(/^[^\w]+/,'').trim(); // sans pastille
   const LatLngTxt = ($('#ftLatLng').textContent||'').trim();
 
-  // Mesures des outils (si dispo)
-  const surfaceTxt = (typeof lastMeasure?.area_m2 === 'number' && lastMeasure.area_m2>0) ? fmtArea(lastMeasure.area_m2) : null;
-  const longueurTxt= (typeof lastMeasure?.length_m === 'number' && lastMeasure.length_m>0) ? fmtLength(lastMeasure.length_m) : null;
+  // Mesures (phrases, pas de jargon)
+  const surfaceTxt  = (typeof lastMeasure?.area_m2 === 'number'   && lastMeasure.area_m2>0) ? fmtArea(lastMeasure.area_m2)  : null;
+  const longueurTxt = (typeof lastMeasure?.length_m === 'number' && lastMeasure.length_m>0) ? fmtLength(lastMeasure.length_m): null;
 
-  // Photos / croquis (variables closes par initProc)
-  const items = (function(){ try{ return [...photos, ...sketches]; }catch(_){ return []; } })();
-
-  // ===== Règles & évaluations : lecture "douce" pour le rapport =====
+  // Accès jeux de règles/labels
   function getRules(){ try{ const raw=localStorage.getItem('sd40:iota_rules_v1'); return raw? JSON.parse(raw):{}; }catch(_){ return {}; } }
   const RULES = getRules();
-
   function iotaLabel(code){
-    const it = (Array.isArray(IOTA)?IOTA:[]).find(x=>String(x.code)===String(code));
-    return it ? it.titre : '';
+    try{
+      const p = JSON.parse(document.getElementById('iota-pack-officiel').textContent);
+      const hit = (p?.iota||[]).find(x=>x.code===code);
+      if (hit) return hit.titre||code;
+    }catch(_){}
+    return (RULES?.[code]?.label) || code;
   }
-  function natinfLabel(code){
-    const it = (Array.isArray(NATINF)?NATINF:[]).find(x=>String(x.natinf)===String(code));
-    return it ? it.intitule : '';
+  function natinfArrayFromInput(){
+    const raw = NatinfStr ? NatinfStr.split(',').map(s=>s.trim()).filter(Boolean) : [];
+    const out=[];
+    if (raw.length){
+      try{
+        const list = Array.isArray(window.NATINF)? window.NATINF : [];
+        raw.forEach(code=>{
+          const hit = list.find(n => String(n.natinf)===code);
+          out.push({ code, label: hit ? hit.intitule : '' });
+        });
+      }catch(_){ raw.forEach(code => out.push({code, label:''})); }
+    }
+    return out;
   }
 
-  function readCtxFor(code, def){
-    const ctx = {};
+  // IOTA cochées ou saisies
+  const selectedCodes = (SELECTED_IOTA && SELECTED_IOTA.size) ? Array.from(SELECTED_IOTA)
+                        : (IotaStr ? IotaStr.split(',').map(s=>s.trim()).filter(Boolean) : []);
+  // Si rien, on regarde #valRubrique (mode simple)
+  if (!selectedCodes.length){
+    const v = ($('#valRubrique').value||'').trim();
+    if (v) selectedCodes.push(v);
+  }
+
+  // Lecture typée des paramètres d’une rubrique
+  function readParams(code, def, isMulti){
+    const ctx={};
     (def?.params||[]).forEach(p=>{
-      const id = `param_${code}_${p.id}`;
+      const id = isMulti ? `param_${code}_${p.id}` : `param_${p.id}`;
       const el = document.getElementById(id);
-      if (p.type==='number'){
+      if (p.type === 'number'){
         const v = parseFloat(String(el?.value||'').replace(',','.'));
-        ctx[p.id] = Number.isFinite(v) ? v : null;
+        ctx[p.id] = Number.isFinite(v) ? v : 0;
       } else {
-        ctx[p.id] = String(el?.value||'').trim().toLowerCase() || null;
+        ctx[p.id] = String(el?.value||'').trim().toLowerCase();
       }
     });
-    // surfaces/longueurs génériques si pas de params
-    if (!def?.params?.length){
-      const s = document.getElementById(`param_${code}_surface_m2`);
-      const l = document.getElementById(`param_${code}_longueur_m`);
-      if (s){ const v = parseFloat(String(s.value||'').replace(',','.')); ctx.surface_m2 = Number.isFinite(v)?v:null; }
-      if (l){ const v = parseFloat(String(l.value||'').replace(',','.')); ctx.longueur_m = Number.isFinite(v)?v:null; }
-    }
+    // Fallback pratiques
+    if (ctx.surface_m2==null && typeof lastMeasure?.area_m2==='number' && lastMeasure.area_m2>0) ctx.surface_m2=lastMeasure.area_m2;
+    if (ctx.longueur_m==null && typeof lastMeasure?.length_m==='number' && lastMeasure.length_m>0) ctx.longueur_m=lastMeasure.length_m;
     return ctx;
   }
 
-  function condHuman(ruleIf, def){
-    // Remplace ids par libellés et opérateurs par ASCII
-    let s = String(ruleIf||'');
+  // Humanisation des conditions → phrases
+  function humanCond(raw, def){
+    let s = String(raw||'');
     (def?.params||[]).forEach(p=>{
-      const re=new RegExp(`\\b${p.id}\\b`,'g');
-      s = s.replace(re, (p.label||p.id));
+      const re=new RegExp(`\\b${p.id}\\b`,'g'); const pretty = p.label || p.id;
+      s = s.replace(re, pretty);
     });
-    return asciiSafe(
-      s.replace(/\s*>=\s*/g,' >= ')
-       .replace(/\s*<=\s*/g,' <= ')
-       .replace(/\s*>\s*/g,' > ')
-       .replace(/\s*<\s*/g,' < ')
-       .replace(/\s*==\s*/g,' = ')
-       .replace(/\s*&&\s*/g,' ET ')
-       .replace(/\s*\|\|\s*/g,' OU ')
-       .replace(/'([^']+)'/g,'$1')
-    );
+    s = s.replace(/\s*>=\s*/g,' ≥ ')
+         .replace(/\s*<=\s*/g,' ≤ ')
+         .replace(/\s*>\s*/g,' > ')
+         .replace(/\s*<\s*/g,' < ')
+         .replace(/\s*==\s*/g,' = ')
+         .replace(/\s*&&\s*/g,' et ')
+         .replace(/\s*\|\|\s*/g,' ou ')
+         .replace(/'([^']+)'/g,'$1');
+    return s.trim();
   }
 
+  // Évaluation sûre (sans usages d’emoji)
   function safeEval(expr, ctx){
-    const safe = String(expr)
-      .replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, id => {
-        if (!(id in ctx)) return id;
-        const v = ctx[id];
-        return (typeof v === 'string') ? JSON.stringify(v) : String(v ?? 0);
-      })
-      .replace(/[^0-9<>=!&|().+*\-\/ %"'a-zA-Z_]/g,'');
-    try{ return !!eval(safe); }catch{ return false; }
+    const rep = String(expr).replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, id=>{
+      if (!(id in ctx)) return id;
+      const v = ctx[id];
+      return (typeof v === 'string') ? JSON.stringify(v) : String(v ?? 0);
+    }).replace(/[^0-9<>=!&|().+*\-\/ %"'a-zA-Z_]/g,'');
+    try{ return !!eval(rep); }catch{ return false; }
   }
 
-  function evaluateRubrique(code){
+  const REG_ORDER={ A:3, D:2, HN:1 };
+  function mostRestrictive(regs){ return regs.reduce((acc,r)=> (REG_ORDER[r]>REG_ORDER[acc]?r:acc), 'HN'); }
+  const RESULT_LABELS = { HN:'Hors nomenclature', A:'Autorisation', D:'Déclaration' };
+
+  function evalOne(code, isMulti){
     const def = RULES[code];
-    if (!def) return null;
-    const ctx = readCtxFor(code, def);
-
-    // Paramètres saisis (texte)
-    const paramsLines = [];
-    if (def.params?.length){
-      def.params.forEach(p=>{
-        const raw = ctx[p.id];
-        const val = (raw==null || raw==='') ? '—' :
-          (p.type==='number' ? raw.toLocaleString('fr-FR') : String(raw));
-        paramsLines.push(`- ${p.label} : ${val}`);
-      });
-    } else {
-      if (ctx.surface_m2!=null) paramsLines.push(`- Surface (m²) : ${ctx.surface_m2.toLocaleString('fr-FR')}`);
-      if (ctx.longueur_m!=null) paramsLines.push(`- Longueur (m) : ${ctx.longueur_m.toLocaleString('fr-FR')}`);
-      if (paramsLines.length===0) paramsLines.push(`- Aucun paramètre saisi.`);
-    }
-
-    // Grille de lecture (texte) + décision
-    let decision='HN', ref='';
-    const grille = [];
-    (def.logic||[]).forEach(rule=>{
+    if (!def) return { reg:'HN', ref:'', ctx:{}, logic:[], label:iotaLabel(code) };
+    const ctx = readParams(code, def, isMulti);
+    let decision='HN', ref=''; let hit=-1;
+    for (let i=0; i<(def.logic||[]).length; i++){
+      const rule = def.logic[i];
       if (rule.if){
-        const ok = safeEval(rule.if, ctx);
-        grille.push(`- ${condHuman(rule.if, def)} => ${rule.regime || 'HN'}${ok?' (rempli)':''}`);
-        if (ok && decision==='HN'){ decision = rule.regime || 'HN'; ref = rule.ref || ''; }
-      } else {
-        // sinon
-        grille.push(`- Sinon => ${rule.else || 'HN'}`);
-        if (decision==='HN'){ decision = rule.else || 'HN'; ref = rule.ref || ''; }
-      }
-    });
-
-    return { code, label:def.label||'', paramsLines, grille, decision, ref };
+        if (safeEval(rule.if, ctx)){ decision=rule.regime||'HN'; ref=rule.ref||''; hit=i; break; }
+      } else { decision=rule.else||'HN'; ref=rule.ref||''; hit=i; break; }
+    }
+    return { reg:decision, ref, ctx, logic:def.logic||[], label:iotaLabel(code), def };
   }
 
-  // ===== Page 1: entête + contexte =====
-  pageHeader(Titre, RegimeTxt);
+  // ---------- Rendu du rapport ----------
+  headerPage(Titre);
 
-  // Lieu / Contexte court
-  const loc = Lieu ? `Intervention réalisée à ${Lieu}` : `Intervention réalisée sur la zone d’intérêt`;
-  const ll   = (LatLngTxt && LatLngTxt.includes('Lat')) ? ` (coordonnées ${LatLngTxt.replace('Lat','lat').replace('Lng','lng')})` : '';
-  para(`${loc}${ll}.`);
-  para(`Intervention conduite dans le cadre des missions de police de l’environnement de l’OFB – SD40.`);
-  subTitle('Méthodes et mesures');
-  if (surfaceTxt || longueurTxt){
+  // Accroche terrain (sobre)
+  if (Lieu || LatLngTxt){
     para(
-      `Mesures sur place : ${ surfaceTxt ? `emprise d’environ ${surfaceTxt}` : `emprise non estimée` }`
-      + `${ longueurTxt ? ` et longueur caractéristique d’environ ${longueurTxt}` : `` }.`
+      `Intervention réalisée à ${Lieu || 'lieu non précisé'}${ LatLngTxt ? ` (coordonnées ${LatLngTxt.toLowerCase()})` : '' }.`,
+      { after: PAGE.gaps.betweenPara }
     );
-  } else {
-    para(`Aucune mesure exploitable n’a été conservée pour ce rapport.`);
+  }
+  if (Desc){
+    h2('Contexte et constats');
+    para(Desc, { after: PAGE.gaps.section });
   }
 
-  // ===== Évaluation détaillée par rubrique =====
-  sectionTitle('Évaluation détaillée par rubrique');
-  const selected = (IotaStr? IotaStr.split(',').map(s=>s.trim()).filter(Boolean): Array.from(SELECTED_IOTA||[]));
-  const rubriques = selected.length ? selected : []; // si vide, pas de bloc
+  // Mesures (si dispo)
+  if (surfaceTxt || longueurTxt){
+    h2('Mesures réalisées');
+    let m = '';
+    if (surfaceTxt && longueurTxt) m = `Une emprise d’environ ${surfaceTxt} et une longueur caractéristique d’environ ${longueurTxt} ont été relevées.`;
+    else if (surfaceTxt) m = `Une emprise d’environ ${surfaceTxt} a été relevée.`;
+    else m = `Une longueur caractéristique d’environ ${longueurTxt} a été relevée.`;
+    para(m, { after: PAGE.gaps.section });
+  }
 
-  let regimes = [];
-  rubriques.forEach(code=>{
-    const e = evaluateRubrique(code);
-    const titre = iotaLabel(code);
-    subTitle(`Rubrique ${code} — ${titre || 'Libellé non renseigné'}`);
+  // Évaluation détaillée par rubrique (présentation narrative, ventilée)
+  if (selectedCodes.length){
+    h1('Évaluation détaillée par rubrique');
+    const regs=[];
+    selectedCodes.forEach(code=>{
+      const isMulti = (SELECTED_IOTA && SELECTED_IOTA.size>0);
+      const { reg, ref, ctx, logic, label, def } = evalOne(code, isMulti);
+      regs.push(reg);
 
-    para('Paramètres saisis :');
-    e?.paramsLines?.forEach(line => para(line, {indent:12, size:F.body}));
+      // Titre de rubrique
+      h2(`Rubrique ${code} – ${label}`);
 
-    para('Grille de lecture :');
-    e?.grille?.forEach(line => para(line, {indent:12, size:F.body}));
+      // Paramètres saisis (phrases)
+      if (def?.params?.length){
+        para('Paramètres saisis :', { size:PAGE.font.base, lineHeight:PAGE.leading.roomy, after:4 });
+        def.params.forEach(p=>{
+          const unit = (p.label||'').match(/\(([^)]+)\)/)?.[1] || '';
+          const v = ctx[p.id];
+          const show = (p.type==='number') ? (Number.isFinite(v)? v : 0) : (v||'—');
+          const pretty = (p.type==='number') ? String(show).replace(/\B(?=(\d{3})+(?!\d))/g,' ') : show;
+          para(`• ${p.label.replace(/\s*\([^)]*\)\s*/,'').trim()} : ${pretty}${unit ? ` ${unit.split('/')[0]}` : ''}.`,
+               { size:PAGE.font.base, lineHeight:PAGE.leading.tight, after:2 });
+        });
+        y += 4;
+      } else {
+        // Pas de paramètres déclarés : phrase générique
+        para('Aucun paramètre spécifique requis par la règle ; l’analyse repose sur les éléments matériels et/ou les mesures.', { size:PAGE.font.base });
+      }
 
-    const dLab = (e?.decision==='A')?'Autorisation':(e?.decision==='D')?'Déclaration':'Hors nomenclature';
-    para(`Appréciation : au vu des valeurs saisies, la rubrique ${code} relève de « ${dLab} ».${e?.ref?` Réf. : ${e.ref}`:''}`);
+      // Grille de lecture (rappel des seuils)
+      if (logic.length){
+        para('Grille de lecture :', { size:PAGE.font.base, lineHeight:PAGE.leading.roomy, after:4 });
+        logic.forEach(rule=>{
+          if (rule.if){
+            para(`– Si ${humanCond(rule.if, def)}, alors régime « ${RESULT_LABELS[rule.regime||'HN']} ».`,
+                 { size:PAGE.font.base, lineHeight:PAGE.leading.tight, after:2 });
+          } else {
+            para(`– À défaut, régime « ${RESULT_LABELS[rule.else||'HN']} ».`,
+                 { size:PAGE.font.base, lineHeight:PAGE.leading.tight, after:2 });
+          }
+        });
+      }
 
-    regimes.push(e?.decision||'HN');
+      // Appréciation
+      para(
+        `Appréciation : au vu des valeurs saisies, la rubrique ${code} relève de « ${RESULT_LABELS[reg]} ».${ ref ? ` Référence : ${ref}.` : '' }`,
+        { after: PAGE.gaps.section }
+      );
+    });
+
+    // Résumé du bloc (discret)
+    const glob = RESULT_LABELS[mostRestrictive(regs)];
+    para(`Synthèse du bloc : au regard de l’ensemble des rubriques évaluées, le niveau le plus contraignant est « ${glob} ».`,
+         { size:PAGE.font.small, color:[71,85,105], after: PAGE.gaps.section });
+  }
+
+  // Localisation – CARTE (plein bloc)
+  try{
+    const canvasMap = await html2canvas(document.getElementById('map'), {useCORS:true, scale:1, backgroundColor:'#ffffff'});
+    await addLargeImageSection('Localisation', canvasMap);
+  }catch(_){
+    h1('Localisation');
+    para('La carte n’a pas pu être capturée (CORS).', { size:PAGE.font.small, color:[71,85,105], after: PAGE.gaps.section });
+  }
+
+  // Croquis – même format que la carte (plein bloc)
+  (async ()=>{
+    try{
+      // Récupère le premier croquis s’il existe
+      const items = (function(){ try{ return [...(window.photos||[]), ...(window.sketches||[])]; }catch(_){ return []; } })();
+      const firstSketch = items.find(it => (it.label||'').toLowerCase().includes('croquis')) || items.find(it => true);
+      if (firstSketch){
+        await addLargeImageSection('Croquis', firstSketch.dataUrl);
+      }
+    }catch(_){}
+  })();
+
+  // Photographies (grille légère si plusieurs)
+  (function(){
+    try{
+      const photosOnly = (window.photos||[]).filter(p => !String(p.label||'').toLowerCase().includes('croquis'));
+      if (!photosOnly.length) return;
+      h1('Photographies');
+      const gap = 10, cols = 3;
+      const boxW = Math.floor((PAGE.W - PAGE.M.left - PAGE.M.right - (gap*(cols-1))) / cols);
+      const boxH = Math.floor(boxW * 0.62);
+      let col=0, rowH=0;
+      photosOnly.forEach((it, idx)=>{
+        ensure(boxH + 30);
+        const x = PAGE.M.left + col * (boxW + gap);
+        pdf.setDrawColor(229,231,235); pdf.rect(x-2, y-2, boxW+4, boxH+4);
+        const isPNG = (it.dataUrl||'').startsWith('data:image/png');
+        pdf.addImage(it.dataUrl, isPNG?'PNG':'JPEG', x, y, boxW, boxH, undefined, 'FAST');
+        setFont(PAGE.font.small,'normal',[55,65,81]);
+        pdf.text(linewrap(it.label || `Photo ${idx+1}`, boxW), x, y + boxH + 14);
+        col++; rowH = Math.max(rowH, boxH + 28);
+        if (col>=cols){ col=0; y += rowH + 16; rowH=0; }
+      });
+      if (col!==0) y += rowH + 8;
+    }catch(_){}
+  })();
+
+  // Suites & réserves
+  h1('Suites et réserves');
+  para(`Selon la situation, les suites pourront consister en une transmission au service instructeur, une demande de compléments (justificatifs techniques, hydrauliques, autorisations), ou une visite de contrôle ultérieure.`);
+  para(`L’évaluation fournie par l’outil est indicative et doit être confrontée aux textes en vigueur ainsi qu’aux éléments complémentaires à recueillir.`);
+
+  // ---------- Conclusion – Résumé exécutif (en fin) ----------
+  addPage();
+  h1('Conclusion – Résumé exécutif');
+
+  // Régime retenu (texte clair)
+  para(`Régime retenu : ${RegimeTxt || '—'}.`, { lineHeight:PAGE.leading.roomy, after:8 });
+
+  // IOTA ventilé ligne à ligne avec libellés
+  if (selectedCodes.length){
+    h2('Références IOTA considérées');
+    selectedCodes.forEach(code=>{
+      para(`• ${code} – ${iotaLabel(code)}`, { lineHeight:PAGE.leading.tight, after:2 });
+    });
     y += 6;
-  });
-
-  // ===== Localisation (carte) =====
-  await addMapBlock();
-
-  // ===== Pièces =====
-  addPiecesGrid(items);
-
-  // ===== Suites / réserves =====
-  sectionTitle('Suites et réserves');
-  para(`Selon la situation, les suites pourront consister en une transmission au service instructeur, une demande de compléments (justificatifs techniques, hydrauliques, autorisations), ou une visite de contrôle ultérieure. L’évaluation fournie par l’outil est indicative et doit être confrontée aux textes en vigueur ainsi qu’aux éléments complémentaires.`);
-
-  // ===== Conclusion — Résumé exécutif (en fin de document) =====
-  sectionTitle('Conclusion — Résumé exécutif');
-
-  // Régime global (on reprend l’affichage, sinon le plus contraignant des évaluations locales)
-  const REG_ORDER = { A:3, D:2, HN:1 };
-  const regimeGlobal = (RegimeTxt && RegimeTxt.trim()!=='—')
-    ? RegimeTxt.trim()
-    : (regimes.length ? (['A','D','HN'].sort((a,b)=>REG_ORDER[b]-REG_ORDER[a]).find(r=>regimes.includes(r))||'HN') : 'Hors nomenclature');
-  para(`Régime retenu : ${asciiSafe(regimeGlobal)}.`);
-
-  // Rubriques IOTA — une par ligne (code + libellé)
-  subTitle('Références IOTA considérées');
-  if (rubriques.length){
-    rubriques.forEach(code=>{
-      para(`- ${code} — ${iotaLabel(code) || 'Libellé non renseigné'}`, {indent:12});
-    });
-  } else {
-    para(`- Aucune rubrique retenue à ce stade.`, {indent:12});
   }
 
-  // NATINF — une par ligne (code + intitulé)
-  subTitle('Qualification pénale (NATINF) envisagée');
-  const natList = (NatinfStr? NatinfStr.split(',').map(s=>s.trim()).filter(Boolean):[]);
+  // NATINF ventilés avec intitulés
+  const natList = natinfArrayFromInput();
   if (natList.length){
-    natList.forEach(c=>{
-      const lab = natinfLabel(c);
-      para(`- ${c}${lab?` — ${lab}`:''}`, {indent:12});
+    h2('Qualification pénale (NATINF) envisagée');
+    natList.forEach(n => {
+      para(`• ${n.code}${ n.label ? ` – ${n.label}` : '' }`, { lineHeight:PAGE.leading.tight, after:2 });
     });
-  } else {
-    para(`- Aucune qualification ciblée à ce stade.`, {indent:12});
+    y += 6;
   }
 
-  // Pieds de page
-  pageFooterNumbers();
+  // Rappel localisation (facultatif, une ligne)
+  if (Lieu || LatLngTxt){
+    para(`Lieu : ${Lieu || '—'}${ LatLngTxt ? ` – ${LatLngTxt.toLowerCase()}` : '' }.`, { size:PAGE.font.small, color:[71,85,105] });
+  }
 
+  // Applique les pieds de page et exporte
+  applyFooters();
   pdf.save('fiche-terrain.pdf');
 });
+</script>
+
 
 
 
