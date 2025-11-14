@@ -1201,18 +1201,18 @@
         URL.revokeObjectURL(url);
       });
 
- // === PDF narratif pro — V3 (narration claire, pas de sommaire, images adaptées) ===
+ // === PDF narratif pro — V4 (par rubriques + seuils, croquis plein-largeur) ===
 $('#btnProcPDF').addEventListener('click', async ()=>{
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit:'pt', format:'a4' });
 
-  // Marges et mise en page
+  // Marges & page
   const M = { left:44, right:44, top:84, bottom:60 };
   const W = pdf.internal.pageSize.getWidth();
   const H = pdf.internal.pageSize.getHeight();
   let y = M.top;
 
-  // Helpers
+  // ===== Helpers de mise en page
   function addPage(){ pdf.addPage(); y = M.top; }
   function ensure(h){ if (y + h > H - M.bottom) addPage(); }
   function setFont(n=11, weight='normal', color=[0,0,0]){
@@ -1237,17 +1237,23 @@ $('#btnProcPDF').addEventListener('click', async ()=>{
     y += after;
   }
   function titreSection(txt){
-    ensure(26);
+    ensure(28);
     setFont(13, 'bold', [11,34,57]);
     pdf.text(txt, M.left, y);
-    y += 14;
+    y += 16;
+  }
+  function sousTitre(txt){
+    ensure(22);
+    setFont(12, 'bold', [30,41,59]);
+    pdf.text(txt, M.left, y);
+    y += 12;
   }
   function pastilleRegime(regText){
     let col=[55,65,81], label='Hors nomenclature';
     const t = (regText||'').toLowerCase();
     if (t.includes('autor')) { col=[185,28,28]; label='Autorisation'; }
     else if (t.includes('décla') || t.includes('decla')) { col=[154,52,18]; label='Déclaration'; }
-    const padX=10, padY=5;
+    const padX=10;
     setFont(10,'bold',[255,255,255]);
     const tw = pdf.getTextWidth(label) + padX*2;
     const h  = 20;
@@ -1256,7 +1262,6 @@ $('#btnProcPDF').addEventListener('click', async ()=>{
     pdf.text(label, W - M.right - tw + padX, M.top - 26);
   }
   function headerPage(titre, lieu, llText, regimeTxt){
-    // Bandeau haut
     pdf.setFillColor(11,34,57);
     pdf.rect(0,0,W,56,'F');
     setFont(16,'bold',[255,255,255]);
@@ -1265,16 +1270,10 @@ $('#btnProcPDF').addEventListener('click', async ()=>{
     const stamp = new Date().toLocaleString('fr-FR');
     pdf.text(stamp, W - M.right, 38, {align:'right'});
 
-    // Accroche
     y = M.top;
-    setFont(14,'bold',[0,0,0]);
-    pdf.text((titre||'Intervention'), M.left, y); 
-    y += 10;
+    setFont(14,'bold',[0,0,0]); pdf.text((titre||'Intervention'), M.left, y); y += 10;
+    pastilleRegime(regimeTxt||''); y += 10;
 
-    pastilleRegime(regimeTxt||'');
-
-    y += 10;
-    setFont(11,'normal',[0,0,0]);
     const coord = (llText && llText.includes('Lat')) ? ` (coordonnées ${llText.replace('Lat','lat').replace('Lng','lng')})` : '';
     para(`Intervention réalisée à ${ (lieu && lieu.trim()) ? lieu.trim() : 'lieu non précisé' }${coord}.`, {after:8});
     para(`Intervention conduite dans le cadre des missions de police de l’environnement de l’OFB – SD40.`, {after:12});
@@ -1288,6 +1287,28 @@ $('#btnProcPDF').addEventListener('click', async ()=>{
       pdf.text(`Page ${i} / ${n}`, W - M.right, H - 26, {align:'right'});
     }
   }
+  // Formatages
+  const fmtNum = (v)=> {
+    if (v===null || v===undefined || v==='') return '—';
+    const n = Number(v);
+    return Number.isFinite(n) ? n.toLocaleString('fr-FR') : String(v);
+  };
+  function humanizeCondForPDF(expr, def){
+    let s = String(expr||'');
+    (def?.params||[]).forEach(p=>{
+      const re = new RegExp(`\\b${p.id}\\b`, 'g');
+      s = s.replace(re, p.label||p.id);
+    });
+    return s
+      .replace(/\s*>=\s*/g,' ≥ ').replace(/\s*<=\s*/g,' ≤ ')
+      .replace(/\s*>\s*/g,' > ').replace(/\s*<\s*/g,' < ')
+      .replace(/\s*==\s*/g,' = ').replace(/\s*&&\s*/g,' ET ')
+      .replace(/\s*\|\|\s*/g,' OU ')
+      .replace(/'([^']+)'/g,'$1')
+      .trim();
+  }
+
+  // ===== Carte
   async function addMapBlock(){
     titreSection('Localisation');
     try{
@@ -1295,81 +1316,108 @@ $('#btnProcPDF').addEventListener('click', async ()=>{
       const img = canvas.toDataURL('image/jpeg', 0.9);
       const maxW = W - M.left - M.right;
       let w = maxW, h = w * (canvas.height/canvas.width);
-      const maxH = 0.62 * (H - M.top - M.bottom);
+      const maxH = 0.60 * (H - M.top - M.bottom);
       if (h > maxH){ h = maxH; w = h * (canvas.width/canvas.height); }
       ensure(h + 36);
       pdf.addImage(img, 'JPEG', M.left, y, w, h, undefined, 'FAST');
       y += h + 10;
-      para(`Extrait cartographique centré sur la zone d’intervention (fond OSM). Emprise indicative.`, {size:10, color:[71,85,105], after:10});
+      para(`Extrait cartographique centré sur la zone d’intervention (fond OSM). Emprise indicative.`, {size:10, color:[71,85,105], after:12});
     }catch(_){
-      para(`La carte n’a pas pu être insérée. La localisation reste disponible dans l’outil (aperçu OSM).`, {size:10, color:[71,85,105], after:10});
+      para(`La carte n’a pas pu être insérée. La localisation reste disponible dans l’outil (aperçu OSM).`, {size:10, color:[71,85,105], after:12});
     }
   }
-  function addPiecesGrid(items){
-    titreSection('Pièces jointes (photos & croquis)');
+
+  // ===== Pièces (croquis plein-largeur si seul, sinon grille)
+  function addPieces(items){
+    titreSection('Pièces jointes');
     if (!items.length){ para('Aucune pièce jointe.', {size:11}); return; }
 
-    // Fonction pour "contain" dans une boîte (respect du ratio + centrage)
-    function fitInBox(imgW, imgH, boxW, boxH){
-      if (!imgW || !imgH){ // fallback ratio 4:3
-        imgW = 400; imgH = 300;
-      }
-      const r = Math.min(boxW / imgW, boxH / imgH);
-      const w = Math.floor(imgW * r);
-      const h = Math.floor(imgH * r);
-      const xoff = Math.floor((boxW - w)/2);
-      const yoff = Math.floor((boxH - h)/2);
+    const croquis = items.filter(it => /croquis/i.test(it.label||''));
+    const photos  = items.filter(it => !/croquis/i.test(it.label||''));
+
+    // Croquis seul → plein-largeur
+    if (croquis.length === 1 && photos.length === 0){
+      const it = croquis[0];
+      const maxW = W - M.left - M.right;
+      const maxH = 0.55 * (H - M.top - M.bottom);
+      // calc ratio contain
+      const iw = it.w || 1200, ih = it.h || 800;
+      let w = maxW, h = w * (ih/iw);
+      if (h > maxH){ h = maxH; w = h * (iw/ih); }
+      ensure(h + 44);
+      // fond blanc
+      pdf.setFillColor(255,255,255); pdf.rect(M.left, y, w, h, 'F');
+      const isPNG = (it.dataUrl||'').startsWith('data:image/png');
+      pdf.addImage(it.dataUrl, isPNG?'PNG':'JPEG', M.left, y, w, h, undefined, 'FAST');
+      y += h + 12;
+      para(it.label || 'Croquis', {size:10, color:[55,65,81]});
+      return;
+    }
+
+    // Sinon : croquis si présent → bande large d’abord, puis grille photos
+    if (croquis.length === 1){
+      const it = croquis[0];
+      const maxW = W - M.left - M.right;
+      const maxH = 0.40 * (H - M.top - M.bottom);
+      const iw = it.w || 1200, ih = it.h || 800;
+      let w = maxW, h = w * (ih/iw);
+      if (h > maxH){ h = maxH; w = h * (iw/ih); }
+      ensure(h + 36);
+      pdf.setFillColor(255,255,255); pdf.rect(M.left, y, w, h, 'F');
+      const isPNG = (it.dataUrl||'').startsWith('data:image/png');
+      pdf.addImage(it.dataUrl, isPNG?'PNG':'JPEG', M.left, y, w, h, undefined, 'FAST');
+      y += h + 10;
+      para(it.label || 'Croquis', {size:10, color:[55,65,81], after:12});
+    }
+
+    // Grille pour le reste (photos et croquis supplémentaires)
+    const grid = croquis.slice(1).concat(photos);
+    if (!grid.length) return;
+
+    const gap = 12;
+    const cols = (grid.length===1) ? 1 : (grid.length===2 ? 2 : 3);
+    const boxW = Math.floor((W - M.left - M.right - (gap*(cols-1))) / cols);
+    const boxH = Math.floor(boxW * 0.62);
+
+    function fitInBox(imgW, imgH, bW, bH){
+      const iw = imgW || 1200, ih = imgH || 800;
+      const r = Math.min(bW/iw, bH/ih);
+      const w = Math.floor(iw*r), h = Math.floor(ih*r);
+      const xoff = Math.floor((bW - w)/2), yoff = Math.floor((bH - h)/2);
       return {w,h,xoff,yoff};
     }
 
-    // Choix colonnes dynamiques : + de lisibilité portrait/paysage
-    const gap = 12;
-    const cols = 3; // stable et pro ; lisible A4
-    const boxW = Math.floor((W - M.left - M.right - (gap*(cols-1))) / cols);
-    const boxH = Math.floor(boxW * 0.62); // ratio paysage confortable
-
     let col=0, rowH=0;
-    items.forEach((it, idx)=>{
+    grid.forEach((it, idx)=>{
       ensure(boxH + 40);
-
       const x = M.left + col * (boxW + gap);
       const yTop = y;
 
-      // Cadre
       pdf.setDrawColor(229,231,235);
       pdf.rect(x-2, yTop-2, boxW+4, boxH+4);
+      pdf.setFillColor(255,255,255); pdf.rect(x, yTop, boxW, boxH, 'F');
 
-      // Calcul d’ajustement à la boîte
       const dims = fitInBox(it.w, it.h, boxW, boxH);
-
-      // Fond blanc (évite l’effet damier si PNG)
-      pdf.setFillColor(255,255,255);
-      pdf.rect(x, yTop, boxW, boxH, 'F');
-
-      // Image
       const isPNG = (it.dataUrl||'').startsWith('data:image/png');
       pdf.addImage(it.dataUrl, isPNG?'PNG':'JPEG', x + dims.xoff, yTop + dims.yoff, dims.w, dims.h, undefined, 'FAST');
 
-      // Légende
       setFont(10,'normal',[55,65,81]);
-      const cap = (it.label || `Pièce ${idx+1}`);
+      const cap = it.label || `Pièce ${idx+1}`;
       const lines = pdf.splitTextToSize(cap, boxW);
       pdf.text(lines, x, yTop + boxH + 16);
 
-      // Mise en grille
-      col++;
-      rowH = Math.max(rowH, boxH + 30);
+      col++; rowH = Math.max(rowH, boxH + 30);
       if (col >= cols){ col=0; y += rowH + 18; rowH=0; }
     });
-    if (col!==0){ y += rowH + 6; }
+    if (col!==0){ y += rowH + 8; }
   }
 
-  // ===== Récupération champs UI =====
+  // ===== Récupération champs UI
   const Titre = ($('#ftTitre').value||'Intervention').trim();
   const Lieu = ($('#ftLieu').value||'').trim();
   const Desc = ($('#ftDesc').value||'').trim();
-  const Iota = ($('#ftRefIota').value||'').trim();
-  const Natinf = ($('#ftRefNatinf').value||'').trim();
+  const IotaTxt = ($('#ftRefIota').value||'').trim();
+  const NatinfTxt = ($('#ftRefNatinf').value||'').trim();
   const RegimeTxt = ($('#valResult').textContent||'—').replace(/^[🔴🟠⚪]\s*/,'');
   const LatLngTxt = ($('#ftLatLng').textContent||'').trim();
 
@@ -1377,91 +1425,189 @@ $('#btnProcPDF').addEventListener('click', async ()=>{
   const surfaceTxt = (typeof lastMeasure?.area_m2 === 'number' && lastMeasure.area_m2>0) ? fmtArea(lastMeasure.area_m2) : null;
   const longueurTxt= (typeof lastMeasure?.length_m === 'number' && lastMeasure.length_m>0) ? fmtLength(lastMeasure.length_m) : null;
 
-  // Pièces (photos + croquis) depuis le scope initProc
+  // Pièces depuis le scope initProc
   const items = (function(){ try{ return [...photos, ...sketches]; }catch(_){ return []; } })();
 
-  // ===== Page 1 : entête =====
+  // ===== Entête
   headerPage(Titre, Lieu, LatLngTxt, RegimeTxt);
 
-  // ===== Résumé opérationnel =====
+  // ===== Résumé opérationnel
   titreSection('Résumé opérationnel');
   const resumeParts = [];
-  resumeParts.push(
-    Desc
-      ? `Objet : ${Desc}`
-      : `Objet : constatations réalisées sur site en lien avec une opération susceptible de relever de la réglementation sur l’eau.`
-  );
+  resumeParts.push( Desc
+    ? `Objet : ${Desc}`
+    : `Objet : constatations réalisées sur site en lien avec une opération susceptible de relever de la réglementation sur l’eau.` );
   if (surfaceTxt || longueurTxt){
-    resumeParts.push(
-      `Mesures sur place : ${ surfaceTxt ? `une emprise d’environ ${surfaceTxt}` : `emprise non estimée` }` +
-      `${ longueurTxt ? ` et une longueur caractéristique d’environ ${longueurTxt}` : `` }.`
-    );
+    resumeParts.push(`Mesures sur place : ${ surfaceTxt ? `une emprise d’environ ${surfaceTxt}` : `emprise non estimée` }${ longueurTxt ? ` et une longueur d’ouvrage d’environ ${longueurTxt}` : `` }.`);
   } else {
     resumeParts.push(`Mesures sur place : non significatives ou non réalisées à ce stade.`);
   }
-  resumeParts.push(Iota ? `Références IOTA visées ou retenues : ${Iota}.` : `Références IOTA : non précisées à ce stade.`);
-  resumeParts.push(Natinf ? `Qualification pénale envisagée (NATINF) : ${Natinf}.` : `Qualification pénale (NATINF) : non ciblée à ce stade.`);
+  resumeParts.push(IotaTxt ? `Références IOTA visées ou retenues : ${IotaTxt}.` : `Références IOTA : non précisées à ce stade.`);
+  resumeParts.push(NatinfTxt ? `Qualification pénale envisagée (NATINF) : ${NatinfTxt}.` : `Qualification pénale (NATINF) : non ciblée à ce stade.`);
   resumeParts.push(`Au regard des paramètres saisis, l’évaluation automatisée indique : ${RegimeTxt || '—'}.`);
   if (items.length){ resumeParts.push(`Éléments visuels : ${items.length} pièce(s) (photographies et/ou croquis) illustrent les constats.`); }
-  para(resumeParts.join(' '), {after:10});
+  para(resumeParts.join(' '), {after:12});
 
-  // ===== Contexte détaillé & cadre =====
+  // ===== Contexte & cadre
   titreSection('Contexte détaillé & cadre réglementaire');
-  para(
-    Lieu
-      ? `Le site est situé sur la commune de ${Lieu}. Les constatations ont été réalisées au plus près de la zone d’intérêt, en veillant à documenter l’état des lieux de manière lisible et reproductible.`
-      : `Les constatations ont été réalisées sur la zone d’intérêt, en veillant à documenter l’état des lieux de manière lisible et reproductible.`
+  para( Lieu
+    ? `Le site est situé sur la commune de ${Lieu}. Les constatations ont été réalisées au plus près de la zone d’intérêt, en veillant à documenter l’état des lieux de manière lisible et reproductible.`
+    : `Les constatations ont été réalisées sur la zone d’intérêt, en veillant à documenter l’état des lieux de manière lisible et reproductible.` );
+  para( IotaTxt
+    ? `Au titre de la police de l’eau (IOTA), les opérations considérées relèvent potentiellement des rubriques suivantes : ${IotaTxt}.`
+    : `Au titre de la police de l’eau (IOTA), aucune rubrique n’a pu être identifiée de manière certaine à ce stade.` );
+  para( NatinfTxt
+    ? `La qualification pénale potentielle renvoie aux codes NATINF suivants : ${NatinfTxt}. Cette qualification sera confirmée à l’appui des pièces et éléments complémentaires.`
+    : `Aucune qualification pénale potentielle n’est retenue à ce stade. Elle sera appréciée à la lumière d’éléments complémentaires, le cas échéant.`,
+    {after:14}
   );
-  para(
-    Iota
-      ? `Au titre de la police de l’eau (IOTA), les opérations considérées relèvent potentiellement des rubriques suivantes : ${Iota}.`
-      : `Au titre de la police de l’eau (IOTA), aucune rubrique n’a pu être identifiée de manière certaine à ce stade.`
-  );
-  para(
-    Natinf
-      ? `La qualification pénale potentielle renvoie aux codes NATINF suivants : ${Natinf}. Cette qualification sera confirmée à l’appui des pièces et éléments complémentaires.`
-      : `Aucune qualification pénale potentielle n’est retenue à ce stade. Elle sera appréciée à la lumière d’éléments complémentaires, le cas échéant.`
-  , {after:12});
 
-  // ===== Constats =====
+  // ===== Constats
   titreSection('Constats sur place');
-  para(
-    Desc
-      ? Desc
-      : `Constats succincts : les observations décrivent l’état des lieux, les ouvrages et les aménagements visibles. Les éléments matériels utiles ont été relevés et photographiés lorsque c’était pertinent.`
-  );
+  para( Desc
+    ? Desc
+    : `Constats succincts : état des lieux, ouvrages et aménagements observés. Les éléments matériels utiles ont été relevés et photographiés lorsque pertinent.` );
   if (surfaceTxt || longueurTxt){
-    para(
-      `Les relevés effectués indiquent ${ surfaceTxt ? `une emprise d’environ ${surfaceTxt}` : `une emprise non estimée` }${ longueurTxt ? ` et une longueur d’ouvrage d’environ ${longueurTxt}` : `` }.`
-    , {after:12});
+    para(`Relevés : ${ surfaceTxt ? `emprise ≈ ${surfaceTxt}` : `emprise non estimée` }${ longueurTxt ? ` ; longueur caractéristique ≈ ${longueurTxt}` : `` }.`, {after:14});
   } else {
-    para(`Aucune mesure exploitable n’a été conservée pour ce rapport.`, {after:12});
+    para(`Aucune mesure exploitable n’a été conservée pour ce rapport.`, {after:14});
   }
 
-  // ===== Analyse & qualification =====
-  titreSection('Analyse & qualification');
+  // ===== Analyse & qualification globale
+  titreSection('Analyse & qualification (synthèse)');
   para(
-    (RegimeTxt && Iota)
-      ? `Au regard des paramètres saisis et des seuils associés, l’opération apparaît soumise à « ${RegimeTxt} » au titre de ${Iota}. Cette qualification reste indicative et devra être confirmée par l’analyse réglementaire complète et la vérification des pièces.`
+    (RegimeTxt && IotaTxt)
+      ? `Au regard des paramètres saisis et des seuils associés, l’opération apparaît soumise à « ${RegimeTxt} » au titre de ${IotaTxt}. Cette qualification reste indicative et devra être confirmée par l’analyse réglementaire complète et la vérification des pièces.`
       : (RegimeTxt)
         ? `Au regard des paramètres saisis, l’opération apparaît soumise à « ${RegimeTxt} ». Cette qualification reste indicative et devra être confirmée.`
-        : `Aucune qualification automatique ne peut être proposée en l’état des informations disponibles.`
-  , {after:12});
+        : `Aucune qualification automatique ne peut être proposée en l’état des informations disponibles.`,
+    {after:14}
+  );
 
-  // ===== Localisation (carte) =====
+  // ===== Détail par rubriques (paramètres + seuils évalués)
+  titreSection('Évaluation détaillée par rubrique');
+  // Accès aux règles et rubriques sélectionnées
+  const rules = (function(){
+    try { return (typeof getRules==='function') ? getRules() : JSON.parse(localStorage.getItem('sd40:iota_rules_v1')||'{}'); }
+    catch(_){ return {}; }
+  })();
+  let selectedCodes = [];
+  try { selectedCodes = Array.from(SELECTED_IOTA||[]); } catch(_){}
+  if (!selectedCodes.length){
+    const raw = ($('#valRubrique').value||'').trim();
+    if (raw) selectedCodes = [raw];
+    else if (IotaTxt) selectedCodes = IotaTxt.split(',').map(s=>s.trim()).filter(Boolean);
+  }
+  const RESULT_LABELS = { HN:'Hors nomenclature', A:'Autorisation', D:'Déclaration' };
+
+  function readParamValue(code, p){
+    const idMulti = `param_${code}_${p.id}`;
+    const idSingle= `param_${p.id}`;
+    const el = document.getElementById(idMulti) || document.getElementById(idSingle);
+    if (!el) return (p.type==='number') ? null : '';
+    const raw = String(el.value||'').trim();
+    if (p.type==='number'){
+      const vv = parseFloat(raw.replace(',','.'));
+      return Number.isFinite(vv) ? vv : null;
+    }
+    return raw.toLowerCase();
+  }
+  function safeEval(expr, ctx){
+    const safe = String(expr)
+      .replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, id=>{
+        if (!(id in ctx)) return id;
+        const v = ctx[id];
+        return (typeof v === 'string') ? JSON.stringify(v) : String(v ?? 0);
+      })
+      .replace(/[^0-9<>=!&|().+*\-\/ %"'a-zA-Z_]/g,'');
+    try{ return !!eval(safe); }catch{ return false; }
+  }
+
+  selectedCodes.forEach((code, idx)=>{
+    const def = rules[code];
+    sousTitre(`${code} — ${ def?.label || 'Rubrique non documentée' }`);
+
+    // Paramètres saisis (libellés + valeurs + unités)
+    if (def?.params?.length){
+      para(`Paramètres saisis :`, {size:11, color:[55,65,81], after:4});
+      def.params.forEach(p=>{
+        const v = readParamValue(code, p);
+        const unit = (p.label||'').match(/\(([^)]+)\)/)?.[1] || '';
+        const disp = (p.type==='number') ? fmtNum(v) + (unit? ` ${unit.split('/')[0]}`:'') : (v||'—');
+        para(`• ${p.label} : ${disp}`, {indent:16, after:4});
+      });
+    } else {
+      // Cas sans params : on tente les champs génériques injectés par l’outil
+      const tryIds = [
+        {id:`param_${code}_surface_m2`, label:'Surface (m²)', u:'m²'},
+        {id:`param_${code}_surface_drainee_m2`, label:'Surface drainée (m²)', u:'m²'},
+        {id:`param_${code}_longueur_m`, label:'Longueur (m)', u:'m'}
+      ];
+      const vals = tryIds.map(t=>{
+        const el = document.getElementById(t.id);
+        return el ? {label:t.label, val:fmtNum(el.value), u:t.u} : null;
+      }).filter(Boolean);
+      if (vals.length){
+        para(`Paramètres saisis :`, {size:11, color:[55,65,81], after:4});
+        vals.forEach(v=> para(`• ${v.label} : ${v.val} ${v.u||''}`.trim(), {indent:16, after:4}));
+      } else {
+        para(`Aucun paramètre requis pour cette rubrique.`, {size:11, color:[55,65,81], after:6});
+      }
+    }
+
+    // Critères et seuils (comme dans Validateur)
+    const logic = def?.logic || [];
+    if (logic.length){
+      para(`Critères et seuils considérés :`, {size:11, color:[55,65,81], after:4});
+
+      // Construit contexte typé pour l’évaluation
+      const ctx={};
+      (def.params||[]).forEach(p=>{
+        const vv = readParamValue(code,p);
+        ctx[p.id] = (p.type==='number') ? (vv??0) : (String(vv||'').toLowerCase());
+      });
+
+      // Évalue pour trouver la règle déclenchée
+      let decision='HN', ref=''; let hitIndex=-1;
+      for (let i=0;i<logic.length;i++){
+        const rule = logic[i];
+        if (rule.if){
+          if (safeEval(rule.if, ctx)){ decision=rule.regime||'HN'; ref=rule.ref||''; hitIndex=i; break; }
+        } else { decision=rule.else||'HN'; ref=rule.ref||def?.ref||''; hitIndex=i; break; }
+      }
+
+      // Liste “rempli / non rempli”
+      logic.forEach((rule,i)=>{
+        if (rule.if){
+          const label = humanizeCondForPDF(rule.if, def);
+          const regime= RESULT_LABELS[ rule.regime || 'HN' ] || (rule.regime||'HN');
+          const etat  = (i===hitIndex) ? 'rempli' : 'non rempli';
+          para(`• ${label} → régime ${regime} — ${etat}`, {indent:16, after:4});
+        } else {
+          const lab = RESULT_LABELS[ rule.else || 'HN' ] || (rule.else||'HN');
+          const etat= (i===hitIndex) ? 'appliqué' : 'non appliqué';
+          para(`• Sinon → régime ${lab} — ${etat}`, {indent:16, after:4});
+        }
+      });
+
+      // Décision pour la rubrique
+      const lab = RESULT_LABELS[decision] || decision;
+      para(`Décision indicative : ${lab}${ ref ? ` (${ref})` : '' }.`, {size:11, color:[30,41,59], after: idx===selectedCodes.length-1 ? 14 : 18});
+    } else {
+      para(`Aucune grille de seuils n’est définie pour cette rubrique dans l’outil.`, {size:11, color:[100,116,139], after: idx===selectedCodes.length-1 ? 14 : 18});
+    }
+  });
+
+  // ===== Localisation
   await addMapBlock();
 
-  // ===== Pièces jointes =====
-  addPiecesGrid(items);
+  // ===== Pièces jointes (avec croquis plein-largeur si pertinent)
+  addPieces(items);
 
-  // ===== Suites =====
+  // ===== Suites
   titreSection('Suites proposées');
-  para(
-    `Selon la situation, les suites pourront consister en une transmission au service instructeur, une demande de compléments (justificatifs techniques, hydrauliques, autorisations), ou une visite de contrôle ultérieure.`
-  );
-  para(
-    `L’évaluation fournie par l’outil est indicative et doit être confrontée aux textes en vigueur ainsi qu’aux éléments complémentaires à recueillir.`
-  , {after:8});
+  para(`Selon la situation, les suites pourront consister en une transmission au service instructeur, une demande de compléments (justificatifs techniques, hydrauliques, autorisations), ou une visite de contrôle ultérieure.`);
+  para(`L’évaluation fournie par l’outil est indicative et doit être confrontée aux textes en vigueur ainsi qu’aux éléments complémentaires à recueillir.`, {after:8});
 
   // Pieds de page
   pageNumbers();
