@@ -1688,7 +1688,7 @@
           titre:$('#ftTitre').value, lieu:$('#ftLieu').value, desc:$('#ftDesc').value,
           iota:$('#ftRefIota').value, natinf:$('#ftRefNatinf').value, date:new Date().toISOString()
         };
-        const gj = { type:'FeatureCollection', features:[{ type:'Feature', properties:props, geometry:{ type:'Point', coordinates:[ll.lng,ll.lat] } }]} };
+        const gj = { type:'FeatureCollection', features:[{ type:'Feature', properties:props, geometry:{ type:'Point', coordinates:[ll.lng,ll.lat] } }]};
         const blob = new Blob([JSON.stringify(gj)], {type:'application/geo+json'});
         const url = URL.createObjectURL(blob);
         const a=document.createElement('a'); a.href = url; a.download = 'fiche-terrain.geojson'; a.click();
