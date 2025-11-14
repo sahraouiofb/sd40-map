@@ -29,7 +29,7 @@
     .leaflet-control-layers .leaflet-control-layers-list label{font-size:16px}
   }
 
-  /* Bouton “☰ Couches” + Procédure (même look) */
+  /* Bouton “☰ Couches” */
   .layer-toggle-wrap.leaflet-control{
     background:#111827;color:#fff;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.35);
     overflow:hidden;border:1px solid #0b1220
@@ -40,9 +40,8 @@
   }
   .layer-toggle-btn:hover{background:#0f172a}
 
-  /* Outils + bouton plein écran */
-  .tool-btn.leaflet-bar a,
-  .leaflet-bar.fullscreen-btn a{
+  /* Outils */
+  .tool-btn.leaflet-bar a{
     display:inline-flex;align-items:center;justify-content:center;
     width:40px;height:40px;font:20px/1.1 system-ui; text-decoration:none; user-select:none;
   }
@@ -62,9 +61,7 @@
   @media (max-width:480px){ .popup-card{max-width:90vw} }
 
   /* Masquage global des outils */
-  body.tools-hidden .leaflet-draw,
-  body.tools-hidden .tool-btn { display:none !important; }
-
+  body.tools-hidden .leaflet-draw, body.tools-hidden .tool-btn { display:none !important; }
   .tools-toggle.leaflet-control{
     background:#111827;color:#fff;border:1px solid #0b1220;border-radius:10px;
     box-shadow:0 6px 18px rgba(0,0,0,.35); overflow:hidden
@@ -209,6 +206,11 @@
     </div>
   </div>
 
+  <!-- Bouton flottant Procédure -->
+  <div class="layer-toggle-wrap leaflet-control" style="position:absolute;right:10px;top:110px;z-index:3000;">
+    <button id="btnProcOpen" class="layer-toggle-btn" type="button"><span class="icon">🗂️</span><span class="label">Procédure</span></button>
+  </div>
+
   <!-- ========= PACK IOTA INTÉGRÉ ========= -->
   <script type="application/json" id="iota-pack-officiel">
   {
@@ -328,24 +330,14 @@
     let PACK_RULES=null;
 
     const procEl = $('#proc');
+    const btnOpen = $('#btnProcOpen');
     const btnClose = $('#btnProcClose');
 
-    function openProc(){
-      procEl.hidden = false;
-      try{ localStorage.setItem(PROC_KEY,'1'); }catch(e){}
-    }
-    function closeProc(){
-      procEl.hidden = true;
-      try{ localStorage.setItem(PROC_KEY,'0'); }catch(e){}
-    }
+    function openProc(){ procEl.hidden = false; try{ localStorage.setItem(PROC_KEY,'1'); }catch(e){} }
+    function closeProc(){ procEl.hidden = true; try{ localStorage.setItem(PROC_KEY,'0'); }catch(e){} }
 
-    if (btnClose){
-      btnClose.addEventListener('click',(e)=>{
-        e.preventDefault();
-        e.stopPropagation();
-        closeProc();
-      });
-    }
+    btnOpen.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); openProc(); });
+    btnClose.addEventListener('click',(e)=>{ e.preventDefault(); e.stopPropagation(); closeProc(); });
 
     document.addEventListener('click', (e)=>{
       if (procEl.hidden) return;
@@ -354,7 +346,7 @@
     });
     document.addEventListener('keydown',(e)=>{ if (e.key === 'Escape') closeProc(); });
 
-    // À chaque chargement : panneau fermé (pas de réouverture auto)
+    try{ if (localStorage.getItem(PROC_KEY) === '1') openProc(); }catch(e){}
 
     /* ---- COUCHES ---- */
     const LAYERS = [
@@ -413,36 +405,8 @@
       }).addTo(map);
     }catch(e){}
 
-    // Bouton Plein écran
-    const FullscreenControl = L.Control.extend({
-      options:{ position:'topleft' },
-      onAdd(){
-        const d = L.DomUtil.create('div','leaflet-bar fullscreen-btn');
-        const a = L.DomUtil.create('a','',d);
-        a.href = '#';
-        a.title = 'Plein écran';
-        a.innerHTML = '⛶';
-        L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>{
-          if (!document.fullscreenElement){
-            const el = document.documentElement;
-            if (el.requestFullscreen) el.requestFullscreen();
-          } else {
-            if (document.exitFullscreen) document.exitFullscreen();
-          }
-        });
-        return d;
-      }
-    });
-    map.addControl(new FullscreenControl());
-
     const baseMaps = { "Plan (OSM)": baseOSM, "Satellite (Esri)": baseSat };
     const layersControl = L.control.layers(baseMaps, {}, {collapsed:false}).addTo(map);
-
-    // Couches fermées par défaut (panneau Leaflet masqué au démarrage)
-    setTimeout(()=>{
-      const el = document.querySelector('.leaflet-control-layers');
-      if (el) el.style.display = 'none';
-    },0);
 
     const layerGroups = {};
     for (const it of LAYERS){
@@ -883,38 +847,18 @@
     });
     map.addControl(new HomeControl());
 
-    // Toggle global outils (en haut à droite)
+    // Toggle global outils
     const ToolsToggle = L.Control.extend({
-      options:{ position:'topright' },
+      options:{ position:'topleft' },
       onAdd(){
         const w=L.DomUtil.create('div','tools-toggle leaflet-control');
         const b=L.DomUtil.create('button','',w);
         b.type='button'; b.title='Afficher/masquer les outils'; b.innerHTML='🧰 Outils';
-        L.DomEvent.on(b,'click',L.DomEvent.stop).on(b,'click',()=>{
-          document.body.classList.toggle('tools-hidden');
-        });
+        L.DomEvent.on(b,'click',L.DomEvent.stop).on(b,'click',()=>{ document.body.classList.toggle('tools-hidden'); });
         return w;
       }
     });
     map.addControl(new ToolsToggle());
-
-    // Par défaut : outils masqués au chargement
-    document.body.classList.add('tools-hidden');
-
-    // Bouton Procédure intégré en haut à droite
-    const ProcToggle = L.Control.extend({
-      options:{ position:'topright' },
-      onAdd(){
-        const wrap = L.DomUtil.create('div','layer-toggle-wrap leaflet-control');
-        const btn = L.DomUtil.create('button','layer-toggle-btn',wrap);
-        btn.type = 'button';
-        btn.id   = 'btnProcOpen';
-        btn.innerHTML = '<span class="icon">🗂️</span><span class="label">Procédure</span>';
-        L.DomEvent.on(btn,'click',L.DomEvent.stop).on(btn,'click',openProc);
-        return wrap;
-      }
-    });
-    map.addControl(new ProcToggle());
 
     /* ---- PROCÉDURE – DATASETS & UI ---- */
     let IOTA=[], NATINF=[];
@@ -1059,7 +1003,7 @@
 
       const BCAE_KEYS = ['bcae','zone humide','drainage','nitrates','programme d\'action','bande tampon','haie','prairie'];
       const PHYTO_KEYS = ['phytopharmaceutique','phytosanitaire','certificat individuel','neonicotinoide','amm','znt','biocide'];
-      const bcaeList = $('#bcaeList'), phytoList = $('#phytoList'), autreList = $('#autreList'];
+      const bcaeList = $('#bcaeList'), phytoList = $('#phytoList'), autreList = $('#autreList');
 
       function filterBCAE(q){
         const n=normG(q);
@@ -1977,11 +1921,9 @@
         bullet(['Aucune à ce stade.'], { indent:18 });
       }
 
-      const surfaceTxt2 = (lastMeasure.area_m2 && lastMeasure.area_m2>0) ? fmtArea(lastMeasure.area_m2) : null;
-      const lengthTxt2  = (lastMeasure.length_m && lastMeasure.length_m>0) ? fmtLength(lastMeasure.length_m) : null;
-      if (surfaceTxt2 || lengthTxt2){
+      if (surfaceTxt || lengthTxt){
         para(
-          `Mesures relevées : ${surfaceTxt2 ? `emprise ≈ ${surfaceTxt2}` : `emprise non estimée`}${lengthTxt2 ? ` ; longueur caractéristique ≈ ${lengthTxt2}` : ''}.`,
+          `Mesures relevées : ${surfaceTxt ? `emprise ≈ ${surfaceTxt}` : `emprise non estimée`}${lengthTxt ? ` ; longueur caractéristique ≈ ${lengthTxt}` : ''}.`,
           { after:8 }
         );
       }
