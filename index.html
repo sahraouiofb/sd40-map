@@ -61,8 +61,7 @@
   @media (max-width:480px){ .popup-card{max-width:90vw} }
 
   /* Masquage global des outils */
-  body.tools-hidden .leaflet-draw,
-  body.tools-hidden .tool-btn { display:none !important; }
+  body.tools-hidden .leaflet-draw, body.tools-hidden .tool-btn { display:none !important; }
   .tools-toggle.leaflet-control{
     background:#111827;color:#fff;border:1px solid #0b1220;border-radius:10px;
     box-shadow:0 6px 18px rgba(0,0,0,.35); overflow:hidden
@@ -108,6 +107,38 @@
   .sketch-toolbar select,.sketch-toolbar input[type="color"],.sketch-toolbar input[type="range"]{height:32px}
   .thumbs{display:flex;gap:6px;flex-wrap:wrap}
   .thumbs img{width:68px;height:68px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb}
+
+  /* Outils croquis avancés */
+  .sk-tool{
+    padding:4px 6px;
+    border-radius:6px;
+    border:1px solid #d0d7e1;
+    background:#ffffff;
+    font:600 11px system-ui;
+    cursor:pointer;
+  }
+  .sk-tool + .sk-tool{ margin-left:4px; }
+  .sk-tool.active{
+    background:#0b2239;
+    color:#ffffff;
+    border-color:#0b2239;
+  }
+
+  /* Panneau de mesures */
+  .leaflet-control.measure-panel{
+    border-radius:8px;
+    box-shadow:0 6px 18px rgba(0,0,0,.28);
+    overflow:hidden;
+  }
+  .leaflet-control.measure-panel button{
+    border:1px solid #d0d7e1;
+    background:#f8fafc;
+    border-radius:6px;
+    cursor:pointer;
+  }
+  .leaflet-control.measure-panel button:hover{
+    background:#e5e7eb;
+  }
 </style>
 </head>
 
@@ -162,7 +193,11 @@
       <div class="tab" id="tab-validator" hidden>
         <div class="proc-row">
           <input id="valRubrique" placeholder="Rubrique IOTA (ex : 3.2.3.0)" />
-          <select id="valGeom"><option value="point">Point</option><option value="line">Ligne</option><option value="polygon">Polygone</option></select>
+          <select id="valGeom">
+            <option value="point">Point</option>
+            <option value="line">Ligne</option>
+            <option value="polygon">Polygone</option>
+          </select>
         </div>
         <div id="valParams" class="proc-row"></div>
         <div class="proc-row" style="align-items:center">
@@ -207,9 +242,11 @@
     </div>
   </div>
 
-  <!-- Bouton flottant Procédure (réajusté sous "Couches") -->
-  <div class="layer-toggle-wrap leaflet-control" style="position:absolute;right:10px;top:70px;z-index:3000;">
-    <button id="btnProcOpen" class="layer-toggle-btn" type="button"><span class="icon">🗂️</span><span class="label">Procédure</span></button>
+  <!-- Bouton flottant Procédure -->
+  <div class="layer-toggle-wrap leaflet-control" style="position:absolute;right:10px;top:110px;z-index:3000;">
+    <button id="btnProcOpen" class="layer-toggle-btn" type="button">
+      <span class="icon">🗂️</span><span class="label">Procédure</span>
+    </button>
   </div>
 
   <!-- ========= PACK IOTA INTÉGRÉ ========= -->
@@ -322,9 +359,6 @@
   (function(){
     'use strict';
 
-    // Outils masqués par défaut : on les affiche via le bouton 🧰
-    document.body.classList.add('tools-hidden');
-
     const $  = (s, r=document)=> r.querySelector(s);
     const $$ = (s, r=document)=> Array.from(r.querySelectorAll(s));
 
@@ -350,7 +384,7 @@
     });
     document.addEventListener('keydown',(e)=>{ if (e.key === 'Escape') closeProc(); });
 
-    // Toujours fermé au démarrage : on écrase l'état mémorisé
+    // On démarre toujours panneau fermé, même si précédemment ouvert
     try{ localStorage.setItem(PROC_KEY,'0'); }catch(e){}
 
     /* ---- COUCHES ---- */
@@ -413,9 +447,11 @@
     const baseMaps = { "Plan (OSM)": baseOSM, "Satellite (Esri)": baseSat };
     const layersControl = L.control.layers(baseMaps, {}, {collapsed:false}).addTo(map);
 
-    // Liste des couches masquée au démarrage : on l'ouvre via le bouton "Couches"
-    const layersEl = document.querySelector('.leaflet-control-layers');
-    if (layersEl) layersEl.style.display = 'none';
+    // Couches fermées au démarrage
+    setTimeout(()=>{
+      const el = document.querySelector('.leaflet-control-layers');
+      if (el) el.style.display = 'none';
+    }, 0);
 
     const layerGroups = {};
     for (const it of LAYERS){
@@ -580,6 +616,65 @@
     });
 
     /* ---- OUTILS de mesure & annotations ---- */
+
+    let manualState = null;
+    let gpsState    = null;
+    let lastMeasure = { mode:null, length_m:0, area_m2:0 };
+    let measurePanelEl = null;
+
+    function updateMeasurePanel(){
+      if (!measurePanelEl) return;
+      const modeSpan = measurePanelEl.querySelector('#mp-mode');
+      const typeSpan = measurePanelEl.querySelector('#mp-type');
+      const dSpan    = measurePanelEl.querySelector('#mp-dist');
+      const aSpan    = measurePanelEl.querySelector('#mp-area');
+      const gpsRow   = measurePanelEl.querySelector('#mp-gps-row');
+      const gpsSpan  = measurePanelEl.querySelector('#mp-gps');
+      const pauseBtn = measurePanelEl.querySelector('#mp-pause');
+
+      let mode='—', type='—';
+
+      if (manualState){
+        mode = 'Manuel';
+        type = manualState.mode === 'area' ? 'Surface' : 'Distance';
+      } else if (gpsState){
+        mode = 'GPS';
+        type = gpsState.mode === 'area' ? 'Surface' : 'Distance';
+      }
+
+      modeSpan.textContent = mode;
+      typeSpan.textContent = type;
+      dSpan.textContent = lastMeasure.length_m ? fmtLength(lastMeasure.length_m) : '—';
+      aSpan.textContent = lastMeasure.area_m2 ? fmtArea(lastMeasure.area_m2) : '—';
+
+      if (gpsState && gpsState.lastAccuracy != null){
+        gpsRow.style.display = '';
+        const acc = gpsState.lastAccuracy;
+        let qual = '';
+        if (acc <= 5)      qual='(bonne)';
+        else if (acc <=15) qual='(moyenne)';
+        else               qual='(médiocre)';
+        gpsSpan.textContent = `${acc.toFixed(1)} m ${qual}`;
+        if (pauseBtn){
+          pauseBtn.disabled = false;
+          pauseBtn.textContent = gpsState.paused ? 'Reprendre GPS' : 'Pause GPS';
+        }
+      } else {
+        gpsRow.style.display = 'none';
+        gpsSpan.textContent  = '—';
+        if (pauseBtn){
+          pauseBtn.disabled = !gpsState;
+          pauseBtn.textContent = 'Pause GPS';
+        }
+      }
+    }
+
+    function toggleGPSPause(){
+      if (!gpsState) return;
+      gpsState.paused = !gpsState.paused;
+      updateMeasurePanel();
+    }
+
     const ManualMeasure = L.Control.extend({
       options:{ position:'topleft' },
       onAdd(){
@@ -599,73 +694,79 @@
     });
     map.addControl(new ManualMeasure());
 
-    let manualState = null;
     function resetManual(){
       if(!manualState) return;
-      if (manualState.line) map.removeLayer(manualState.line);
-      if (manualState.poly) map.removeLayer(manualState.poly);
+      if (manualState.line)  map.removeLayer(manualState.line);
+      if (manualState.poly)  map.removeLayer(manualState.poly);
       if (manualState.label) map.removeLayer(manualState.label);
-      if (manualState.btn) manualState.btn.classList.remove('active');
+      if (manualState.btn)   manualState.btn.classList.remove('active');
       map.getContainer().style.cursor='';
       map.doubleClickZoom.enable();
       map.off('click', onClickManual);
       map.off('dblclick', finishManual);
       map.off('contextmenu', finishManual);
-      manualState=null;
+      manualState = null;
+      updateMeasurePanel();
     }
+
     function startManual(mode, btnOn){
-      if (manualState?.mode===mode){ resetManual(); return; }
+      if (manualState?.mode === mode){ resetManual(); return; }
       resetManual(); stopGPS();
       btnOn.classList.add('active');
-      manualState={mode, pts:[], line:null, poly:null, label:null, btn:btnOn};
+      manualState = { mode, pts:[], line:null, poly:null, label:null, btn:btnOn };
       map.getContainer().style.cursor='crosshair';
       map.doubleClickZoom.disable();
       map.on('click', onClickManual);
       map.on('dblclick', finishManual);
       map.on('contextmenu', finishManual);
+      updateMeasurePanel();
     }
+
     function onClickManual(e){
-      const s=manualState; if(!s) return;
+      const s = manualState; if (!s) return;
       s.pts.push(e.latlng);
-      if (s.mode==='dist'){
-        if (!s.line){ s.line=L.polyline([e.latlng],{color:'#1f78b4',weight:3,dashArray:'6,4'}).addTo(map); }
-        else { s.line.addLatLng(e.latlng); }
-        updateManualLabel(e.latlng, fmtLength(computeLengthMeters(s.pts)));
-      }else{
-        if (s.pts.length===1){
-          s.line=L.polyline([e.latlng],{color:'#33a02c',weight:3,dashArray:'6,4'}).addTo(map);
-        } else if (s.pts.length===2){
+      if (s.mode === 'dist'){
+        if (!s.line){
+          s.line = L.polyline([e.latlng],{color:'#1f78b4',weight:3,dashArray:'6,4'}).addTo(map);
+        } else {
           s.line.addLatLng(e.latlng);
-        } else{
+        }
+        updateManualLabel(e.latlng, fmtLength(computeLengthMeters(s.pts)));
+      } else {
+        if (s.pts.length === 1){
+          s.line = L.polyline([e.latlng],{color:'#33a02c',weight:3,dashArray:'6,4'}).addTo(map);
+        } else if (s.pts.length === 2){
+          s.line.addLatLng(e.latlng);
+        } else {
           if (!s.poly){
-            s.poly=L.polygon(s.pts,{color:'#33a02c',weight:2,fillOpacity:.15}).addTo(map);
-          } else { s.poly.setLatLngs([s.pts]); }
+            s.poly = L.polygon(s.pts,{color:'#33a02c',weight:2,fillOpacity:.15}).addTo(map);
+          } else {
+            s.poly.setLatLngs([s.pts]);
+          }
           updateManualLabel(e.latlng, fmtArea(computeAreaM2(s.pts)));
         }
       }
     }
-    function finishManual(){ resetManual(); }
 
-    // Lien mesures ↔ validateur
-    let lastMeasure = { mode:null, length_m:0, area_m2:0 };
+    function finishManual(){ resetManual(); }
 
     function updateManualLabel(latlng, text){
       if (manualState?.label) map.removeLayer(manualState.label);
       manualState.label = L.tooltip({permanent:true, direction:'top', offset:[0,-10], className:'measure-label'})
         .setLatLng(latlng).setContent(text).addTo(map);
       if (manualState){
-        if (manualState.mode==='dist'){
+        if (manualState.mode === 'dist'){
           lastMeasure.length_m = computeLengthMeters(manualState.pts);
-          lastMeasure.area_m2 = 0;
+          lastMeasure.area_m2  = 0;
         } else {
-          lastMeasure.area_m2 = computeAreaM2(manualState.pts);
+          lastMeasure.area_m2  = computeAreaM2(manualState.pts);
           lastMeasure.length_m = computeLengthMeters(manualState.pts);
         }
         pushMeasureToValidator(true);
       }
+      updateMeasurePanel();
     }
 
-    // GPS
     const GPSMeasure = L.Control.extend({
       options:{ position:'topleft' },
       onAdd(){
@@ -685,23 +786,31 @@
     });
     map.addControl(new GPSMeasure());
 
-    let gpsState=null;
     function stopGPS(){
-      if(!gpsState) return;
-      if (gpsState.watchId!=null) navigator.geolocation.clearWatch(gpsState.watchId);
-      if (gpsState.line) map.removeLayer(gpsState.line);
-      if (gpsState.poly) map.removeLayer(gpsState.poly);
+      if (!gpsState) { updateMeasurePanel(); return; }
+      if (gpsState.watchId != null) navigator.geolocation.clearWatch(gpsState.watchId);
+      if (gpsState.line)  map.removeLayer(gpsState.line);
+      if (gpsState.poly)  map.removeLayer(gpsState.poly);
       if (gpsState.label) map.removeLayer(gpsState.label);
-      if (gpsState.btn) gpsState.btn.classList.remove('active');
-      gpsState=null;
+      if (gpsState.btn)   gpsState.btn.classList.remove('active');
+      gpsState = null;
       map.off('contextmenu', stopGPS);
+      updateMeasurePanel();
     }
-    function startGPS(mode,btnOn){
-      if (gpsState?.mode===mode){ stopGPS(); return; }
+
+    function startGPS(mode, btnOn){
+      if (gpsState?.mode === mode){
+        stopGPS();
+        return;
+      }
       stopGPS(); resetManual();
-      gpsState={mode, pts:[], line:null, poly:null, label:null, btn:btnOn, watchId:null};
+      gpsState = { mode, pts:[], line:null, poly:null, label:null, btn:btnOn, watchId:null, paused:false, lastAccuracy:null };
       btnOn.classList.add('active');
-      if (!('geolocation' in navigator)){ alert('Géolocalisation non disponible.'); stopGPS(); return; }
+      if (!('geolocation' in navigator)){
+        alert('Géolocalisation non disponible.');
+        stopGPS();
+        return;
+      }
       try{
         gpsState.watchId = navigator.geolocation.watchPosition(onGPS, onGPSError, {
           enableHighAccuracy:true, maximumAge:1000, timeout:20000
@@ -711,63 +820,148 @@
         alert('Impossible de démarrer la géolocalisation.');
         stopGPS();
       }
+      updateMeasurePanel();
     }
+
     function onGPS(pos){
-      const { latitude, longitude } = pos.coords;
-      const ll=L.latLng(latitude,longitude);
-      const s=gpsState; if(!s) return;
+      const s = gpsState; if (!s || s.paused) return;
+      const { latitude, longitude, accuracy } = pos.coords;
+      const ll = L.latLng(latitude, longitude);
       if (s.pts.length){
-        const last=s.pts[s.pts.length-1];
-        const d=turf.distance([last.lng,last.lat],[ll.lng,ll.lat],{units:'meters'});
-        if (d<3) return;
+        const last = s.pts[s.pts.length-1];
+        const d = turf.distance([last.lng,last.lat],[ll.lng,ll.lat],{units:'meters'});
+        if (d < 3) return;
       }
       s.pts.push(ll);
-      if (s.mode==='dist'){
-        if (!s.line){ s.line=L.polyline([ll],{color:'#1f78b4',weight:3,dashArray:'6,4'}).addTo(map); }
-        else { s.line.addLatLng(ll); }
-        updateGPSLabel(ll, fmtLength(turf.length(turf.lineString(s.pts.map(p=>[p.lng,p.lat])), {units:'kilometers'})*1000));
-      }else{
-        if (!s.poly){ s.poly=L.polygon(s.pts,{color:'#33a02c',weight:2,fillOpacity:.15}).addTo(map); }
-        else { s.poly.setLatLngs([s.pts]); }
+      s.lastAccuracy = (typeof accuracy === 'number') ? accuracy : null;
+      if (s.mode === 'dist'){
+        if (!s.line){
+          s.line = L.polyline([ll],{color:'#1f78b4',weight:3,dashArray:'6,4'}).addTo(map);
+        } else {
+          s.line.addLatLng(ll);
+        }
+        const len = turf.length(turf.lineString(s.pts.map(p=>[p.lng,p.lat])), {units:'kilometers'})*1000;
+        updateGPSLabel(ll, fmtLength(len));
+      } else {
+        if (!s.poly){
+          s.poly = L.polygon(s.pts,{color:'#33a02c',weight:2,fillOpacity:.15}).addTo(map);
+        } else {
+          s.poly.setLatLngs([s.pts]);
+        }
         updateGPSLabel(ll, fmtArea(computeAreaM2(s.pts)));
       }
     }
-    function onGPSError(err){ alert('Erreur géolocalisation : ' + (err?.message || err)); stopGPS(); }
+
+    function onGPSError(err){
+      alert('Erreur géolocalisation : ' + (err?.message || err));
+      stopGPS();
+    }
+
     function updateGPSLabel(latlng, text){
       if (gpsState?.label) map.removeLayer(gpsState.label);
       gpsState.label = L.tooltip({permanent:true, direction:'top', offset:[0,-10], className:'measure-label'})
         .setLatLng(latlng).setContent(text).addTo(map);
       if (gpsState){
-        if (gpsState.mode==='dist'){
-          lastMeasure.length_m = turf.length(turf.lineString(gpsState.pts.map(p=>[p.lng,p.lat])), {units:'kilometers'})*1000;
+        if (gpsState.mode === 'dist'){
+          lastMeasure.length_m = turf.length(
+            turf.lineString(gpsState.pts.map(p=>[p.lng,p.lat])),
+            {units:'kilometers'}
+          )*1000;
           lastMeasure.area_m2 = 0;
         } else {
           lastMeasure.area_m2 = computeAreaM2(gpsState.pts);
-          lastMeasure.length_m = turf.length(turf.lineString(gpsState.pts.concat([gpsState.pts[0]]).map(p=>[p.lng,p.lat])), {units:'kilometers'})*1000;
+          lastMeasure.length_m = turf.length(
+            turf.lineString(gpsState.pts.concat([gpsState.pts[0]]).map(p=>[p.lng,p.lat])),
+            {units:'kilometers'}
+          )*1000;
         }
         pushMeasureToValidator(true);
       }
+      updateMeasurePanel();
     }
+
     function exportCurrentMeasure(){
       let pts=null, mode=null;
       if (manualState){ pts=manualState.pts; mode=manualState.mode; }
       else if (gpsState){ pts=gpsState.pts; mode=gpsState.mode; }
-      if (!pts || pts.length < (mode==='area'?3:2)){ alert('Aucune mesure à exporter.'); return; }
-      let gj;
-      if (mode==='dist'){
-        gj={ type:'FeatureCollection', features:[{ type:'Feature', properties:{ type:'measure_distance', date:new Date().toISOString() }, geometry:{ type:'LineString', coordinates: pts.map(ll=>[ll.lng,ll.lat]) } }]};
-      }else{
-        const ring=[...pts.map(ll=>[ll.lng,ll.lat]), [pts[0].lng,pts[0].lat]];
-        gj={ type:'FeatureCollection', features:[{ type:'Feature', properties:{ type:'measure_area', date:new Date().toISOString() }, geometry:{ type:'Polygon', coordinates:[ring] } }]};
+      if (!pts || pts.length < (mode==='area'?3:2)){
+        alert('Aucune mesure à exporter.');
+        return;
       }
-      const blob=new Blob([JSON.stringify(gj)],{type:'application/geo+json'});
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');
-      a.href=url;
+      let gj;
+      if (mode === 'dist'){
+        gj = {
+          type:'FeatureCollection',
+          features:[{
+            type:'Feature',
+            properties:{ type:'measure_distance', date:new Date().toISOString() },
+            geometry:{ type:'LineString', coordinates: pts.map(ll=>[ll.lng,ll.lat]) }
+          }]
+        };
+      } else {
+        const ring = [...pts.map(ll=>[ll.lng,ll.lat]), [pts[0].lng,pts[0].lat]];
+        gj = {
+          type:'FeatureCollection',
+          features:[{
+            type:'Feature',
+            properties:{ type:'measure_area', date:new Date().toISOString() },
+            geometry:{ type:'Polygon', coordinates:[ring] }
+          }]
+        };
+      }
+      const blob = new Blob([JSON.stringify(gj)],{type:'application/geo+json'});
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url;
       a.download = (mode==='dist'?'mesure_distance':'mesure_surface')+'.geojson';
       a.click();
       URL.revokeObjectURL(url);
     }
+
+    // Panneau de mesures Leaflet
+    const MeasurePanel = L.Control.extend({
+      options:{ position:'bottomleft' },
+      onAdd(){
+        const w = L.DomUtil.create('div','leaflet-control measure-panel');
+        w.innerHTML = `
+          <div style="background:#0b2239;color:#fff;padding:4px 8px;font:600 11px system-ui;">Mesures</div>
+          <div style="background:#ffffff;padding:6px 8px;min-width:190px;font:11px system-ui;">
+            <div><b>Mode :</b> <span id="mp-mode">—</span></div>
+            <div><b>Type :</b> <span id="mp-type">—</span></div>
+            <div><b>Distance :</b> <span id="mp-dist">—</span></div>
+            <div><b>Surface :</b> <span id="mp-area">—</span></div>
+            <div id="mp-gps-row" style="display:none;"><b>GPS :</b> <span id="mp-gps">—</span></div>
+            <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;">
+              <button type="button" id="mp-clear" style="flex:1 1 auto;font-size:10px;padding:3px 4px;">Effacer</button>
+              <button type="button" id="mp-pause" style="flex:1 1 auto;font-size:10px;padding:3px 4px;">Pause GPS</button>
+              <button type="button" id="mp-iota"  style="flex:1 1 100%;font-size:10px;padding:3px 4px;">→ Validateur</button>
+            </div>
+          </div>`;
+        L.DomEvent.disableClickPropagation(w);
+        measurePanelEl = w;
+
+        const clearBtn = w.querySelector('#mp-clear');
+        const pauseBtn = w.querySelector('#mp-pause');
+        const iotaBtn  = w.querySelector('#mp-iota');
+
+        clearBtn.addEventListener('click', ()=>{
+          lastMeasure = { mode:null, length_m:0, area_m2:0 };
+          resetManual();
+          stopGPS();
+          updateMeasurePanel();
+        });
+        pauseBtn.addEventListener('click', ()=> toggleGPSPause());
+        iotaBtn.addEventListener('click', ()=>{
+          pushMeasureToValidator(true);
+          const btnEval = document.getElementById('btnEval');
+          if (btnEval) btnEval.click();
+        });
+
+        updateMeasurePanel();
+        return w;
+      }
+    });
+    map.addControl(new MeasurePanel());
 
     // Annotations Leaflet.Draw
     const annotations = new L.FeatureGroup().addTo(map);
@@ -809,36 +1003,11 @@
           lastMeasure.area_m2 = 0;
         }
         pushMeasureToValidator(true);
+        updateMeasurePanel();
       }catch(_){}
     });
-    map.on(L.Draw.Event.EDITED, () => saveAnnotations());
-    map.on(L.Draw.Event.DELETED, () => saveAnnotations());
-
-    const AnnoExport = L.Control.extend({
-      options:{ position:'topleft' },
-      onAdd(){
-        const w=L.DomUtil.create('div','leaflet-bar tool-btn');
-        const s=L.DomUtil.create('a','',w);
-        s.href='#'; s.title='Exporter annotations (GeoJSON)'; s.innerHTML='💾';
-        const c=L.DomUtil.create('a','',w);
-        c.href='#'; c.title='Vider toutes les annotations'; c.innerHTML='🧹';
-        L.DomEvent.disableClickPropagation(w);
-        L.DomEvent.on(s,'click',L.DomEvent.stop).on(s,'click',()=>{
-          if (annotations.getLayers().length===0){ alert('Aucune annotation.'); return; }
-          const gj=annotations.toGeoJSON();
-          const blob=new Blob([JSON.stringify(gj)],{type:'application/geo+json'});
-          const url=URL.createObjectURL(blob);
-          const a=document.createElement('a');
-          a.href=url; a.download='annotations.geojson'; a.click(); URL.revokeObjectURL(url);
-        });
-        L.DomEvent.on(c,'click',L.DomEvent.stop).on(c,'click',()=>{
-          if (!confirm('Supprimer toutes les annotations ?')) return;
-          annotations.clearLayers(); saveAnnotations();
-        });
-        return w;
-      }
-    });
-    map.addControl(new AnnoExport());
+    map.on(L.Draw.Event.EDITED, () => { saveAnnotations(); });
+    map.on(L.Draw.Event.DELETED, () => { saveAnnotations(); });
 
     // Home Landes
     const HomeControl = L.Control.extend({
@@ -855,6 +1024,30 @@
       }
     });
     map.addControl(new HomeControl());
+
+    // Plein écran
+    const FullscreenControl = L.Control.extend({
+      options:{ position:'topright' },
+      onAdd(){
+        const d = L.DomUtil.create('div','leaflet-bar tool-btn');
+        const a = L.DomUtil.create('a','',d);
+        a.href='#'; a.title='Plein écran'; a.innerHTML='⛶';
+        L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>toggleFullscreen());
+        return d;
+      }
+    });
+    map.addControl(new FullscreenControl());
+
+    function toggleFullscreen(){
+      const elem = map.getContainer();
+      if (!document.fullscreenElement){
+        if (elem.requestFullscreen) elem.requestFullscreen();
+        else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      }
+    }
 
     // Toggle global outils
     const ToolsToggle = L.Control.extend({
@@ -1076,10 +1269,16 @@
         refreshPieces(); e.target.value='';
       });
 
-      // Croquis modal
-      let skModal=null, skCanvas=null, skCtx=null, skDrawing=false, skLast=null, skColor='#111827', skSize=3, skBg='blank';
+      // Croquis modal – version outils avancés
+      let skModal=null, skCanvas=null, skCtx=null,
+          skDrawing=false, skLast=null,
+          skColor='#111827', skSize=3,
+          skBg='blank', skBgImg=null,
+          skTool='free', skSymbolText='';
+
       function openSketch(){
         if (skModal) return;
+
         skModal = document.createElement('div');
         skModal.className='sketch-modal';
         skModal.innerHTML = `
@@ -1093,8 +1292,27 @@
                 </select>
                 <label>Couleur <input id="skColor" type="color" value="#111827"></label>
                 <label>Épaisseur <input id="skSize" type="range" min="1" max="20" value="3"></label>
-                <button id="skUndo" type="button">↶ Annuler</button>
-                <button id="skClear" type="button">🧹 Vider</button>
+                <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
+                  <button type="button" class="sk-tool active" id="skToolFree" data-tool="free">✏️ Libre</button>
+                  <button type="button" class="sk-tool" id="skToolLine" data-tool="line">📐 Ligne</button>
+                  <button type="button" class="sk-tool" id="skToolRect" data-tool="rect">⬛ Rect</button>
+                  <button type="button" class="sk-tool" id="skToolArrow" data-tool="arrow">➡️ Flèche</button>
+                  <button type="button" class="sk-tool" id="skToolText" data-tool="text">T Texte</button>
+                  <button type="button" class="sk-tool" id="skToolErase" data-tool="erase">🧽 Gomme</button>
+                </div>
+                <div style="margin-top:4px;display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+                  <select id="skSymbol">
+                    <option value="">Symbole</option>
+                    <option value="💧 Rejet">💧 Rejet</option>
+                    <option value="🚰 Prélèvement">🚰 Prélèvement</option>
+                    <option value="🧱 Ouvrage">🧱 Ouvrage</option>
+                    <option value="🌊 Plan d’eau">🌊 Plan d’eau</option>
+                    <option value="🕳 Buse">🕳 Buse</option>
+                  </select>
+                  <button id="skNorth" type="button" class="sk-tool" style="margin-left:auto">🧭 Nord+échelle</button>
+                </div>
+                <button id="skUndo" type="button" style="margin-top:4px">↶ Annuler</button>
+                <button id="skClear" type="button" style="margin-top:4px">🧹 Vider</button>
               </div>
               <div class="sketch-right">
                 <button id="skSave" type="button">💾 Enregistrer</button>
@@ -1103,9 +1321,13 @@
             </div>
             <canvas id="skCanvas" class="sketch-canvas"></canvas>
           </div>`;
+
         document.body.appendChild(skModal);
         skCanvas = $('#skCanvas', skModal);
-        skCtx = skCanvas.getContext('2d');
+        skCtx    = skCanvas.getContext('2d');
+
+        const skStack = [];
+        let skTempShape = null;
 
         function drawImageCover(ctx, img, w, h){
           const r = Math.max(w / img.width, h / img.height);
@@ -1113,90 +1335,349 @@
           const dx = (w - dw) / 2, dy = (h - dh) / 2;
           ctx.drawImage(img, dx, dy, dw, dh);
         }
-        function resizeSketch(){
-          const rect = skCanvas.getBoundingClientRect();
-          const cssW = Math.max(1, Math.round(rect.width));
-          const cssH = Math.max(1, Math.round(rect.height));
-          const dpr = window.devicePixelRatio || 1;
-          skCanvas.width = Math.round(cssW * dpr);
-          skCanvas.height = Math.round(cssH * dpr);
-          skCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          redrawSketch();
+
+        function drawArrowHead(ctx, p0, p1, size){
+          const headLen = 10 + size * 1.5;
+          const angle = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(
+            p1.x - headLen * Math.cos(angle - Math.PI/6),
+            p1.y - headLen * Math.sin(angle - Math.PI/6)
+          );
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(
+            p1.x - headLen * Math.cos(angle + Math.PI/6),
+            p1.y - headLen * Math.sin(angle + Math.PI/6)
+          );
+          ctx.stroke();
         }
-        async function setSketchBg(mode){
-          skBg = mode;
-          if (mode==='blank'){ redrawSketch(); return; }
-          if (mode==='photo'){
-            if (!photos.length){ alert('Aucune photo disponible.'); $('#skBgSel').value='blank'; redrawSketch(); return; }
-            const pick = prompt('ID de la photo (index 1..N) ou vide pour la première :', '');
-            const idx = Math.min(Math.max(((+pick||1)-1),0), photos.length-1);
-            const img = await dataUrlToImage(photos[idx].dataUrl);
-            redrawSketch(img); return;
-          }
-          if (mode==='map'){
-            try{
-              const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, backgroundColor:'#fff', scale:1});
-              const img = await dataUrlToImage(canvas.toDataURL('image/jpeg',0.9));
-              redrawSketch(img);
-            }catch(e){ alert('Impossible de capturer la carte (CORS). Fond blanc utilisé.'); redrawSketch(); }
-          }
-        }
-        function redrawSketch(bgImg=null){
-          const rect = skCanvas.getBoundingClientRect();
-          const w = Math.max(1, Math.round(rect.width));
-          const h = Math.max(1, Math.round(rect.height));
-          skCtx.clearRect(0, 0, w, h);
-          skCtx.fillStyle = '#fff';
-          skCtx.fillRect(0, 0, w, h);
-          if (bgImg){ drawImageCover(skCtx, bgImg, w, h); }
-          // rejoue l’historique
-          skStack.forEach(st=>{
-            skCtx.strokeStyle = st.color;
-            skCtx.lineWidth = st.size;
-            skCtx.lineJoin = skCtx.lineCap = 'round';
-            skCtx.beginPath();
-            st.pts.forEach((p,i)=>{ if(i===0) skCtx.moveTo(p.x,p.y); else skCtx.lineTo(p.x,p.y); });
-            skCtx.stroke();
-          });
-        }
+
         function pt(e){
           const rect = skCanvas.getBoundingClientRect();
           const cx = (e.touches ? e.touches[0].clientX : e.clientX);
           const cy = (e.touches ? e.touches[0].clientY : e.clientY);
           return { x: cx - rect.left, y: cy - rect.top };
         }
-        const skStack=[];
+
+        function redrawSketch(){
+          if (!skCanvas || !skCtx) return;
+          const rect = skCanvas.getBoundingClientRect();
+          const w = Math.max(1, Math.round(rect.width));
+          const h = Math.max(1, Math.round(rect.height));
+          skCtx.clearRect(0, 0, w, h);
+          skCtx.fillStyle = '#ffffff';
+          skCtx.fillRect(0, 0, w, h);
+          if (skBgImg) drawImageCover(skCtx, skBgImg, w, h);
+
+          skStack.forEach(st=>{
+            skCtx.save();
+            if (st.type === 'erase'){
+              skCtx.globalCompositeOperation = 'destination-out';
+              skCtx.lineWidth = st.size;
+              skCtx.lineJoin = skCtx.lineCap = 'round';
+              skCtx.beginPath();
+              st.pts.forEach((p,i)=>{ if(i===0) skCtx.moveTo(p.x,p.y); else skCtx.lineTo(p.x,p.y); });
+              skCtx.stroke();
+            } else if (st.type === 'line' || st.type === 'arrow'){
+              skCtx.globalCompositeOperation = 'source-over';
+              skCtx.strokeStyle = st.color;
+              skCtx.lineWidth   = st.size;
+              skCtx.lineJoin = skCtx.lineCap = 'round';
+              const [p0,p1] = st.pts;
+              skCtx.beginPath();
+              skCtx.moveTo(p0.x,p0.y);
+              skCtx.lineTo(p1.x,p1.y);
+              skCtx.stroke();
+              if (st.type === 'arrow'){
+                drawArrowHead(skCtx, p0, p1, st.size);
+              }
+            } else if (st.type === 'rect'){
+              skCtx.globalCompositeOperation = 'source-over';
+              skCtx.strokeStyle = st.color;
+              skCtx.lineWidth   = st.size;
+              const [p0,p1] = st.pts;
+              const x = Math.min(p0.x,p1.x);
+              const y = Math.min(p0.y,p1.y);
+              const ww = Math.abs(p1.x-p0.x);
+              const hh = Math.abs(p1.y-p0.y);
+              skCtx.strokeRect(x,y,ww,hh);
+            } else if (st.type === 'text' || st.type === 'symbol'){
+              skCtx.globalCompositeOperation = 'source-over';
+              skCtx.fillStyle = st.color;
+              skCtx.font = `${st.size*3}px system-ui, sans-serif`;
+              const p = st.pts[0];
+              skCtx.fillText(st.text || '', p.x, p.y);
+            } else {
+              // freehand
+              skCtx.globalCompositeOperation = 'source-over';
+              skCtx.strokeStyle = st.color;
+              skCtx.lineWidth   = st.size;
+              skCtx.lineJoin = skCtx.lineCap = 'round';
+              skCtx.beginPath();
+              st.pts.forEach((p,i)=>{ if(i===0) skCtx.moveTo(p.x,p.y); else skCtx.lineTo(p.x,p.y); });
+              skCtx.stroke();
+            }
+            skCtx.restore();
+          });
+
+          // prévisualisation forme (ligne/rect/arrow)
+          if (skTempShape && skTempShape.start && skTempShape.end){
+            const st = skTempShape;
+            const p0 = st.start;
+            const p1 = st.end;
+            skCtx.save();
+            skCtx.globalCompositeOperation = 'source-over';
+            skCtx.strokeStyle = st.color;
+            skCtx.lineWidth   = st.size;
+            skCtx.lineJoin = skCtx.lineCap = 'round';
+            if (st.type === 'line' || st.type === 'arrow'){
+              skCtx.beginPath();
+              skCtx.moveTo(p0.x,p0.y);
+              skCtx.lineTo(p1.x,p1.y);
+              skCtx.stroke();
+              if (st.type === 'arrow') drawArrowHead(skCtx,p0,p1,st.size);
+            } else if (st.type === 'rect'){
+              const x = Math.min(p0.x,p1.x);
+              const y = Math.min(p0.y,p1.y);
+              const ww = Math.abs(p1.x-p0.x);
+              const hh = Math.abs(p1.y-p0.y);
+              skCtx.strokeRect(x,y,ww,hh);
+            }
+            skCtx.restore();
+          }
+        }
+
+        function resizeSketch(){
+          if (!skCanvas || !skCtx) return;
+          const rect = skCanvas.getBoundingClientRect();
+          const cssW = Math.max(1, Math.round(rect.width));
+          const cssH = Math.max(1, Math.round(rect.height));
+          const dpr  = window.devicePixelRatio || 1;
+          skCanvas.width  = Math.round(cssW * dpr);
+          skCanvas.height = Math.round(cssH * dpr);
+          skCtx.setTransform(dpr,0,0,dpr,0,0);
+          redrawSketch();
+        }
+
+        async function setSketchBg(mode){
+          skBg = mode;
+          if (mode === 'blank'){
+            skBgImg = null;
+            redrawSketch();
+            return;
+          }
+          if (mode === 'photo'){
+            if (!photos.length){
+              alert('Aucune photo disponible.');
+              skBg = 'blank';
+              skBgImg = null;
+              redrawSketch();
+              return;
+            }
+            const pick = prompt('ID de la photo (index 1..N) ou vide pour la première :','');
+            const idx  = Math.min(Math.max(((+pick||1)-1),0), photos.length-1);
+            const img  = await dataUrlToImage(photos[idx].dataUrl);
+            skBgImg = img;
+            redrawSketch();
+            return;
+          }
+          if (mode === 'map'){
+            try{
+              const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, backgroundColor:'#ffffff', scale:1});
+              const img = await dataUrlToImage(canvas.toDataURL('image/jpeg',0.9));
+              skBgImg = img;
+              redrawSketch();
+            }catch(e){
+              alert('Impossible de capturer la carte (CORS). Fond blanc utilisé.');
+              skBg = 'blank'; skBgImg = null;
+              redrawSketch();
+            }
+          }
+        }
+
+        function down(e){
+          e.preventDefault();
+          const p = pt(e);
+
+          if (skTool === 'text'){
+            const txt = prompt('Texte à ajouter :','');
+            if (!txt) return;
+            skStack.push({ type:'text', color:skColor, size:skSize, pts:[p], text:txt });
+            redrawSketch();
+            return;
+          }
+
+          if (skTool === 'symbol'){
+            if (!skSymbolText){
+              alert('Sélectionner un symbole dans la liste.');
+              return;
+            }
+            skStack.push({ type:'symbol', color:'#111827', size:skSize, pts:[p], text:skSymbolText });
+            redrawSketch();
+            return;
+          }
+
+          skDrawing = true;
+          skLast    = p;
+
+          if (skTool === 'free' || skTool === 'erase'){
+            const type = (skTool === 'erase') ? 'erase' : 'free';
+            const size = (skTool === 'erase') ? skSize * 2 : skSize;
+            skStack.push({ type, color:skColor, size, pts:[p] });
+          } else if (skTool === 'line' || skTool === 'rect' || skTool === 'arrow'){
+            skTempShape = { type:skTool, color:skColor, size:skSize, start:p, end:p };
+          }
+        }
+
+        function move(e){
+          if (!skDrawing) return;
+          const p = pt(e);
+
+          if (skTool === 'free' || skTool === 'erase'){
+            const cur = skStack[skStack.length-1];
+            if (!cur) return;
+            cur.pts.push(p);
+            skCtx.save();
+            if (cur.type === 'erase'){
+              skCtx.globalCompositeOperation = 'destination-out';
+              skCtx.lineWidth = cur.size;
+              skCtx.lineJoin = skCtx.lineCap = 'round';
+              skCtx.beginPath();
+              skCtx.moveTo(skLast.x, skLast.y);
+              skCtx.lineTo(p.x, p.y);
+              skCtx.stroke();
+            } else {
+              skCtx.globalCompositeOperation = 'source-over';
+              skCtx.strokeStyle = cur.color;
+              skCtx.lineWidth   = cur.size;
+              skCtx.lineJoin = skCtx.lineCap = 'round';
+              skCtx.beginPath();
+              skCtx.moveTo(skLast.x, skLast.y);
+              skCtx.lineTo(p.x, p.y);
+              skCtx.stroke();
+            }
+            skCtx.restore();
+            skLast = p;
+          } else if (skTool === 'line' || skTool === 'rect' || skTool === 'arrow'){
+            if (!skTempShape) return;
+            skTempShape.end = p;
+            redrawSketch();
+          }
+        }
+
+        function up(){
+          if (!skDrawing) return;
+          skDrawing = false;
+          if (skTool === 'line' || skTool === 'rect' || skTool === 'arrow'){
+            if (skTempShape && skTempShape.start && skTempShape.end){
+              const {type,color,size,start,end} = skTempShape;
+              skStack.push({ type, color, size, pts:[start,end] });
+            }
+            skTempShape = null;
+            redrawSketch();
+          }
+        }
+
+        // Outils / UI
         $('#skBgSel', skModal).addEventListener('change', (e)=> setSketchBg(e.target.value));
         $('#skColor', skModal).addEventListener('input', (e)=> skColor = e.target.value);
-        $('#skSize', skModal).addEventListener('input', (e)=> skSize = +e.target.value);
-        $('#skUndo', skModal).addEventListener('click', ()=>{ skStack.pop(); redrawSketch(); });
-        $('#skClear', skModal).addEventListener('click', ()=>{ skStack.length=0; setSketchBg(skBg); });
-        function down(e){ e.preventDefault(); skDrawing=true; const p=pt(e); skLast=p; skStack.push({color:skColor,size:skSize,pts:[p]}); }
-        function move(e){ if(!skDrawing) return; const p=pt(e); const cur=skStack[skStack.length-1];
-          cur.pts.push(p); skCtx.strokeStyle = cur.color; skCtx.lineWidth = cur.size; skCtx.lineJoin=skCtx.lineCap='round';
-          skCtx.beginPath(); skCtx.moveTo(skLast.x, skLast.y); skCtx.lineTo(p.x, p.y); skCtx.stroke(); skLast=p; }
-        function up(){ skDrawing=false; }
-        skCanvas.addEventListener('mousedown', down);
-        skCanvas.addEventListener('mousemove', move);
-        window.addEventListener('mouseup', up);
-        skCanvas.addEventListener('touchstart', down, {passive:false});
-        skCanvas.addEventListener('touchmove', move, {passive:false});
-        window.addEventListener('touchend', up);
-        $('#skSave', skModal).addEventListener('click', ()=>{
-          const dataUrl = skCanvas.toDataURL('image/png');
-          sketches.push({ id:'sk'+Date.now(), dataUrl, w:skCanvas.width, h:skCanvas.height, label:'Croquis '+new Date().toLocaleString() });
-          refreshPieces(); alert('Croquis enregistré dans les pièces.');
+        $('#skSize',  skModal).addEventListener('input', (e)=> skSize  = +e.target.value);
+
+        const toolButtons = $$('.sk-tool', skModal);
+        toolButtons.forEach(btn=>{
+          const tool = btn.dataset.tool;
+          if (!tool) return;
+          btn.addEventListener('click', ()=>{
+            toolButtons.forEach(b=> b.classList.remove('active'));
+            btn.classList.add('active');
+            skTool = tool;
+          });
         });
-        $('#skClose', skModal).addEventListener('click', closeSketch);
+
+        const symSel = $('#skSymbol', skModal);
+        if (symSel){
+          symSel.addEventListener('change', (e)=>{
+            skSymbolText = e.target.value || '';
+            if (skSymbolText){
+              skTool = 'symbol';
+              toolButtons.forEach(b=> b.classList.remove('active'));
+            }
+          });
+        }
+
+        $('#skUndo', skModal).addEventListener('click', ()=>{
+          skStack.pop();
+          redrawSketch();
+        });
+
+        $('#skClear', skModal).addEventListener('click', ()=>{
+          skStack.length = 0;
+          setSketchBg(skBg);
+        });
+
+        $('#skNorth', skModal).addEventListener('click', ()=>{
+          if (!skCanvas) return;
+          const rect = skCanvas.getBoundingClientRect();
+          const w = rect.width;
+          const h = rect.height;
+          const margin = 24;
+
+          // flèche nord
+          const p0 = { x: margin, y: margin + 40 };
+          const p1 = { x: margin, y: margin };
+          skStack.push({ type:'arrow', color:'#111827', size:3, pts:[p0,p1] });
+          skStack.push({ type:'text', color:'#111827', size:4, pts:[{x:margin+10,y:margin+10}], text:'N' });
+
+          // barre d’échelle indicative
+          const barLen = 80;
+          const yBar   = h - margin;
+          skStack.push({ type:'line', color:'#111827', size:3, pts:[{x:margin,y:yBar},{x:margin+barLen,y:yBar}] });
+          skStack.push({ type:'text', color:'#111827', size:3, pts:[{x:margin,y:yBar-6}], text:'Échelle indicative' });
+
+          redrawSketch();
+        });
+
         function closeSketch(){
           if (!skModal) return;
           window.removeEventListener('mouseup', up);
           window.removeEventListener('touchend', up);
-          skModal.remove(); skModal=null; skCanvas=null; skCtx=null;
+          skModal.remove();
+          skModal = null;
+          skCanvas = null;
+          skCtx    = null;
         }
+
+        $('#skSave', skModal).addEventListener('click', ()=>{
+          if (!skCanvas) return;
+          const dataUrl = skCanvas.toDataURL('image/png');
+          const dpr = window.devicePixelRatio || 1;
+          const rect = skCanvas.getBoundingClientRect();
+          sketches.push({
+            id:'sk'+Date.now(),
+            dataUrl,
+            w:rect.width * dpr,
+            h:rect.height * dpr,
+            label:'Croquis '+new Date().toLocaleString()
+          });
+          refreshPieces();
+          alert('Croquis enregistré dans les pièces.');
+        });
+
+        $('#skClose', skModal).addEventListener('click', closeSketch);
+
+        skCanvas.addEventListener('mousedown', down);
+        skCanvas.addEventListener('mousemove', move);
+        window.addEventListener('mouseup',   up);
+        skCanvas.addEventListener('touchstart', down, {passive:false});
+        skCanvas.addEventListener('touchmove',  move, {passive:false});
+        window.addEventListener('touchend', up);
+
         const obs = new ResizeObserver(resizeSketch);
         obs.observe($('.sketch-card', skModal));
-        resizeSketch(); setSketchBg('blank');
+
+        resizeSketch();
+        setSketchBg('blank');
       }
       $('#btnSketch').addEventListener('click', openSketch);
 
@@ -1207,7 +1688,7 @@
           titre:$('#ftTitre').value, lieu:$('#ftLieu').value, desc:$('#ftDesc').value,
           iota:$('#ftRefIota').value, natinf:$('#ftRefNatinf').value, date:new Date().toISOString()
         };
-        const gj = { type:'FeatureCollection', features:[{ type:'Feature', properties:props, geometry:{ type:'Point', coordinates:[ll.lng,ll.lat] } }]};
+        const gj = { type:'FeatureCollection', features:[{ type:'Feature', properties:props, geometry:{ type:'Point', coordinates:[ll.lng,ll.lat] } }]} };
         const blob = new Blob([JSON.stringify(gj)], {type:'application/geo+json'});
         const url = URL.createObjectURL(blob);
         const a=document.createElement('a'); a.href = url; a.download = 'fiche-terrain.geojson'; a.click();
@@ -1444,56 +1925,43 @@
         return html;
       }
 
-      // Remettre à zéro toute la fiche procédure
-      function resetProcAll(){
-        // Champs texte principaux
-        ['ftTitre','ftLieu','ftDesc','ftRefIota','ftRefNatinf','iotaSearch','bcaeSearch','phytoSearch','autreSearch','valRubrique'].forEach(id=>{
-          const el = document.getElementById(id);
-          if (!el) return;
-          if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = '';
+      // BOUTON RESET PROCÉDURE
+      $('#btnResetAll').addEventListener('click', ()=>{
+        // Fiche
+        ['#ftTitre','#ftLieu','#ftDesc','#ftRefIota','#ftRefNatinf'].forEach(sel=>{
+          const el=$(sel); if (el) el.value='';
         });
-        const geomSel = document.getElementById('valGeom');
-        if (geomSel) geomSel.value = 'point';
+        $('#ftLatLng').textContent='—';
+        $('#ftScore').textContent='0/4';
 
-        // Rubriques IOTA sélectionnées
+        // IOTA sélectionnées
         SELECTED_IOTA.clear();
-        renderIota();
+        renderIota('');
 
-        // Listes NATINF BCAE / Phyto / Autres
-        bcaeList.innerHTML = '';
-        phytoList.innerHTML = '';
-        autreList.innerHTML = '';
-        pickNatinf(bcaeList, filterBCAE('zone humide'));
-        pickNatinf(phytoList, filterPHYTO('phytopharmaceutique'));
+        // Validateur
+        $('#valRubrique').value='';
+        $('#valParams').innerHTML='';
+        const valRes = $('#valResult');
+        valRes.classList.remove('pill-A','pill-D','pill-HN');
+        valRes.classList.add('pill','pill-HN');
+        valRes.textContent='—';
+        $('#valTrace').innerHTML='';
 
-        // Coordonnées & complétude
-        $('#ftLatLng').textContent = '—';
-        evalScore();
-
-        // Validateur : badge + trace + paramètres
-        const resEl = $('#valResult');
-        if (resEl){
-          resEl.classList.remove('pill-A','pill-D','pill-HN');
-          resEl.classList.add('pill','pill-HN');
-          resEl.textContent = '⚪ Hors nomenclature';
-        }
-        $('#valTrace').innerHTML = '';
-        buildValParams();
-
-        // Pièces (photos / croquis)
-        photos.length = 0;
-        sketches.length = 0;
+        // Pièces
+        photos.length=0;
+        sketches.length=0;
         refreshPieces();
 
-        // Remise à zéro des mesures
-        lastMeasure = { mode:null, length_m:0, area_m2:0 };
-      }
+        // Mesures
+        lastMeasure = { mode:null,length_m:0,area_m2:0 };
+        if (typeof resetManual === 'function') resetManual();
+        if (typeof stopGPS === 'function') stopGPS();
+        if (typeof updateMeasurePanel === 'function') updateMeasurePanel();
 
-      $('#btnResetAll').addEventListener('click', ()=>{
-        if (!confirm('Réinitialiser la fiche procédure (textes, rubriques, NATINF, pièces) ?')) return;
-        resetProcAll();
+        updateLatLngBadge(map.getCenter());
+        evalScore();
+        try{ localStorage.setItem(PROC_KEY,'0'); }catch(e){}
       });
-
     } // end initProc
 
     /* ---- Utils ---- */
@@ -1556,7 +2024,7 @@
       if (autoEval) $('#btnEval')?.click();
     }
 
-    /* ---------- PDF narratif pro — VERSION AMÉLIORÉE (forme homogène, cartes/croquis adaptés) ---------- */
+    /* ---------- PDF narratif pro — VERSION AMÉLIORÉE ---------- */
     $('#btnProcPDF').addEventListener('click', async ()=>{
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({ unit:'pt', format:'a4' });
@@ -1892,8 +2360,8 @@
         para('Aucune pièce n’a été jointe au présent rapport.', { italic:true, color:[90,96,110] });
         hr();
       } else {
-        const croquis = items.filter(it=>/croquis/i.test(it.label||''));
-        const photos  = items.filter(it=>!(/croquis/i.test(it.label||'')));
+        const croquis = items.filter(it=>/Croquis/i.test(it.label||''));
+        const photos  = items.filter(it=>!(/Croquis/i.test(it.label||'')));
 
         if (croquis.length){
           const it=croquis[0];
