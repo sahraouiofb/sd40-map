@@ -61,7 +61,8 @@
   @media (max-width:480px){ .popup-card{max-width:90vw} }
 
   /* Masquage global des outils */
-  body.tools-hidden .leaflet-draw, body.tools-hidden .tool-btn { display:none !important; }
+  body.tools-hidden .leaflet-draw,
+  body.tools-hidden .tool-btn { display:none !important; }
   .tools-toggle.leaflet-control{
     background:#111827;color:#fff;border:1px solid #0b1220;border-radius:10px;
     box-shadow:0 6px 18px rgba(0,0,0,.35); overflow:hidden
@@ -206,8 +207,8 @@
     </div>
   </div>
 
-  <!-- Bouton flottant Procédure -->
-  <div class="layer-toggle-wrap leaflet-control" style="position:absolute;right:10px;top:110px;z-index:3000;">
+  <!-- Bouton flottant Procédure (réajusté sous "Couches") -->
+  <div class="layer-toggle-wrap leaflet-control" style="position:absolute;right:10px;top:70px;z-index:3000;">
     <button id="btnProcOpen" class="layer-toggle-btn" type="button"><span class="icon">🗂️</span><span class="label">Procédure</span></button>
   </div>
 
@@ -321,6 +322,9 @@
   (function(){
     'use strict';
 
+    // Outils masqués par défaut : on les affiche via le bouton 🧰
+    document.body.classList.add('tools-hidden');
+
     const $  = (s, r=document)=> r.querySelector(s);
     const $$ = (s, r=document)=> Array.from(r.querySelectorAll(s));
 
@@ -346,7 +350,8 @@
     });
     document.addEventListener('keydown',(e)=>{ if (e.key === 'Escape') closeProc(); });
 
-    try{ if (localStorage.getItem(PROC_KEY) === '1') openProc(); }catch(e){}
+    // Toujours fermé au démarrage : on écrase l'état mémorisé
+    try{ localStorage.setItem(PROC_KEY,'0'); }catch(e){}
 
     /* ---- COUCHES ---- */
     const LAYERS = [
@@ -407,6 +412,10 @@
 
     const baseMaps = { "Plan (OSM)": baseOSM, "Satellite (Esri)": baseSat };
     const layersControl = L.control.layers(baseMaps, {}, {collapsed:false}).addTo(map);
+
+    // Liste des couches masquée au démarrage : on l'ouvre via le bouton "Couches"
+    const layersEl = document.querySelector('.leaflet-control-layers');
+    if (layersEl) layersEl.style.display = 'none';
 
     const layerGroups = {};
     for (const it of LAYERS){
@@ -1434,6 +1443,56 @@
         html += `<div class="note" style="margin-top:.25rem">Résultat indicatif, à confronter aux textes en vigueur.</div>`;
         return html;
       }
+
+      // Remettre à zéro toute la fiche procédure
+      function resetProcAll(){
+        // Champs texte principaux
+        ['ftTitre','ftLieu','ftDesc','ftRefIota','ftRefNatinf','iotaSearch','bcaeSearch','phytoSearch','autreSearch','valRubrique'].forEach(id=>{
+          const el = document.getElementById(id);
+          if (!el) return;
+          if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = '';
+        });
+        const geomSel = document.getElementById('valGeom');
+        if (geomSel) geomSel.value = 'point';
+
+        // Rubriques IOTA sélectionnées
+        SELECTED_IOTA.clear();
+        renderIota();
+
+        // Listes NATINF BCAE / Phyto / Autres
+        bcaeList.innerHTML = '';
+        phytoList.innerHTML = '';
+        autreList.innerHTML = '';
+        pickNatinf(bcaeList, filterBCAE('zone humide'));
+        pickNatinf(phytoList, filterPHYTO('phytopharmaceutique'));
+
+        // Coordonnées & complétude
+        $('#ftLatLng').textContent = '—';
+        evalScore();
+
+        // Validateur : badge + trace + paramètres
+        const resEl = $('#valResult');
+        if (resEl){
+          resEl.classList.remove('pill-A','pill-D','pill-HN');
+          resEl.classList.add('pill','pill-HN');
+          resEl.textContent = '⚪ Hors nomenclature';
+        }
+        $('#valTrace').innerHTML = '';
+        buildValParams();
+
+        // Pièces (photos / croquis)
+        photos.length = 0;
+        sketches.length = 0;
+        refreshPieces();
+
+        // Remise à zéro des mesures
+        lastMeasure = { mode:null, length_m:0, area_m2:0 };
+      }
+
+      $('#btnResetAll').addEventListener('click', ()=>{
+        if (!confirm('Réinitialiser la fiche procédure (textes, rubriques, NATINF, pièces) ?')) return;
+        resetProcAll();
+      });
 
     } // end initProc
 
