@@ -1201,17 +1201,18 @@
         URL.revokeObjectURL(url);
       });
 
-   // === PDF narratif pro — V2 (narration sans sommaire, images adaptées) ===
+ // === PDF narratif pro — V3 (narration claire, pas de sommaire, images adaptées) ===
 $('#btnProcPDF').addEventListener('click', async ()=>{
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit:'pt', format:'a4' });
 
-  // Marges et helpers de mise en page
+  // Marges et mise en page
   const M = { left:44, right:44, top:84, bottom:60 };
   const W = pdf.internal.pageSize.getWidth();
   const H = pdf.internal.pageSize.getHeight();
   let y = M.top;
 
+  // Helpers
   function addPage(){ pdf.addPage(); y = M.top; }
   function ensure(h){ if (y + h > H - M.bottom) addPage(); }
   function setFont(n=11, weight='normal', color=[0,0,0]){
@@ -1225,14 +1226,15 @@ $('#btnProcPDF').addEventListener('click', async ()=>{
     const lh   = opts.lineHeight ?? 16;
     const color= opts.color ?? [0,0,0];
     const indent = opts.indent ?? 0;
+    const after = opts.after ?? 6;
     setFont(size, 'normal', color);
     const maxW = W - M.left - M.right - indent;
-    const lines = pdf.splitTextToSize(text, maxW);
+    const lines = pdf.splitTextToSize(text.replace(/\s+/g,' ').trim(), maxW);
     const h = lines.length * lh;
     ensure(h);
     const x = M.left + indent;
     lines.forEach(line => { pdf.text(line, x, y); y += lh; });
-    y += (opts.after ?? 6);
+    y += after;
   }
   function titreSection(txt){
     ensure(26);
@@ -1241,7 +1243,6 @@ $('#btnProcPDF').addEventListener('click', async ()=>{
     y += 14;
   }
   function pastilleRegime(regText){
-    // Couleurs cohérentes avec l’UI (HN gris / D orange / A rouge)
     let col=[55,65,81], label='Hors nomenclature';
     const t = (regText||'').toLowerCase();
     if (t.includes('autor')) { col=[185,28,28]; label='Autorisation'; }
@@ -1254,27 +1255,28 @@ $('#btnProcPDF').addEventListener('click', async ()=>{
     pdf.roundedRect(W - M.right - tw, M.top - 40, tw, h, 10, 10, 'F');
     pdf.text(label, W - M.right - tw + padX, M.top - 26);
   }
-  function headerPage(titre, dateISO, lieu, llText, regimeTxt){
+  function headerPage(titre, lieu, llText, regimeTxt){
     // Bandeau haut
     pdf.setFillColor(11,34,57);
     pdf.rect(0,0,W,56,'F');
     setFont(16,'bold',[255,255,255]);
     pdf.text('FICHE TERRAIN – Procédure', M.left, 38);
     setFont(10,'normal',[255,255,255]);
-    const stamp = new Date().toLocaleString();
+    const stamp = new Date().toLocaleString('fr-FR');
     pdf.text(stamp, W - M.right, 38, {align:'right'});
 
-    // Accroche + entête narrative
+    // Accroche
     y = M.top;
     setFont(14,'bold',[0,0,0]);
-    pdf.text((titre||'Intervention'), M.left, y); y += 10;
+    pdf.text((titre||'Intervention'), M.left, y); 
+    y += 10;
 
     pastilleRegime(regimeTxt||'');
 
     y += 10;
     setFont(11,'normal',[0,0,0]);
-    const ligneLieu = `Intervention réalisée à ${ (lieu && lieu.trim()) ? lieu.trim() : 'lieu non précisé' }${ llText && llText.includes('Lat') ? ` (coordonnées ${llText.replace('Lat','lat').replace('Lng','lng')})` : '' }.`;
-    para(ligneLieu, {after:8});
+    const coord = (llText && llText.includes('Lat')) ? ` (coordonnées ${llText.replace('Lat','lat').replace('Lng','lng')})` : '';
+    para(`Intervention réalisée à ${ (lieu && lieu.trim()) ? lieu.trim() : 'lieu non précisé' }${coord}.`, {after:8});
     para(`Intervention conduite dans le cadre des missions de police de l’environnement de l’OFB – SD40.`, {after:12});
   }
   function pageNumbers(){
@@ -1307,37 +1309,62 @@ $('#btnProcPDF').addEventListener('click', async ()=>{
     titreSection('Pièces jointes (photos & croquis)');
     if (!items.length){ para('Aucune pièce jointe.', {size:11}); return; }
 
-    const gap = 10;
-    // 3 colonnes si possible, sinon 2 sur petits écrans imprimés
-    const cols = 3;
+    // Fonction pour "contain" dans une boîte (respect du ratio + centrage)
+    function fitInBox(imgW, imgH, boxW, boxH){
+      if (!imgW || !imgH){ // fallback ratio 4:3
+        imgW = 400; imgH = 300;
+      }
+      const r = Math.min(boxW / imgW, boxH / imgH);
+      const w = Math.floor(imgW * r);
+      const h = Math.floor(imgH * r);
+      const xoff = Math.floor((boxW - w)/2);
+      const yoff = Math.floor((boxH - h)/2);
+      return {w,h,xoff,yoff};
+    }
+
+    // Choix colonnes dynamiques : + de lisibilité portrait/paysage
+    const gap = 12;
+    const cols = 3; // stable et pro ; lisible A4
     const boxW = Math.floor((W - M.left - M.right - (gap*(cols-1))) / cols);
     const boxH = Math.floor(boxW * 0.62); // ratio paysage confortable
 
     let col=0, rowH=0;
     items.forEach((it, idx)=>{
-      ensure(boxH + 36);
+      ensure(boxH + 40);
+
       const x = M.left + col * (boxW + gap);
+      const yTop = y;
+
+      // Cadre
       pdf.setDrawColor(229,231,235);
-      pdf.rect(x-2, y-2, boxW+4, boxH+4);
+      pdf.rect(x-2, yTop-2, boxW+4, boxH+4);
 
-      // Choix JPEG/PNG selon dataURL
+      // Calcul d’ajustement à la boîte
+      const dims = fitInBox(it.w, it.h, boxW, boxH);
+
+      // Fond blanc (évite l’effet damier si PNG)
+      pdf.setFillColor(255,255,255);
+      pdf.rect(x, yTop, boxW, boxH, 'F');
+
+      // Image
       const isPNG = (it.dataUrl||'').startsWith('data:image/png');
-      pdf.addImage(it.dataUrl, isPNG?'PNG':'JPEG', x, y, boxW, boxH, undefined, 'FAST');
+      pdf.addImage(it.dataUrl, isPNG?'PNG':'JPEG', x + dims.xoff, yTop + dims.yoff, dims.w, dims.h, undefined, 'FAST');
 
+      // Légende
       setFont(10,'normal',[55,65,81]);
       const cap = (it.label || `Pièce ${idx+1}`);
       const lines = pdf.splitTextToSize(cap, boxW);
-      pdf.text(lines, x, y + boxH + 14);
+      pdf.text(lines, x, yTop + boxH + 16);
 
-      // Mise en page grille
+      // Mise en grille
       col++;
-      rowH = Math.max(rowH, boxH + 28);
+      rowH = Math.max(rowH, boxH + 30);
       if (col >= cols){ col=0; y += rowH + 18; rowH=0; }
     });
     if (col!==0){ y += rowH + 6; }
   }
 
-  // ======= Récupération des champs UI (propre & robuste) =======
+  // ===== Récupération champs UI =====
   const Titre = ($('#ftTitre').value||'Intervention').trim();
   const Lieu = ($('#ftLieu').value||'').trim();
   const Desc = ($('#ftDesc').value||'').trim();
@@ -1346,27 +1373,19 @@ $('#btnProcPDF').addEventListener('click', async ()=>{
   const RegimeTxt = ($('#valResult').textContent||'—').replace(/^[🔴🟠⚪]\s*/,'');
   const LatLngTxt = ($('#ftLatLng').textContent||'').trim();
 
-  // Mesures (liées aux outils). On reformule en phrases (pas de jargon)
+  // Mesures (phrases naturelles)
   const surfaceTxt = (typeof lastMeasure?.area_m2 === 'number' && lastMeasure.area_m2>0) ? fmtArea(lastMeasure.area_m2) : null;
   const longueurTxt= (typeof lastMeasure?.length_m === 'number' && lastMeasure.length_m>0) ? fmtLength(lastMeasure.length_m) : null;
 
-  // Photos / croquis : accessibles dans la portée initProc
-  // Si ces noms changent un jour, penser à les exposer sur window.* mais ici on garde le code intact ailleurs.
-  const items = (function(){
-    try{
-      // On “revois” la variable fermée du scope initProc
-      // @ts-ignore
-      return [...photos, ...sketches];
-    }catch(_){ return []; }
-  })();
+  // Pièces (photos + croquis) depuis le scope initProc
+  const items = (function(){ try{ return [...photos, ...sketches]; }catch(_){ return []; } })();
 
-  // ======= Page 1 : garde + accroche =======
-  headerPage(Titre, new Date().toISOString(), Lieu, LatLngTxt, RegimeTxt);
+  // ===== Page 1 : entête =====
+  headerPage(Titre, Lieu, LatLngTxt, RegimeTxt);
 
-  // ======= Résumé opérationnel =======
+  // ===== Résumé opérationnel =====
   titreSection('Résumé opérationnel');
   const resumeParts = [];
-  // Objet & contexte court
   resumeParts.push(
     Desc
       ? `Objet : ${Desc}`
@@ -1380,25 +1399,13 @@ $('#btnProcPDF').addEventListener('click', async ()=>{
   } else {
     resumeParts.push(`Mesures sur place : non significatives ou non réalisées à ce stade.`);
   }
-  if (Iota){
-    resumeParts.push(`Références IOTA visées ou retenues : ${Iota}.`);
-  } else {
-    resumeParts.push(`Références IOTA : non précisées à ce stade.`);
-  }
-  if (Natinf){
-    resumeParts.push(`Qualification pénale envisagée (NATINF) : ${Natinf}.`);
-  } else {
-    resumeParts.push(`Qualification pénale (NATINF) : non ciblée à ce stade.`);
-  }
-  resumeParts.push(
-    `Au regard des paramètres saisis, l’évaluation automatisée indique : ${RegimeTxt || '—'}.`
-  );
-  if (items.length){
-    resumeParts.push(`Éléments visuels : ${items.length} pièce(s) jointe(s) (photographies et/ou croquis) illustrent les constats.`);
-  }
+  resumeParts.push(Iota ? `Références IOTA visées ou retenues : ${Iota}.` : `Références IOTA : non précisées à ce stade.`);
+  resumeParts.push(Natinf ? `Qualification pénale envisagée (NATINF) : ${Natinf}.` : `Qualification pénale (NATINF) : non ciblée à ce stade.`);
+  resumeParts.push(`Au regard des paramètres saisis, l’évaluation automatisée indique : ${RegimeTxt || '—'}.`);
+  if (items.length){ resumeParts.push(`Éléments visuels : ${items.length} pièce(s) (photographies et/ou croquis) illustrent les constats.`); }
   para(resumeParts.join(' '), {after:10});
 
-  // ======= Contexte détaillé & cadre réglementaire =======
+  // ===== Contexte détaillé & cadre =====
   titreSection('Contexte détaillé & cadre réglementaire');
   para(
     Lieu
@@ -1416,7 +1423,7 @@ $('#btnProcPDF').addEventListener('click', async ()=>{
       : `Aucune qualification pénale potentielle n’est retenue à ce stade. Elle sera appréciée à la lumière d’éléments complémentaires, le cas échéant.`
   , {after:12});
 
-  // ======= Constats sur place =======
+  // ===== Constats =====
   titreSection('Constats sur place');
   para(
     Desc
@@ -1431,7 +1438,7 @@ $('#btnProcPDF').addEventListener('click', async ()=>{
     para(`Aucune mesure exploitable n’a été conservée pour ce rapport.`, {after:12});
   }
 
-  // ======= Analyse & qualification =======
+  // ===== Analyse & qualification =====
   titreSection('Analyse & qualification');
   para(
     (RegimeTxt && Iota)
@@ -1441,13 +1448,13 @@ $('#btnProcPDF').addEventListener('click', async ()=>{
         : `Aucune qualification automatique ne peut être proposée en l’état des informations disponibles.`
   , {after:12});
 
-  // ======= Localisation (carte) =======
+  // ===== Localisation (carte) =====
   await addMapBlock();
 
-  // ======= Pièces jointes =======
+  // ===== Pièces jointes =====
   addPiecesGrid(items);
 
-  // ======= Suites proposées & réserves =======
+  // ===== Suites =====
   titreSection('Suites proposées');
   para(
     `Selon la situation, les suites pourront consister en une transmission au service instructeur, une demande de compléments (justificatifs techniques, hydrauliques, autorisations), ou une visite de contrôle ultérieure.`
@@ -1456,11 +1463,12 @@ $('#btnProcPDF').addEventListener('click', async ()=>{
     `L’évaluation fournie par l’outil est indicative et doit être confrontée aux textes en vigueur ainsi qu’aux éléments complémentaires à recueillir.`
   , {after:8});
 
-  // Pieds de page (toutes pages)
+  // Pieds de page
   pageNumbers();
 
   pdf.save('fiche-terrain.pdf');
 });
+
 
 
       // Reset total
