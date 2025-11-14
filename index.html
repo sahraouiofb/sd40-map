@@ -1201,165 +1201,143 @@
         URL.revokeObjectURL(url);
       });
 
- // === PDF narratif pro — V4 (par rubriques + seuils, croquis plein-largeur) ===
+// === PDF narratif pro — V5 (mise en page éditoriale, narration, rubriques en prose) ===
 $('#btnProcPDF').addEventListener('click', async ()=>{
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit:'pt', format:'a4' });
 
-  // Marges & page
-  const M = { left:44, right:44, top:84, bottom:60 };
+  // Marges & grille typographique
+  const M = { left:56, right:56, top:88, bottom:64 };
   const W = pdf.internal.pageSize.getWidth();
   const H = pdf.internal.pageSize.getHeight();
   let y = M.top;
 
-  // ===== Helpers de mise en page
+  // ---------- helpers mise en page (style "rapport") ----------
   function addPage(){ pdf.addPage(); y = M.top; }
   function ensure(h){ if (y + h > H - M.bottom) addPage(); }
-  function setFont(n=11, weight='normal', color=[0,0,0]){
-    pdf.setTextColor(...color);
-    pdf.setFont('helvetica', weight);
-    pdf.setFontSize(n);
+  function setFont(n=11, weight='normal', color=[20,20,20], family='times'){
+    pdf.setFont(family, weight); pdf.setFontSize(n); pdf.setTextColor(...color);
   }
-  function para(txt, opts={}){
-    const text = (txt && String(txt).trim().length) ? String(txt).trim() : 'Informations non disponibles à ce stade.';
-    const size = opts.size ?? 11;
-    const lh   = opts.lineHeight ?? 16;
-    const color= opts.color ?? [0,0,0];
-    const indent = opts.indent ?? 0;
-    const after = opts.after ?? 6;
-    setFont(size, 'normal', color);
+  function hr(spacingTop=10, spacingBottom=14){
+    ensure(spacingTop + 1 + spacingBottom);
+    y += spacingTop;
+    pdf.setDrawColor(225,227,233); pdf.setLineWidth(0.6);
+    pdf.line(M.left, y, W - M.right, y);
+    y += spacingBottom;
+  }
+  function heading(txt){ // Titre de section
+    ensure(28);
+    setFont(13.5, 'bold', [15,30,60]);
+    pdf.text(txt, M.left, y);
+    y += 18;
+  }
+  function subhead(txt){ // Sous-titre (rubrique)
+    ensure(24);
+    setFont(12.5, 'bold', [30,41,59]);
+    pdf.text(txt, M.left, y);
+    y += 14;
+  }
+  function para(txt, {size=11, lh=18, after=10, indent=0, color=[20,20,20], italic=false}={}){
+    const content = (txt && String(txt).trim().length) ? String(txt).trim().replace(/\s+/g,' ') : '—';
+    setFont(size, italic?'italic':'normal', color);
     const maxW = W - M.left - M.right - indent;
-    const lines = pdf.splitTextToSize(text.replace(/\s+/g,' ').trim(), maxW);
+    const lines = pdf.splitTextToSize(content, maxW);
     const h = lines.length * lh;
     ensure(h);
     const x = M.left + indent;
     lines.forEach(line => { pdf.text(line, x, y); y += lh; });
     y += after;
   }
-  function titreSection(txt){
-    ensure(28);
-    setFont(13, 'bold', [11,34,57]);
-    pdf.text(txt, M.left, y);
-    y += 16;
-  }
-  function sousTitre(txt){
-    ensure(22);
-    setFont(12, 'bold', [30,41,59]);
-    pdf.text(txt, M.left, y);
-    y += 12;
-  }
-  function pastilleRegime(regText){
-    let col=[55,65,81], label='Hors nomenclature';
-    const t = (regText||'').toLowerCase();
-    if (t.includes('autor')) { col=[185,28,28]; label='Autorisation'; }
-    else if (t.includes('décla') || t.includes('decla')) { col=[154,52,18]; label='Déclaration'; }
-    const padX=10;
-    setFont(10,'bold',[255,255,255]);
-    const tw = pdf.getTextWidth(label) + padX*2;
-    const h  = 20;
-    pdf.setFillColor(...col);
-    pdf.roundedRect(W - M.right - tw, M.top - 40, tw, h, 10, 10, 'F');
-    pdf.text(label, W - M.right - tw + padX, M.top - 26);
-  }
-  function headerPage(titre, lieu, llText, regimeTxt){
-    pdf.setFillColor(11,34,57);
-    pdf.rect(0,0,W,56,'F');
-    setFont(16,'bold',[255,255,255]);
-    pdf.text('FICHE TERRAIN – Procédure', M.left, 38);
-    setFont(10,'normal',[255,255,255]);
-    const stamp = new Date().toLocaleString('fr-FR');
-    pdf.text(stamp, W - M.right, 38, {align:'right'});
-
-    y = M.top;
-    setFont(14,'bold',[0,0,0]); pdf.text((titre||'Intervention'), M.left, y); y += 10;
-    pastilleRegime(regimeTxt||''); y += 10;
-
-    const coord = (llText && llText.includes('Lat')) ? ` (coordonnées ${llText.replace('Lat','lat').replace('Lng','lng')})` : '';
-    para(`Intervention réalisée à ${ (lieu && lieu.trim()) ? lieu.trim() : 'lieu non précisé' }${coord}.`, {after:8});
-    para(`Intervention conduite dans le cadre des missions de police de l’environnement de l’OFB – SD40.`, {after:12});
-  }
+  function smallNote(txt){ para(txt, {size:10, lh:16, after:8, color:[85,94,108], italic:true}); }
   function pageNumbers(){
     const n = pdf.getNumberOfPages();
     for (let i=1;i<=n;i++){
       pdf.setPage(i);
-      setFont(9,'normal',[100,116,139]);
-      pdf.text(`OFB – SD40`, M.left, H - 26);
+      setFont(9.5, 'normal', [110,118,132]);
+      pdf.text('OFB – SD40', M.left, H - 26);
       pdf.text(`Page ${i} / ${n}`, W - M.right, H - 26, {align:'right'});
     }
   }
-  // Formatages
-  const fmtNum = (v)=> {
+  function regimePill(regTxt){
+    const t = (regTxt||'').toLowerCase();
+    let col=[75,85,99], label='Hors nomenclature';
+    if (t.includes('autor')) { col=[185,28,28]; label='Autorisation'; }
+    else if (t.includes('décla') || t.includes('decla')) { col=[154,52,18]; label='Déclaration'; }
+    const padX=10, h=20;
+    setFont(10,'bold',[255,255,255],'helvetica');
+    const tw = pdf.getTextWidth(label) + padX*2;
+    pdf.setFillColor(...col);
+    pdf.roundedRect(W - M.right - tw, M.top - 36, tw, h, 10, 10, 'F');
+    pdf.text(label, W - M.right - tw + padX, M.top - 21);
+  }
+  function banner(title){
+    pdf.setFillColor(12,34,60); pdf.rect(0,0,W,56,'F');
+    setFont(16,'bold',[255,255,255],'helvetica');
+    pdf.text('FICHE TERRAIN – Procédure', M.left, 38);
+    setFont(10,'normal',[255,255,255],'helvetica');
+    pdf.text(new Date().toLocaleString('fr-FR'), W - M.right, 38, {align:'right'});
+    y = M.top;
+    setFont(15,'bold',[15,15,20]); pdf.text(title||'Intervention', M.left, y); y += 10;
+  }
+
+  // ---------- formats utiles ----------
+  const fmtNum = v => {
     if (v===null || v===undefined || v==='') return '—';
-    const n = Number(v);
-    return Number.isFinite(n) ? n.toLocaleString('fr-FR') : String(v);
+    const n = Number(v); return Number.isFinite(n) ? n.toLocaleString('fr-FR') : String(v);
   };
-  function humanizeCondForPDF(expr, def){
+  const fmtEvalText = txt =>
+    String(txt||'').replace(/^[🔴🟠⚪]\s*/, '');
+
+  function humanizeCond(expr, def){ // expr → prose “math” (sans &&, ||, ids)
     let s = String(expr||'');
     (def?.params||[]).forEach(p=>{
       const re = new RegExp(`\\b${p.id}\\b`, 'g');
       s = s.replace(re, p.label||p.id);
     });
-    return s
-      .replace(/\s*>=\s*/g,' ≥ ').replace(/\s*<=\s*/g,' ≤ ')
-      .replace(/\s*>\s*/g,' > ').replace(/\s*<\s*/g,' < ')
-      .replace(/\s*==\s*/g,' = ').replace(/\s*&&\s*/g,' ET ')
-      .replace(/\s*\|\|\s*/g,' OU ')
-      .replace(/'([^']+)'/g,'$1')
-      .trim();
+    return s.replace(/\s*>=\s*/g,' ≥ ')
+            .replace(/\s*<=\s*/g,' ≤ ')
+            .replace(/\s*>\s*/g,' > ')
+            .replace(/\s*<\s*/g,' < ')
+            .replace(/\s*==\s*/g,' = ')
+            .replace(/\s*&&\s*/g,' et ')
+            .replace(/\s*\|\|\s*/g,' ou ')
+            .replace(/'([^']+)'/g,'$1')
+            .trim();
   }
 
-  // ===== Carte
+  // ---------- blocs visuels ----------
   async function addMapBlock(){
-    titreSection('Localisation');
+    heading('Localisation');
     try{
       const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, scale:1, backgroundColor:'#ffffff'});
-      const img = canvas.toDataURL('image/jpeg', 0.9);
+      const img = canvas.toDataURL('image/jpeg', 0.92);
       const maxW = W - M.left - M.right;
       let w = maxW, h = w * (canvas.height/canvas.width);
       const maxH = 0.60 * (H - M.top - M.bottom);
       if (h > maxH){ h = maxH; w = h * (canvas.width/canvas.height); }
-      ensure(h + 36);
+      ensure(h + 30);
       pdf.addImage(img, 'JPEG', M.left, y, w, h, undefined, 'FAST');
-      y += h + 10;
-      para(`Extrait cartographique centré sur la zone d’intervention (fond OSM). Emprise indicative.`, {size:10, color:[71,85,105], after:12});
+      y += h + 8;
+      smallNote(`Extrait cartographique centré sur la zone d’intervention (fond OSM). Emprise indicative.`);
     }catch(_){
-      para(`La carte n’a pas pu être insérée. La localisation reste disponible dans l’outil (aperçu OSM).`, {size:10, color:[71,85,105], after:12});
+      smallNote(`La carte n’a pas pu être intégrée (restriction CORS). La localisation reste consultable dans l’outil.`);
     }
+    hr(4, 14);
   }
 
-  // ===== Pièces (croquis plein-largeur si seul, sinon grille)
   function addPieces(items){
-    titreSection('Pièces jointes');
-    if (!items.length){ para('Aucune pièce jointe.', {size:11}); return; }
+    heading('Pièces et illustrations');
+    if (!items.length){ para(`Aucune pièce n’a été jointe au présent rapport.`); hr(); return; }
 
     const croquis = items.filter(it => /croquis/i.test(it.label||''));
     const photos  = items.filter(it => !/croquis/i.test(it.label||''));
 
-    // Croquis seul → plein-largeur
+    // Croquis seul → plein-largeur éditorial
     if (croquis.length === 1 && photos.length === 0){
       const it = croquis[0];
       const maxW = W - M.left - M.right;
       const maxH = 0.55 * (H - M.top - M.bottom);
-      // calc ratio contain
-      const iw = it.w || 1200, ih = it.h || 800;
-      let w = maxW, h = w * (ih/iw);
-      if (h > maxH){ h = maxH; w = h * (iw/ih); }
-      ensure(h + 44);
-      // fond blanc
-      pdf.setFillColor(255,255,255); pdf.rect(M.left, y, w, h, 'F');
-      const isPNG = (it.dataUrl||'').startsWith('data:image/png');
-      pdf.addImage(it.dataUrl, isPNG?'PNG':'JPEG', M.left, y, w, h, undefined, 'FAST');
-      y += h + 12;
-      para(it.label || 'Croquis', {size:10, color:[55,65,81]});
-      return;
-    }
-
-    // Sinon : croquis si présent → bande large d’abord, puis grille photos
-    if (croquis.length === 1){
-      const it = croquis[0];
-      const maxW = W - M.left - M.right;
-      const maxH = 0.40 * (H - M.top - M.bottom);
-      const iw = it.w || 1200, ih = it.h || 800;
+      const iw = it.w||1200, ih = it.h||800;
       let w = maxW, h = w * (ih/iw);
       if (h > maxH){ h = maxH; w = h * (iw/ih); }
       ensure(h + 36);
@@ -1367,149 +1345,148 @@ $('#btnProcPDF').addEventListener('click', async ()=>{
       const isPNG = (it.dataUrl||'').startsWith('data:image/png');
       pdf.addImage(it.dataUrl, isPNG?'PNG':'JPEG', M.left, y, w, h, undefined, 'FAST');
       y += h + 10;
-      para(it.label || 'Croquis', {size:10, color:[55,65,81], after:12});
+      smallNote(it.label || 'Croquis');
+      hr(); return;
     }
 
-    // Grille pour le reste (photos et croquis supplémentaires)
+    // Croquis prioritaire en grande bande si mixte
+    if (croquis.length === 1){
+      const it = croquis[0];
+      const maxW = W - M.left - M.right;
+      const maxH = 0.40 * (H - M.top - M.bottom);
+      const iw = it.w||1200, ih = it.h||800;
+      let w = maxW, h = w * (ih/iw);
+      if (h > maxH){ h = maxH; w = h * (iw/ih); }
+      ensure(h + 30);
+      const isPNG = (it.dataUrl||'').startsWith('data:image/png');
+      pdf.addImage(it.dataUrl, isPNG?'PNG':'JPEG', M.left, y, w, h, undefined, 'FAST');
+      y += h + 8;
+      smallNote(it.label || 'Croquis');
+      hr(4,12);
+    }
+
+    // Grille photos (sobre, sans “grille informatique”)
     const grid = croquis.slice(1).concat(photos);
-    if (!grid.length) return;
-
-    const gap = 12;
+    const gap = 14;
     const cols = (grid.length===1) ? 1 : (grid.length===2 ? 2 : 3);
-    const boxW = Math.floor((W - M.left - M.right - (gap*(cols-1))) / cols);
+    const boxW = Math.floor((W - M.left - M.right - gap*(cols-1)) / cols);
     const boxH = Math.floor(boxW * 0.62);
-
-    function fitInBox(imgW, imgH, bW, bH){
-      const iw = imgW || 1200, ih = imgH || 800;
-      const r = Math.min(bW/iw, bH/ih);
-      const w = Math.floor(iw*r), h = Math.floor(ih*r);
-      const xoff = Math.floor((bW - w)/2), yoff = Math.floor((bH - h)/2);
-      return {w,h,xoff,yoff};
-    }
 
     let col=0, rowH=0;
     grid.forEach((it, idx)=>{
-      ensure(boxH + 40);
+      ensure(boxH + 42);
       const x = M.left + col * (boxW + gap);
       const yTop = y;
 
-      pdf.setDrawColor(229,231,235);
-      pdf.rect(x-2, yTop-2, boxW+4, boxH+4);
-      pdf.setFillColor(255,255,255); pdf.rect(x, yTop, boxW, boxH, 'F');
+      // cadre blanc discret
+      pdf.setDrawColor(236,239,244); pdf.setFillColor(255,255,255);
+      pdf.rect(x-2, yTop-2, boxW+4, boxH+4, 'F');
 
-      const dims = fitInBox(it.w, it.h, boxW, boxH);
+      // “contain”
+      const iw = it.w||1200, ih = it.h||800;
+      const r = Math.min(boxW/iw, boxH/ih); const w = Math.floor(iw*r), h = Math.floor(ih*r);
+      const xo = Math.floor((boxW - w)/2), yo = Math.floor((boxH - h)/2);
       const isPNG = (it.dataUrl||'').startsWith('data:image/png');
-      pdf.addImage(it.dataUrl, isPNG?'PNG':'JPEG', x + dims.xoff, yTop + dims.yoff, dims.w, dims.h, undefined, 'FAST');
+      pdf.addImage(it.dataUrl, isPNG?'PNG':'JPEG', x+xo, yTop+yo, w, h, undefined, 'FAST');
 
-      setFont(10,'normal',[55,65,81]);
+      setFont(10.2, 'normal', [70,78,90]);
       const cap = it.label || `Pièce ${idx+1}`;
       const lines = pdf.splitTextToSize(cap, boxW);
-      pdf.text(lines, x, yTop + boxH + 16);
+      pdf.text(lines, x, yTop + boxH + 18);
 
-      col++; rowH = Math.max(rowH, boxH + 30);
-      if (col >= cols){ col=0; y += rowH + 18; rowH=0; }
+      col++; rowH = Math.max(rowH, boxH + 32);
+      if (col >= cols){ col=0; y += rowH + 8; rowH=0; }
     });
-    if (col!==0){ y += rowH + 8; }
+    if (col!==0) y += rowH + 6;
+    hr();
   }
 
-  // ===== Récupération champs UI
-  const Titre = ($('#ftTitre').value||'Intervention').trim();
-  const Lieu = ($('#ftLieu').value||'').trim();
-  const Desc = ($('#ftDesc').value||'').trim();
+  // ---------- collecte UI ----------
+  const Titre   = ($('#ftTitre').value||'Intervention').trim();
+  const Lieu    = ($('#ftLieu').value||'').trim();
+  const Desc    = ($('#ftDesc').value||'').trim();
   const IotaTxt = ($('#ftRefIota').value||'').trim();
-  const NatinfTxt = ($('#ftRefNatinf').value||'').trim();
-  const RegimeTxt = ($('#valResult').textContent||'—').replace(/^[🔴🟠⚪]\s*/,'');
-  const LatLngTxt = ($('#ftLatLng').textContent||'').trim();
+  const Natinf  = ($('#ftRefNatinf').value||'').trim();
+  const Regime  = fmtEvalText($('#valResult').textContent||'—');
+  const Coord   = ($('#ftLatLng').textContent||'').trim();
 
-  // Mesures (phrases naturelles)
-  const surfaceTxt = (typeof lastMeasure?.area_m2 === 'number' && lastMeasure.area_m2>0) ? fmtArea(lastMeasure.area_m2) : null;
-  const longueurTxt= (typeof lastMeasure?.length_m === 'number' && lastMeasure.length_m>0) ? fmtLength(lastMeasure.length_m) : null;
+  const surfaceTxt = (typeof lastMeasure?.area_m2==='number' && lastMeasure.area_m2>0) ? fmtArea(lastMeasure.area_m2) : null;
+  const longueurTxt= (typeof lastMeasure?.length_m==='number' && lastMeasure.length_m>0) ? fmtLength(lastMeasure.length_m) : null;
 
-  // Pièces depuis le scope initProc
   const items = (function(){ try{ return [...photos, ...sketches]; }catch(_){ return []; } })();
 
-  // ===== Entête
-  headerPage(Titre, Lieu, LatLngTxt, RegimeTxt);
+  // ---------- entête ----------
+  banner(Titre);
+  regimePill(Regime);
 
-  // ===== Résumé opérationnel
-  titreSection('Résumé opérationnel');
-  const resumeParts = [];
-  resumeParts.push( Desc
-    ? `Objet : ${Desc}`
-    : `Objet : constatations réalisées sur site en lien avec une opération susceptible de relever de la réglementation sur l’eau.` );
-  if (surfaceTxt || longueurTxt){
-    resumeParts.push(`Mesures sur place : ${ surfaceTxt ? `une emprise d’environ ${surfaceTxt}` : `emprise non estimée` }${ longueurTxt ? ` et une longueur d’ouvrage d’environ ${longueurTxt}` : `` }.`);
-  } else {
-    resumeParts.push(`Mesures sur place : non significatives ou non réalisées à ce stade.`);
-  }
-  resumeParts.push(IotaTxt ? `Références IOTA visées ou retenues : ${IotaTxt}.` : `Références IOTA : non précisées à ce stade.`);
-  resumeParts.push(NatinfTxt ? `Qualification pénale envisagée (NATINF) : ${NatinfTxt}.` : `Qualification pénale (NATINF) : non ciblée à ce stade.`);
-  resumeParts.push(`Au regard des paramètres saisis, l’évaluation automatisée indique : ${RegimeTxt || '—'}.`);
-  if (items.length){ resumeParts.push(`Éléments visuels : ${items.length} pièce(s) (photographies et/ou croquis) illustrent les constats.`); }
-  para(resumeParts.join(' '), {after:12});
-
-  // ===== Contexte & cadre
-  titreSection('Contexte détaillé & cadre réglementaire');
-  para( Lieu
-    ? `Le site est situé sur la commune de ${Lieu}. Les constatations ont été réalisées au plus près de la zone d’intérêt, en veillant à documenter l’état des lieux de manière lisible et reproductible.`
-    : `Les constatations ont été réalisées sur la zone d’intérêt, en veillant à documenter l’état des lieux de manière lisible et reproductible.` );
-  para( IotaTxt
-    ? `Au titre de la police de l’eau (IOTA), les opérations considérées relèvent potentiellement des rubriques suivantes : ${IotaTxt}.`
-    : `Au titre de la police de l’eau (IOTA), aucune rubrique n’a pu être identifiée de manière certaine à ce stade.` );
-  para( NatinfTxt
-    ? `La qualification pénale potentielle renvoie aux codes NATINF suivants : ${NatinfTxt}. Cette qualification sera confirmée à l’appui des pièces et éléments complémentaires.`
-    : `Aucune qualification pénale potentielle n’est retenue à ce stade. Elle sera appréciée à la lumière d’éléments complémentaires, le cas échéant.`,
-    {after:14}
-  );
-
-  // ===== Constats
-  titreSection('Constats sur place');
-  para( Desc
-    ? Desc
-    : `Constats succincts : état des lieux, ouvrages et aménagements observés. Les éléments matériels utiles ont été relevés et photographiés lorsque pertinent.` );
-  if (surfaceTxt || longueurTxt){
-    para(`Relevés : ${ surfaceTxt ? `emprise ≈ ${surfaceTxt}` : `emprise non estimée` }${ longueurTxt ? ` ; longueur caractéristique ≈ ${longueurTxt}` : `` }.`, {after:14});
-  } else {
-    para(`Aucune mesure exploitable n’a été conservée pour ce rapport.`, {after:14});
+  // ---------- chapeau éditorial ----------
+  const coordPhrase = (Coord && Coord.includes('Lat')) ? ` (coordonnées ${Coord.replace('Lat','lat').replace('Lng','lng')})` : '';
+  para(`L’intervention a été conduite à ${ Lieu ? Lieu : 'un lieu non précisé' }${coordPhrase}. Elle s’inscrit dans les missions de police de l’environnement de l’OFB – SD40.`, {after:12});
+  if (Desc){
+    para(Desc, {after:12});
   }
 
-  // ===== Analyse & qualification globale
-  titreSection('Analyse & qualification (synthèse)');
+  // ---------- Résumé exécutif ----------
+  heading('Résumé exécutif');
+  let resume = `Au regard des éléments disponibles, l’évaluation automatisée indique : « ${Regime||'—'} ».`;
+  resume += IotaTxt ? ` Les opérations examinées relèvent a priori des rubriques IOTA suivantes : ${IotaTxt}.` : ` À ce stade, aucune rubrique IOTA n’est certaine.`;
+  resume += Natinf ? ` La qualification pénale étudiée renvoie aux codes NATINF : ${Natinf}.` : ` Aucune qualification pénale n’est retenue pour l’instant.`;
+  if (surfaceTxt || longueurTxt){
+    resume += ` Les mesures réalisées sur site établissent ${ surfaceTxt ? `une emprise d’environ ${surfaceTxt}` : `une emprise non estimée` }${ longueurTxt ? ` et une longueur caractéristique voisine de ${longueurTxt}` : '' }.`;
+  }
+  para(resume, {after:10});
+  smallNote(`Le présent résumé ne préjuge pas de l’instruction complète au regard des textes en vigueur et des pièces complémentaires.`);
+
+  hr();
+
+  // ---------- Contexte et objet ----------
+  heading('Contexte et objet');
   para(
-    (RegimeTxt && IotaTxt)
-      ? `Au regard des paramètres saisis et des seuils associés, l’opération apparaît soumise à « ${RegimeTxt} » au titre de ${IotaTxt}. Cette qualification reste indicative et devra être confirmée par l’analyse réglementaire complète et la vérification des pièces.`
-      : (RegimeTxt)
-        ? `Au regard des paramètres saisis, l’opération apparaît soumise à « ${RegimeTxt} ». Cette qualification reste indicative et devra être confirmée.`
-        : `Aucune qualification automatique ne peut être proposée en l’état des informations disponibles.`,
-    {after:14}
+    Lieu
+      ? `Le site est situé sur la commune de ${Lieu}. Les constatations ont été conduites au plus près de la zone d’intérêt, avec une documentation précise et reproductible.`
+      : `Les constatations ont été conduites au plus près de la zone d’intérêt, avec une documentation précise et reproductible.`
   );
+  para(
+    IotaTxt
+      ? `À ce stade, l’analyse porte sur les rubriques IOTA suivantes : ${IotaTxt}.`
+      : `Aucune rubrique IOTA ne s’impose encore avec certitude ; l’analyse demeure ouverte en fonction des éléments à venir.`
+  , {after:12});
 
-  // ===== Détail par rubriques (paramètres + seuils évalués)
-  titreSection('Évaluation détaillée par rubrique');
-  // Accès aux règles et rubriques sélectionnées
+  // ---------- Méthodes et mesures ----------
+  heading('Méthodes et mesures');
+  if (surfaceTxt || longueurTxt){
+    para(`Les outils intégrés ont permis d’estimer les caractéristiques physiques pertinentes : ${ surfaceTxt ? `emprise ≈ ${surfaceTxt}` : `emprise non estimée` }${ longueurTxt ? ` ; longueur caractéristique ≈ ${longueurTxt}` : '' }.`);
+  } else {
+    para(`Aucune mesure exploitable n’a pu être conservée pour ce rapport.`);
+  }
+  smallNote(`Les estimations sont indicatives et visent à éclairer l’analyse ; elles doivent être confirmées si nécessaire par des relevés instrumentés ou une expertise technique.`);
+
+  hr();
+
+  // ---------- Évaluation détaillée par rubrique (prose) ----------
+  heading('Évaluation détaillée par rubrique');
+
+  // Accès règles & sélection
   const rules = (function(){
     try { return (typeof getRules==='function') ? getRules() : JSON.parse(localStorage.getItem('sd40:iota_rules_v1')||'{}'); }
     catch(_){ return {}; }
   })();
-  let selectedCodes = [];
-  try { selectedCodes = Array.from(SELECTED_IOTA||[]); } catch(_){}
-  if (!selectedCodes.length){
+  let codes = [];
+  try { codes = Array.from(SELECTED_IOTA||[]); } catch(_){}
+  if (!codes.length){
     const raw = ($('#valRubrique').value||'').trim();
-    if (raw) selectedCodes = [raw];
-    else if (IotaTxt) selectedCodes = IotaTxt.split(',').map(s=>s.trim()).filter(Boolean);
+    if (raw) codes = [raw];
+    else if (IotaTxt) codes = IotaTxt.split(',').map(s=>s.trim()).filter(Boolean);
   }
-  const RESULT_LABELS = { HN:'Hors nomenclature', A:'Autorisation', D:'Déclaration' };
 
+  // lecture param typée (multi/single)
   function readParamValue(code, p){
     const idMulti = `param_${code}_${p.id}`;
     const idSingle= `param_${p.id}`;
     const el = document.getElementById(idMulti) || document.getElementById(idSingle);
     if (!el) return (p.type==='number') ? null : '';
     const raw = String(el.value||'').trim();
-    if (p.type==='number'){
-      const vv = parseFloat(raw.replace(',','.'));
-      return Number.isFinite(vv) ? vv : null;
-    }
+    if (p.type==='number'){ const vv=parseFloat(raw.replace(',','.')); return Number.isFinite(vv)?vv:null; }
     return raw.toLowerCase();
   }
   function safeEval(expr, ctx){
@@ -1523,95 +1500,98 @@ $('#btnProcPDF').addEventListener('click', async ()=>{
     try{ return !!eval(safe); }catch{ return false; }
   }
 
-  selectedCodes.forEach((code, idx)=>{
-    const def = rules[code];
-    sousTitre(`${code} — ${ def?.label || 'Rubrique non documentée' }`);
+  const RESULT_TXT = { HN:'Hors nomenclature', A:'Autorisation', D:'Déclaration' };
 
-    // Paramètres saisis (libellés + valeurs + unités)
-    if (def?.params?.length){
-      para(`Paramètres saisis :`, {size:11, color:[55,65,81], after:4});
-      def.params.forEach(p=>{
-        const v = readParamValue(code, p);
-        const unit = (p.label||'').match(/\(([^)]+)\)/)?.[1] || '';
-        const disp = (p.type==='number') ? fmtNum(v) + (unit? ` ${unit.split('/')[0]}`:'') : (v||'—');
-        para(`• ${p.label} : ${disp}`, {indent:16, after:4});
-      });
-    } else {
-      // Cas sans params : on tente les champs génériques injectés par l’outil
-      const tryIds = [
-        {id:`param_${code}_surface_m2`, label:'Surface (m²)', u:'m²'},
-        {id:`param_${code}_surface_drainee_m2`, label:'Surface drainée (m²)', u:'m²'},
-        {id:`param_${code}_longueur_m`, label:'Longueur (m)', u:'m'}
-      ];
-      const vals = tryIds.map(t=>{
-        const el = document.getElementById(t.id);
-        return el ? {label:t.label, val:fmtNum(el.value), u:t.u} : null;
-      }).filter(Boolean);
-      if (vals.length){
-        para(`Paramètres saisis :`, {size:11, color:[55,65,81], after:4});
-        vals.forEach(v=> para(`• ${v.label} : ${v.val} ${v.u||''}`.trim(), {indent:16, after:4}));
+  if (!codes.length){
+    para(`Aucune rubrique n’a été évaluée à ce stade.`, {italic:true, color:[90,96,110]});
+  } else {
+    codes.forEach((code, idx)=>{
+      const def = rules[code] || {};
+      subhead(`${code} — ${ def.label || 'Rubrique non documentée' }`);
+
+      // Paramètres saisis → phrase
+      if (def.params && def.params.length){
+        const parts = def.params.map(p=>{
+          const v = readParamValue(code, p);
+          const unit = (p.label||'').match(/\(([^)]+)\)/)?.[1] || '';
+          const disp = (p.type==='number') ? `${fmtNum(v)}${unit? ` ${unit.split('/')[0]}`:''}` : (v||'—');
+          return `${p.label} : ${disp}`;
+        });
+        para(`Paramètres saisis. — ${parts.join(' ; ')}.`, {after:8});
       } else {
-        para(`Aucun paramètre requis pour cette rubrique.`, {size:11, color:[55,65,81], after:6});
-      }
-    }
-
-    // Critères et seuils (comme dans Validateur)
-    const logic = def?.logic || [];
-    if (logic.length){
-      para(`Critères et seuils considérés :`, {size:11, color:[55,65,81], after:4});
-
-      // Construit contexte typé pour l’évaluation
-      const ctx={};
-      (def.params||[]).forEach(p=>{
-        const vv = readParamValue(code,p);
-        ctx[p.id] = (p.type==='number') ? (vv??0) : (String(vv||'').toLowerCase());
-      });
-
-      // Évalue pour trouver la règle déclenchée
-      let decision='HN', ref=''; let hitIndex=-1;
-      for (let i=0;i<logic.length;i++){
-        const rule = logic[i];
-        if (rule.if){
-          if (safeEval(rule.if, ctx)){ decision=rule.regime||'HN'; ref=rule.ref||''; hitIndex=i; break; }
-        } else { decision=rule.else||'HN'; ref=rule.ref||def?.ref||''; hitIndex=i; break; }
+        // champs génériques injectés par l’outil
+        const gen = [
+          {id:`param_${code}_surface_m2`, label:'Surface (m²)', u:'m²'},
+          {id:`param_${code}_surface_drainee_m2`, label:'Surface drainée (m²)', u:'m²'},
+          {id:`param_${code}_longueur_m`, label:'Longueur (m)', u:'m'}
+        ].map(t=>{
+          const el = document.getElementById(t.id);
+          return el ? `${t.label} : ${fmtNum(el.value)}${t.u?` ${t.u}`:''}` : null;
+        }).filter(Boolean);
+        para( gen.length
+              ? `Paramètres saisis. — ${gen.join(' ; ')}.`
+              : `Aucun paramètre spécifique n’est requis pour cette rubrique.`,
+              {after:8}
+        );
       }
 
-      // Liste “rempli / non rempli”
-      logic.forEach((rule,i)=>{
-        if (rule.if){
-          const label = humanizeCondForPDF(rule.if, def);
-          const regime= RESULT_LABELS[ rule.regime || 'HN' ] || (rule.regime||'HN');
-          const etat  = (i===hitIndex) ? 'rempli' : 'non rempli';
-          para(`• ${label} → régime ${regime} — ${etat}`, {indent:16, after:4});
-        } else {
-          const lab = RESULT_LABELS[ rule.else || 'HN' ] || (rule.else||'HN');
-          const etat= (i===hitIndex) ? 'appliqué' : 'non appliqué';
-          para(`• Sinon → régime ${lab} — ${etat}`, {indent:16, after:4});
+      // Grille des critères → prose
+      const logic = def.logic || [];
+      if (logic.length){
+        // Contexte typé pour détecter la règle active
+        const ctx={};
+        (def.params||[]).forEach(p=>{
+          const vv = readParamValue(code,p);
+          ctx[p.id] = (p.type==='number') ? (vv??0) : (String(vv||'').toLowerCase());
+        });
+
+        let decision='HN', ref=''; let hitIndex=-1;
+        for (let i=0;i<logic.length;i++){
+          const rule = logic[i];
+          if (rule.if){
+            if (safeEval(rule.if, ctx)){ decision=rule.regime||'HN'; ref=rule.ref||''; hitIndex=i; break; }
+          } else { decision=rule.else||'HN'; ref=rule.ref||def?.ref||''; hitIndex=i; break; }
         }
-      });
 
-      // Décision pour la rubrique
-      const lab = RESULT_LABELS[decision] || decision;
-      para(`Décision indicative : ${lab}${ ref ? ` (${ref})` : '' }.`, {size:11, color:[30,41,59], after: idx===selectedCodes.length-1 ? 14 : 18});
-    } else {
-      para(`Aucune grille de seuils n’est définie pour cette rubrique dans l’outil.`, {size:11, color:[100,116,139], after: idx===selectedCodes.length-1 ? 14 : 18});
-    }
-  });
+        // “Grille de lecture”
+        const phrases = logic.map((r,i)=>{
+          if (r.if){
+            const cond = humanizeCond(r.if, def);
+            const reg  = RESULT_TXT[r.regime||'HN'] || r.regime || 'HN';
+            const tag  = (i===hitIndex) ? ' (condition remplie)' : '';
+            return `Si ${cond}, alors le régime est « ${reg} »${tag}.`;
+          } else {
+            const reg = RESULT_TXT[r.else||'HN'] || r.else || 'HN';
+            const tag = (i===hitIndex) ? ' (appliqué en l’absence de condition plus restrictive)' : '';
+            return `À défaut, le régime est « ${reg} »${tag}.`;
+          }
+        });
+        para(`Grille de lecture. — ${phrases.join(' ')}`, {after:8});
 
-  // ===== Localisation
-  await addMapBlock();
+        // Appréciation
+        const lab = RESULT_TXT[decision] || decision;
+        para(`Appréciation. — Au vu des valeurs renseignées, la rubrique « ${code} » relève de « ${lab} »${ ref ? ` (${ref})` : '' }.`, {color:[30,41,59]});
+      } else {
+        para(`Grille de lecture. — Non documentée dans l’outil pour cette rubrique.`, {after:6, color:[90,96,110]});
+      }
 
-  // ===== Pièces jointes (avec croquis plein-largeur si pertinent)
+      // respiration entre rubriques
+      if (idx < codes.length-1) hr();
+    });
+  }
+
+  // ---------- Localisation ----------
+  hr(); await addMapBlock();
+
+  // ---------- Pièces ----------
   addPieces(items);
 
-  // ===== Suites
-  titreSection('Suites proposées');
-  para(`Selon la situation, les suites pourront consister en une transmission au service instructeur, une demande de compléments (justificatifs techniques, hydrauliques, autorisations), ou une visite de contrôle ultérieure.`);
-  para(`L’évaluation fournie par l’outil est indicative et doit être confrontée aux textes en vigueur ainsi qu’aux éléments complémentaires à recueillir.`, {after:8});
+  // ---------- Suites et réserves ----------
+  heading('Suites et réserves');
+  para(`Selon la situation, les suites envisagées pourront consister en une transmission au service instructeur, une demande de compléments (justificatifs techniques, hydrauliques, autorisations) ou une visite de contrôle ultérieure. L’évaluation automatisée fournit un éclairage ; elle doit être confrontée aux textes en vigueur et aux éléments complémentaires.`);
 
-  // Pieds de page
+  // ---------- pied ----------
   pageNumbers();
-
   pdf.save('fiche-terrain.pdf');
 });
 
