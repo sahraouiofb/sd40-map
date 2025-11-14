@@ -1201,81 +1201,290 @@
         URL.revokeObjectURL(url);
       });
 
-      // === PDF narratif pro ===
-      $('#btnProcPDF').addEventListener('click', async ()=>{
-        const Titre = $('#ftTitre').value || 'Intervention';
-        const Lieu = $('#ftLieu').value || '—';
-        const Iota = $('#ftRefIota').value || '—';
-        const Natinf= $('#ftRefNatinf').value || '—';
-        const Desc = $('#ftDesc').value || '';
-        const Reg = $('#valResult').textContent.replace(/^[🔴🟠⚪]\s*/,'') || '—';
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({unit:'pt', format:'a4'});
-        const W = pdf.internal.pageSize.getWidth();
+    // === PDF narratif pro — v2 (mise en page avancée, images adaptées) ===
+$('#btnProcPDF').addEventListener('click', async ()=>{
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit:'pt', format:'a4' });
+  const W = pdf.internal.pageSize.getWidth();
+  const H = pdf.internal.pageSize.getHeight();
+  const M = 40; // marge
+  const LINE = 14;
 
-        // Couverture / Titre
-        pdf.setFillColor(11,34,57); pdf.rect(0,0,W,72,'F');
-        pdf.setTextColor(255,255,255); pdf.setFont('helvetica','bold'); pdf.setFontSize(16);
-        pdf.text('FICHE TERRAIN – Procédure', 40, 46);
-        pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
-        pdf.text(new Date().toLocaleString(), W-40, 46, {align:'right'});
+  // Récup des champs UI
+  const Titre = $('#ftTitre').value || 'Intervention';
+  const Lieu  = $('#ftLieu').value || '—';
+  const Iota  = $('#ftRefIota').value || '—';
+  const Natinf= $('#ftRefNatinf').value || '—';
+  const Desc  = ($('#ftDesc').value || '').trim();
+  const RegBrut = $('#valResult').textContent || '—';
+  const RegLabel = RegBrut.replace(/^[🔴🟠⚪]\s*/,'') || '—';
+  const LatLngTxt = $('#ftLatLng').textContent || '—';
+  const tracesHTML = $('#valTrace').innerText || ''; // version texte “propre”
+  const nowTxt = new Date().toLocaleString();
 
-        // Cadre résumé narratif
-        pdf.setTextColor(0,0,0); pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.text(Titre, 40, 100);
-        pdf.setFontSize(11); pdf.setFont('helvetica','normal');
-        const narrative = [
-          `Contexte et lieu : l’intervention s’est déroulée à ${Lieu}.`,
-          Iota!=='—' ? `Références IOTA pressenties ou retenues : ${Iota}.` : `Aucune rubrique IOTA retenue à ce stade.`,
-          Natinf!=='—' ? `Qualification pénale (NATINF) envisagée : ${Natinf}.` : `Aucun code NATINF ciblé pour l’instant.`,
-          `Évaluation réglementaire : ${Reg}.`,
-          Desc ? `Constats : ${Desc}` : `Constats : —`
-        ].join(' ');
-        const narrWrapped = pdf.splitTextToSize(narrative, W-80);
-        pdf.text(narrWrapped, 40, 124);
+  // Accès aux pièces (depuis l’UI existante)
+  // Ces tableaux existent déjà dans l’appli (définis dans initProc)
+  // eslint-disable-next-line no-undef
+  const items = [...(typeof photos!=='undefined'?photos:[]), ...(typeof sketches!=='undefined'?sketches:[])];
 
-        // Pastille résultat
-        const res = $('#valResult').textContent;
-        let col=[55,65,81]; // HN
-        if (res.includes('Autorisation')) col=[185,28,28];
-        else if (res.includes('Déclaration')) col=[154,52,18];
-        pdf.setFillColor(col[0],col[1],col[2]); pdf.setTextColor(255,255,255);
-        const resText = `${res}`; const tw = pdf.getTextWidth(resText) + 10;
-        pdf.roundedRect(40, 168, tw, 18, 9, 9, 'F'); pdf.text(resText, 45, 181);
+  // Petites utils locales
+  const rgb = (r,g,b)=> pdf.setTextColor(r,g,b);
+  const fill = (r,g,b)=> pdf.setFillColor(r,g,b);
+  const drawHr = (y)=>{ pdf.setDrawColor(229,231,235); pdf.setLineWidth(0.6); pdf.line(M, y, W-M, y); };
+  const wrap = (txt, maxW)=> pdf.splitTextToSize(txt, maxW);
+  const bold = ()=> pdf.setFont('helvetica','bold');
+  const normal = ()=> pdf.setFont('helvetica','normal');
+  const grey = ()=> pdf.setTextColor(71,85,105);
+  const black = ()=> pdf.setTextColor(0,0,0);
+  const fmtArea = (m2)=> {
+    const v = Number(m2||0);
+    if (v<=0) return '—';
+    if (v<10000) return `${v.toFixed(0)} m²`;
+    const ha = v/10000; if (ha<100) return `${ha.toFixed(2)} ha`;
+    return `${(v/1e6).toFixed(3)} km²`;
+  };
+  const fmtLen = (m)=> {
+    const v = Number(m||0);
+    if (v<=0) return '—';
+    return v<1000 ? `${v.toFixed(1)} m` : `${(v/1000).toFixed(3)} km`;
+  };
+  const regimeColor = ()=>{
+    if (/Autorisation/i.test(RegLabel)) return [185,28,28];      // rouge
+    if (/Déclaration/i.test(RegLabel))  return [154,52,18];      // orange
+    return [55,65,81]; // HN gris
+  };
+  const getImgFormat = (dataUrl)=>{
+    const m = /^data:image\/(png|jpeg|jpg)/i.exec(dataUrl||'');
+    const t = (m && m[1] || '').toLowerCase();
+    return t==='png' ? 'PNG' : 'JPEG';
+  };
 
-        // Encadré références
-        pdf.setTextColor(0,0,0); pdf.setFont('helvetica','bold'); pdf.text('Références & paramètres', 40, 212);
-        pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
-        const refs = [ `Rubrique IOTA : ${Iota}`, `NATINF : ${Natinf}` ];
-        const trace = $('#valTrace').innerText || '';
-        const refWrapped = pdf.splitTextToSize(refs.join(' • ') + (trace ? ' • ' + trace : ''), W-80);
-        pdf.text(refWrapped, 40, 228);
+  // Gestion pagination (ajout en post-traitement)
+  const headings = []; // {title, page}
+  const section = (title)=>{
+    // espace avant
+    y += 18;
+    // Titre de section
+    bold(); pdf.setFontSize(14); black();
+    pdf.text(title, M, y);
+    // Barre
+    y += 8; pdf.setDrawColor(11,34,57); pdf.setLineWidth(2); pdf.line(M, y, M+60, y);
+    y += 10; pdf.setLineWidth(0.2);
+    // Index
+    headings.push({ title, page: pdf.getCurrentPageInfo().pageNumber });
+  };
 
-        // Capture carte
-        try{
-          const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, scale:1});
-          const img = canvas.toDataURL('image/jpeg', 0.85);
-          const w = W-80, h = w * (canvas.height/canvas.width);
-          pdf.addPage(); pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.text('Localisation – aperçu carte', 40, 60);
-          pdf.addImage(img, 'JPEG', 40, 80, w, Math.min(h, 680));
-        }catch(_){}
+  const ensure = (need)=>{
+    if (y + need > H - M){
+      pdf.addPage(); addHeaderFooter(false);
+      y = M + 24;
+    }
+  };
 
-        // Pièces (photos + croquis)
-        pdf.addPage(); pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.text('Pièces jointes', 40, 60);
-        pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
-        let x=40, y=76, maxH=0, pad=8, boxW=180, boxH=120;
-        const items = [...photos, ...sketches];
-        if (items.length===0){ pdf.text('Aucune pièce jointe.', 40, 90); }
-        for (const it of items){
-          const img = it.dataUrl;
-          pdf.setDrawColor(229,231,235);
-          pdf.rect(x-2,y-2,boxW+4,boxH+4);
-          pdf.addImage(img, 'JPEG', x, y, boxW, boxH, undefined, 'FAST');
-          pdf.text((it.label||'Pièce'), x, y+boxH+14);
-          x += boxW + pad; maxH = Math.max(maxH, boxH);
-          if (x + boxW > W-40){ x=40; y += maxH + 36; maxH=0; if (y > 740){ pdf.addPage(); y=60; } }
-        }
-        pdf.save('fiche-terrain.pdf');
-      });
+  const addHeaderFooter = (withTop=true)=>{
+    const p = pdf.getCurrentPageInfo().pageNumber;
+    // En-tête (option)
+    if (withTop){
+      fill(11,34,57); pdf.rect(0,0,W,52,'F');
+      pdf.setFontSize(11); bold(); rgb(255,255,255);
+      pdf.text('FICHE TERRAIN – Procédure', M, 32);
+      normal(); pdf.setFontSize(9);
+      pdf.text(nowTxt, W-M, 32, {align:'right'});
+      black();
+    }
+    // Pied (on positionne plus tard le numéro total)
+    grey(); pdf.setFontSize(9);
+    pdf.text('SD40 – OFB', M, H-18);
+    pdf.text(`Page ${p}`, W-M, H-18, {align:'right'});
+    black();
+    pdf.setFontSize(11);
+  };
+
+  // ===== Page 1 : Garde =====
+  let y = 0;
+  addHeaderFooter(true);
+  y = M + 52;
+
+  bold(); pdf.setFontSize(20); black();
+  pdf.text(Titre, M, y);
+  normal(); pdf.setFontSize(12); grey();
+  y += 22; pdf.text(`Lieu : ${Lieu}`, M, y);
+  y += 16; pdf.text(`Coordonnées : ${LatLngTxt}`, M, y);
+  y += 24; black();
+  // Pastille régime
+  const res = RegLabel;
+  const rc = regimeColor(); fill(rc[0],rc[1],rc[2]); rgb(255,255,255);
+  const resTxt = res; pdf.setFontSize(11); const tw = pdf.getTextWidth(resTxt)+12;
+  pdf.roundedRect(M, y, tw, 20, 8, 8, 'F'); pdf.text(resTxt, M+6, y+14);
+  black();
+
+  // Cartouche références
+  y += 36; pdf.setDrawColor(208,215,225);
+  pdf.roundedRect(M, y, W-2*M, 70, 8, 8); y += 20;
+  normal(); pdf.setFontSize(11);
+  pdf.text(wrap(`Références IOTA : ${Iota}`, W-2*M-20), M+12, y);
+  y += 16;
+  pdf.text(wrap(`NATINF suggéré/retenu : ${Natinf}`, W-2*M-20), M+12, y);
+  y = M + 210;
+
+  // ===== Page 2 : Sommaire (rédigé en post-traitement) =====
+  pdf.addPage(); addHeaderFooter(false);
+  let tocPage = pdf.getCurrentPageInfo().pageNumber;
+  let tocY = M + 24;
+  bold(); pdf.setFontSize(16); black(); pdf.text('Sommaire', M, tocY);
+  tocY += 12; drawHr(tocY); tocY += 18;
+  normal(); pdf.setFontSize(12); grey();
+  pdf.text('Le sommaire sera généré automatiquement à la fin.', M, tocY);
+  black();
+
+  // ===== Section : Synthèse opérationnelle =====
+  pdf.addPage(); addHeaderFooter(false);
+  y = M + 24;
+  section('1. Synthèse opérationnelle');
+  normal(); pdf.setFontSize(11);
+
+  const measArea = (typeof lastMeasure!=='undefined' ? lastMeasure.area_m2 : 0);
+  const measLen  = (typeof lastMeasure!=='undefined' ? lastMeasure.length_m : 0);
+  const syn = [
+    `Lieu : ${Lieu}`,
+    `Coordonnées : ${LatLngTxt}`,
+    `Références IOTA : ${Iota}`,
+    `NATINF : ${Natinf}`,
+    `Régime évalué : ${RegLabel}`,
+    `Mesures (si réalisées) : surface ${fmtArea(measArea)} • longueur ${fmtLen(measLen)}`,
+    `Pièces jointes : ${items.length || 0}`
+  ].join('\n');
+
+  const synLines = wrap(syn, W-2*M);
+  ensure(synLines.length*LINE + 10);
+  grey(); pdf.text(synLines, M, y); black();
+  y += synLines.length*LINE + 10;
+  drawHr(y); y += 10;
+
+  // ===== Section : Contexte & constats =====
+  section('2. Contexte & constats');
+  const descTxt = Desc ? Desc : '—';
+  const descLines = wrap(descTxt, W-2*M);
+  ensure(descLines.length*LINE + 10);
+  normal(); pdf.text(descLines, M, y);
+  y += descLines.length*LINE + 10;
+
+  // ===== Section : Localisation – carte =====
+  section('3. Localisation – aperçu carte');
+  let mapOk = false;
+  try{
+    const canvas = await html2canvas(document.getElementById('map'), {useCORS:true, scale:1});
+    const img = canvas.toDataURL('image/jpeg', 0.85);
+    const maxW = W - 2*M;
+    const h = maxW * (canvas.height/canvas.width);
+    ensure(h + 20);
+    pdf.addImage(img, 'JPEG', M, y, maxW, Math.min(h, H - M - y - 10), undefined, 'FAST');
+    y += Math.min(h, H - M - y - 10) + 8;
+    grey(); pdf.setFontSize(10); pdf.text('Aperçu non contractuel — fond de carte courant', M, y);
+    black(); pdf.setFontSize(11);
+    mapOk = true;
+  }catch(_){
+    const failLines = wrap('⚠️ Impossible de capturer la carte (CORS). Capturez la carte en image depuis l’outil si nécessaire.', W-2*M);
+    ensure(failLines.length*LINE + 12);
+    grey(); pdf.text(failLines, M, y); black();
+    y += failLines.length*LINE + 10;
+  }
+
+  // ===== Section : Pièces jointes (photos & croquis) =====
+  pdf.addPage(); addHeaderFooter(false);
+  y = M + 24;
+  section('4. Pièces jointes (photos & croquis)');
+
+  if (!items.length){
+    normal(); grey(); pdf.text('Aucune pièce jointe.', M, y); black();
+  } else {
+    // Grille fluide : largeur de tuile selon page (2 à 3 par ligne)
+    const pageUsable = W - 2*M;
+    const preferCols = pageUsable >= 520 ? 3 : 2;
+    const gap = 10;
+    const tileW = Math.floor((pageUsable - gap*(preferCols-1)) / preferCols);
+    let x = M, maxRowH = 0;
+
+    for (const it of items){
+      const fmt = getImgFormat(it.dataUrl);
+      // Ratio et hauteur cible
+      const ratio = (it.w && it.h) ? (it.h/it.w) : 0.75;
+      const tileH = Math.min( (tileW * ratio), 260 ); // limite visuelle
+      if (x + tileW > W - M){ // retour ligne
+        y += maxRowH + 28;
+        x = M; maxRowH = 0;
+      }
+      ensure(tileH + 32);
+      // Cadre
+      pdf.setDrawColor(229,231,235);
+      pdf.rect(x-2, y-2, tileW+4, tileH+4);
+      // Image
+      pdf.addImage(it.dataUrl, fmt, x, y, tileW, tileH, undefined, 'FAST');
+      // Légende
+      normal(); pdf.setFontSize(10); grey();
+      const cap = (it.label || 'Pièce');
+      const capLines = wrap(cap, tileW);
+      pdf.text(capLines, x, y + tileH + 14);
+      black(); pdf.setFontSize(11);
+
+      // Avancement
+      x += tileW + gap;
+      maxRowH = Math.max(maxRowH, tileH + 22 + (capLines.length-1)*10);
+    }
+  }
+
+  // ===== Section : Annexe — Détails d’évaluation =====
+  pdf.addPage(); addHeaderFooter(false);
+  y = M + 24;
+  section('5. Annexe — Détails d’évaluation');
+  const tr = tracesHTML && tracesHTML.trim() ? tracesHTML : '—';
+  const trLines = wrap(tr, W-2*M);
+  ensure(trLines.length*LINE + 10);
+  normal(); pdf.text(trLines, M, y);
+  y += trLines.length*LINE + 10;
+
+  // ===== Sommaire (retour page 2) =====
+  pdf.setPage(tocPage);
+  tocY = M + 24;
+  bold(); pdf.setFontSize(16); black(); pdf.text('Sommaire', M, tocY);
+  tocY += 12; drawHr(tocY); tocY += 18;
+  normal(); pdf.setFontSize(12);
+  headings.forEach((h, idx)=>{
+    const left = `${idx+1}. ${h.title.replace(/^\d+\.\s*/,'')}`;
+    const right = String(h.page);
+    // points de suite
+    const dots = '.'.repeat(80);
+    const line = `${left} ${dots}`;
+    const usable = W - 2*M - 40;
+    const cut = pdf.getStringUnitWidth(line) * pdf.internal.getFontSize() > usable
+      ? wrap(left, usable)[0]
+      : left;
+    pdf.text(cut, M, tocY);
+    pdf.text(right, W-M, tocY, {align:'right'});
+    tocY += 16;
+  });
+
+  // ===== Numéroter toutes les pages (sauf garde) =====
+  const total = pdf.getNumberOfPages();
+  for (let i=2;i<=total;i++){
+    pdf.setPage(i);
+    grey(); pdf.setFontSize(9);
+    pdf.text(`Page ${i} / ${total}`, W-M, H-18, {align:'right'});
+    black(); pdf.setFontSize(11);
+  }
+
+  // Métadonnées
+  pdf.setProperties({
+    title: `Fiche terrain – ${Titre}`,
+    subject: 'Procédure (IOTA/BCAE/Phyto + NATINF + Validateur)',
+    author: 'SD40 – OFB',
+    keywords: 'OFB, SD40, IOTA, NATINF, Procédure, Terrain',
+    creator: 'SD40 – Carte + Procédure'
+  });
+
+  pdf.save('fiche-terrain.pdf');
+});
+
 
       // Reset total
       $('#btnResetAll').addEventListener('click', ()=>{
