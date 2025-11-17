@@ -2048,7 +2048,7 @@
       if (autoEval) $('#btnEval')?.click();
     }
 
-    /* ---------- PDF narratif pro — VERSION AMÉLIORÉE ---------- */
+    /* ---------- PDF narratif pro — VERSION AMÉLIORÉE (corrigée) ---------- */
     $('#btnProcPDF').addEventListener('click', async ()=>{
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({ unit:'pt', format:'a4' });
@@ -2164,6 +2164,32 @@
         setFont(15,'bold',[20,20,25]);
         pdf.text(title || 'Intervention', M.left, M.top - 24);
       }
+      // Encadré conclusion "Régime retenu"
+      function regimeSummaryBox(regimeText){
+        const label = (regimeText || '—').trim() || '—';
+        let bg=[248,250,252], border=[148,163,184], txt=[15,23,42];
+        if (/autor/i.test(label)){
+          bg=[254,242,242]; border=[248,113,113]; txt=[127,29,29];
+        } else if (/décla|decla/i.test(label)){
+          bg=[255,247,237]; border=[251,146,60]; txt=[124,45,18];
+        } else if (/hors/i.test(label)){
+          bg=[249,250,251]; border=[148,163,184]; txt=[55,65,81];
+        }
+        const boxH = 40;
+        ensureSpace(boxH + 12);
+        const boxX = M.left;
+        const boxY = y;
+        const boxW = PAGE_W - M.left - M.right;
+        pdf.setFillColor(...bg);
+        pdf.setDrawColor(...border);
+        pdf.setLineWidth(0.8);
+        pdf.roundedRect(boxX, boxY, boxW, boxH, 6, 6, 'FD');
+        setFont(12.5,'bold',txt);
+        pdf.text('Régime retenu', boxX + 12, boxY + 16);
+        setFont(13.5,'bold',txt);
+        pdf.text(label, boxX + 12, boxY + 31);
+        y += boxH + 12;
+      }
 
       function humanizeCondPDF(expr, def){
         let s = String(expr || '');
@@ -2192,13 +2218,9 @@
           .replace(/[^0-9<>=!&|().+*\-/ %"'a-zA-Z_]/g,'');
         try{ return !!eval(safe); }catch{ return false; }
       }
-
-      // === Formatage nombres PDF : 25 000 (espace normal) ===
-      function fmtNumPDF(v){
-        const n = Number(v);
-        if (!Number.isFinite(n)) return String(v || '');
-        // toLocaleString en fr-FR puis remplacement des espaces insécables par un espace simple
-        return n.toLocaleString('fr-FR').replace(/\s/g,' ');
+      function fmtNum(v){
+        const n=Number(v);
+        return Number.isFinite(n) ? n.toLocaleString('fr-FR') : String(v);
       }
 
       const titre = ($('#ftTitre').value || 'Intervention').trim();
@@ -2209,7 +2231,7 @@
       const regimeRaw = ($('#valResult').textContent || '').trim();
       const coord = ($('#ftLatLng').textContent || '').trim();
 
-      const cleanRegime = regimeRaw.replace(/^[^\sA-Za-z]+/,'').trim();
+      const cleanRegime = regimeRaw.replace(/^[^\p{L}]*/u,'').trim();
 
       const items = (function(){
         try{ return [...(window.photos||[]), ...(window.sketches||[])]; }
@@ -2291,7 +2313,7 @@
                 const raw=String(el.value||'').trim();
                 if (p.type==='number'){
                   const vv=parseFloat(raw.replace(',','.'));
-                  val = Number.isFinite(vv) ? fmtNumPDF(vv) : '—';
+                  val = Number.isFinite(vv) ? fmtNum(vv) : '—';
                 } else {
                   val = raw || '—';
                 }
@@ -2305,9 +2327,9 @@
             const eSurf = document.getElementById(`param_${code}_surface_m2`) || document.getElementById('param_surface_m2');
             const eDrain = document.getElementById(`param_${code}_surface_drainee_m2`) || document.getElementById('param_surface_drainee_m2');
             const eLong = document.getElementById(`param_${code}_longueur_m`) || document.getElementById('param_longueur_m');
-            if (eSurf) generic.push(`Surface (m²) : ${fmtNumPDF(eSurf.value||'')} m²`);
-            if (eDrain) generic.push(`Surface drainée (m²) : ${fmtNumPDF(eDrain.value||'')} m²`);
-            if (eLong) generic.push(`Longueur (m) : ${fmtNumPDF(eLong.value||'')} m`);
+            if (eSurf) generic.push(`Surface (m²) : ${fmtNum(eSurf.value||'—')} m²`);
+            if (eDrain) generic.push(`Surface drainée (m²) : ${fmtNum(eDrain.value||'—')} m²`);
+            if (eLong) generic.push(`Longueur (m) : ${fmtNum(eLong.value||'—')} m`);
             bullet(generic.length ? generic : ['Cette rubrique ne requiert pas de paramètres chiffrés dans l’outil.']);
           }
 
@@ -2349,9 +2371,16 @@
               }
             }
             const labelReg = decision==='A' ? 'Autorisation' : decision==='D' ? 'Déclaration' : 'Hors nomenclature';
+            // Nettoyage du ref pour éviter les caractères qui cassent la police dans certains cas
+            const refClean = (ref || '')
+              .toString()
+              .replace(/[≥⩾]/g,'>= ')
+              .replace(/[≤⩽]/g,'<= ')
+              .replace(/[–—]/g,'-')
+              .trim();
             para(
-              `Au vu des valeurs renseignées, la rubrique « ${code} » relève de « ${labelReg} »${ref ? ` (${ref})` : ''}.`,
-              { size:11, lh:17, after:10, color:[30,41,59], italic:false }
+              `Au vu des valeurs renseignées, la rubrique « ${code} » relève de « ${labelReg} »${refClean ? ` (${refClean})` : ''}.`,
+              { color:[30,41,59] }
             );
           } else {
             bullet(['Grille non documentée dans l’outil pour cette rubrique.']);
@@ -2463,7 +2492,8 @@
 
       hr();
       heading('Conclusion — Résumé exécutif');
-      para(`Régime retenu : « ${cleanRegime || '—'} ».`, { size:12, color:[20,40,80], after:12 });
+      // Encadré très lisible pour le régime retenu
+      regimeSummaryBox(cleanRegime || '—');
 
       miniTitle('Références IOTA considérées');
       if (IOTA_CODES.length){
