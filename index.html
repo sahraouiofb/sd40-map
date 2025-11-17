@@ -29,19 +29,24 @@
     .leaflet-control-layers .leaflet-control-layers-list label{font-size:16px}
   }
 
-  /* Bouton “☰ Couches” */
+  /* Boutons “Procédure” + “Couches” (dans le même contrôle) */
   .layer-toggle-wrap.leaflet-control{
     background:#111827;color:#fff;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.35);
-    overflow:hidden;border:1px solid #0b1220
+    overflow:hidden;border:1px solid #0b1220;
+    display:flex;
   }
   .layer-toggle-btn{
     display:flex;align-items:center;gap:10px;padding:10px 14px;font:600 14px system-ui;
     color:#fff;background:#111827;border:0;cursor:pointer
   }
+  .layer-toggle-btn + .layer-toggle-btn{
+    border-left:1px solid #0b1220;
+  }
   .layer-toggle-btn:hover{background:#0f172a}
 
   /* Outils */
-  .tool-btn.leaflet-bar a{
+  .tool-btn.leaflet-bar a,
+  .fullscreen-btn.leaflet-bar a{
     display:inline-flex;align-items:center;justify-content:center;
     width:40px;height:40px;font:20px/1.1 system-ui; text-decoration:none; user-select:none;
   }
@@ -60,7 +65,7 @@
   }
   @media (max-width:480px){ .popup-card{max-width:90vw} }
 
-  /* Masquage global des outils */
+  /* Masquage global des outils (sauf plein écran) */
   body.tools-hidden .leaflet-draw,
   body.tools-hidden .tool-btn { display:none !important; }
 
@@ -266,13 +271,6 @@
     </div>
   </div>
 
-  <!-- Bouton flottant Procédure : juxtaposé au bouton "Couches" (décalé vers la gauche) -->
-  <div class="layer-toggle-wrap leaflet-control" style="position:absolute;right:140px;top:10px;z-index:3000;">
-    <button id="btnProcOpen" class="layer-toggle-btn" type="button">
-      <span class="icon">🗂️</span><span class="label">Procédure</span>
-    </button>
-  </div>
-
   <!-- ========= PACK IOTA INTÉGRÉ ========= -->
   <script type="application/json" id="iota-pack-officiel">
   {
@@ -356,7 +354,7 @@
       "5.1.1.0": { "label":"Réinjection dans la même nappe (géothermie, exhaures, génie civil)","params":[{"id":"capacite_m3_h","label":"Capacité totale de réinjection (m³/h)","type":"number"}], "logic":[{"if":"capacite_m3_h >= 80","regime":"A"},{"if":"capacite_m3_h >= 8 && capacite_m3_h < 80","regime":"D"},{"else":"HN"}], "ref":"R.214-1 5.1.1.0" },
       "5.1.2.0": { "label":"Recherche/exploitation de gîtes géothermiques","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 5.1.2.0" },
       "5.1.3.0": { "label":"Travaux miniers (recherches/cavités/forages/essais)","params":[{"id":"categorie","label":"a/b/d/e/f/g (voir texte)","type":"text"}], "logic":[{"if":"categorie == 'a' || categorie == 'b' || categorie == 'd'","regime":"A"},{"if":"categorie == 'e' || categorie == 'f' || categorie == 'g'","regime":"D"},{"else":"HN"}], "ref":"R.214-1 5.1.3.0" },
-      "5.1.4.0": { "label":"Travaux d’exploitation de mines","params":[{"id":"type","label":"Type (a : sous autorisation exploitation / b : autres)","type":"text"}], "logic":[{"if":"type == 'a'","regime":"D"},{"if":"type == 'b'","regime":"A"},{"else":"HN"}], "ref":"R.214-1 5.1.4.0" },
+      "5.1.4.0": { "label":"Travaux d’exploitation de mines","params":[{"id":"type","label":"a : sous autorisation exploitation / b : autres","type":"text"}], "logic":[{"if":"type == 'a'","regime":"D"},{"if":"type == 'b'","regime":"A"},{"else":"HN"}], "ref":"R.214-1 5.1.4.0" },
       "5.1.5.0": { "label":"Exploitation de stockages souterrains de déchets radioactifs","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 5.1.5.0" },
       "5.1.6.0": { "label":"Travaux de recherches des mines","params":[{"id":"type","label":"a : 2° art.3 / b : autres","type":"text"}], "logic":[{"if":"type == 'a'","regime":"A"},{"if":"type == 'b'","regime":"D"},{"else":"HN"}], "ref":"R.214-1 5.1.6.0" },
       "5.1.7.0": { "label":"Prospection/recherche/exploitation (fonds marins domaine public)","params":[],"logic":[{"else":"A"}],"ref":"R.214-1 5.1.7.0" },
@@ -395,14 +393,22 @@
     let PACK_RULES=null;
 
     const procEl = $('#proc');
-    const btnOpen = $('#btnProcOpen');
     const btnClose = $('#btnProcClose');
 
-    function openProc(){ procEl.hidden = false; try{ localStorage.setItem(PROC_KEY,'1'); }catch(e){} }
-    function closeProc(){ procEl.hidden = true; try{ localStorage.setItem(PROC_KEY,'0'); }catch(e){} }
+    function openProc(){
+      procEl.hidden = false;
+      try{ localStorage.setItem(PROC_KEY,'1'); }catch(e){}
+    }
+    function closeProc(){
+      procEl.hidden = true;
+      try{ localStorage.setItem(PROC_KEY,'0'); }catch(e){}
+    }
 
-    btnOpen.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); openProc(); });
-    btnClose.addEventListener('click',(e)=>{ e.preventDefault(); e.stopPropagation(); closeProc(); });
+    if (btnClose){
+      btnClose.addEventListener('click',(e)=>{
+        e.preventDefault(); e.stopPropagation(); closeProc();
+      });
+    }
 
     document.addEventListener('click', (e)=>{
       if (procEl.hidden) return;
@@ -487,18 +493,30 @@
       layersControl.addOverlay(grp, it.name);
     }
 
-    /* Bouton “☰ Couches” */
+    /* Boutons “Procédure” + “Couches” dans un seul contrôle Leaflet (toujours visibles, y compris en plein écran) */
     const LayerToggleBig = L.Control.extend({
       options:{ position:'topright' },
       onAdd(){
         const wrap = L.DomUtil.create('div','layer-toggle-wrap leaflet-control');
-        const btn = L.DomUtil.create('button','layer-toggle-btn',wrap);
-        btn.type='button';
-        btn.innerHTML = `<span class="icon">☰</span><span class="label">Couches</span>`;
-        L.DomEvent.on(btn,'click', L.DomEvent.stop).on(btn,'click', ()=>{
-          const el = document.querySelector('.leaflet-control-layers');
-          if (el) el.style.display = (el.style.display==='none' ? '' : 'none');
-        });
+
+        // Bouton Procédure
+        const btnProc = L.DomUtil.create('button','layer-toggle-btn',wrap);
+        btnProc.type = 'button';
+        btnProc.id   = 'btnProcOpen';
+        btnProc.innerHTML = `<span class="icon">🗂️</span><span class="label">Procédure</span>`;
+        L.DomEvent.on(btnProc,'click',L.DomEvent.stop)
+                  .on(btnProc,'click',()=>{ openProc(); });
+
+        // Bouton Couches
+        const btnLayers = L.DomUtil.create('button','layer-toggle-btn',wrap);
+        btnLayers.type='button';
+        btnLayers.innerHTML = `<span class="icon">☰</span><span class="label">Couches</span>`;
+        L.DomEvent.on(btnLayers,'click',L.DomEvent.stop)
+                  .on(btnLayers,'click',()=>{
+                    const el = document.querySelector('.leaflet-control-layers');
+                    if (el) el.style.display = (el.style.display==='none' ? '' : 'none');
+                  });
+
         return wrap;
       }
     });
@@ -1052,11 +1070,11 @@
     });
     map.addControl(new HomeControl());
 
-    // Plein écran
+    // Plein écran (toujours visible, même outils repliés)
     const FullscreenControl = L.Control.extend({
       options:{ position:'topright' },
       onAdd(){
-        const d = L.DomUtil.create('div','leaflet-bar tool-btn');
+        const d = L.DomUtil.create('div','leaflet-bar fullscreen-btn');
         const a = L.DomUtil.create('a','',d);
         a.href='#'; a.title='Plein écran'; a.innerHTML='⛶';
         L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>toggleFullscreen());
@@ -1066,7 +1084,8 @@
     map.addControl(new FullscreenControl());
 
     function toggleFullscreen(){
-      const elem = map.getContainer();
+      // Plein écran sur toute la page : la carte + bouton Procédure + panneau restent visibles
+      const elem = document.documentElement;
       if (!document.fullscreenElement){
         if (elem.requestFullscreen) elem.requestFullscreen();
         else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
@@ -1099,8 +1118,8 @@
     const RESULT_ICON   = { HN:'⚪', A:'🔴', D:'🟠' };
 
     // === Multi-IOTA ===
-    const SELECTED_IOTA = new Set();                 // Ensemble des rubriques cochées
-    const REG_ORDER = { A:3, D:2, HN:1 };            // Hiérarchie de sévérité
+    const SELECTED_IOTA = new Set();
+    const REG_ORDER = { A:3, D:2, HN:1 };
     function mostRestrictive(regs){
       return regs.reduce((acc, r)=> (REG_ORDER[r] > REG_ORDER[acc] ? r : acc), 'HN');
     }
@@ -1173,17 +1192,14 @@
       const iotaList = $('#iotaList');
 
       function syncIotaSelections(){
-        // 1) Fiche : IOTA retenues
         const arr = Array.from(SELECTED_IOTA);
         $('#ftRefIota').value = arr.join(', ');
 
-        // 2) Fiche : NATINF suggérés (fusion unique)
         const sugg = [...new Set(
           arr.flatMap(c => natinfSuggestForIota(c).slice(0,3).map(x=>x.natinf))
         )];
         if (sugg.length) $('#ftRefNatinf').value = sugg.join(', ');
 
-        // 3) Validateur : reconstruit les paramètres si l’onglet est utilisé
         buildValParams();
       }
 
@@ -1202,7 +1218,6 @@
           </div>
         `).join('') || '<em>Aucune rubrique</em>';
 
-        // Écouteurs de coche/décoche
         $$('input[type=checkbox][data-code]', iotaList).forEach(cb=>{
           cb.addEventListener('change', ()=>{
             const code = cb.dataset.code;
@@ -1277,7 +1292,6 @@
       // === Photos & Croquis ===
       const photos=[];    // {id, dataUrl, w, h, label}
       const sketches=[];  // {id, dataUrl, w, h, label}
-      // ➜ Exposé en global pour le PDF
       window.photos = photos;
       window.sketches = sketches;
 
@@ -1296,7 +1310,7 @@
         refreshPieces(); e.target.value='';
       });
 
-      // Croquis modal – version outils avancés (maintenant en plein écran via CSS)
+      // Croquis modal – version outils avancés (plein écran)
       let skModal=null, skCanvas=null, skCtx=null,
           skDrawing=false, skLast=null,
           skColor='#111827', skSize=3,
@@ -1436,7 +1450,6 @@
               const p = st.pts[0];
               skCtx.fillText(st.text || '', p.x, p.y);
             } else {
-              // freehand
               skCtx.globalCompositeOperation = 'source-over';
               skCtx.strokeStyle = st.color;
               skCtx.lineWidth   = st.size;
@@ -1448,7 +1461,6 @@
             skCtx.restore();
           });
 
-          // prévisualisation forme (ligne/rect/arrow)
           if (skTempShape && skTempShape.start && skTempShape.end){
             const st = skTempShape;
             const p0 = st.start;
@@ -1606,7 +1618,6 @@
           }
         }
 
-        // Outils / UI
         $('#skBgSel', skModal).addEventListener('change', (e)=> setSketchBg(e.target.value));
         $('#skColor', skModal).addEventListener('input', (e)=> skColor = e.target.value);
         $('#skSize',  skModal).addEventListener('input', (e)=> skSize  = +e.target.value);
@@ -1650,13 +1661,11 @@
           const h = rect.height;
           const margin = 24;
 
-          // flèche nord
           const p0 = { x: margin, y: margin + 40 };
           const p1 = { x: margin, y: margin };
           skStack.push({ type:'arrow', color:'#111827', size:3, pts:[p0,p1] });
           skStack.push({ type:'text', color:'#111827', size:4, pts:[{x:margin+10,y:margin+10}], text:'N' });
 
-          // barre d’échelle indicative
           const barLen = 80;
           const yBar   = h - margin;
           skStack.push({ type:'line', color:'#111827', size:3, pts:[{x:margin,y:yBar},{x:margin+barLen,y:yBar}] });
@@ -1728,7 +1737,6 @@
         const rules = getRules();
         const selected = Array.from(SELECTED_IOTA);
 
-        // A) Mode multi : blocs paramètres par rubrique cochée
         if (selected.length){
           selected.forEach(code=>{
             const def = rules[code];
@@ -1756,7 +1764,6 @@
                 wrap.appendChild(lab); wrap.appendChild(inp); box.appendChild(wrap);
               });
             } else {
-              // Pas de params : expose Surface/Longueur usuelles
               ['surface_m2','longueur_m'].forEach(fid=>{
                 const wrap = document.createElement('div');
                 const lab  = document.createElement('label');
@@ -1771,15 +1778,13 @@
             }
             cont.appendChild(box);
           });
-          return; // Fin mode multi
+          return;
         }
 
-        // B) Mode simple (fallback historique avec #valRubrique)
         const code = ($('#valRubrique').value||'').trim();
         const def = rules[code];
 
         if (!def){
-          // Mode secours : expose Surface/Longueur génériques
           ['surface_m2','longueur_m'].forEach(fid=>{
             const wrap = document.createElement('div');
             const lab  = document.createElement('label');
@@ -1808,7 +1813,6 @@
       $('#valRubrique').addEventListener('input', buildValParams);
       buildValParams();
 
-      // ********* ÉVALUATION : respecte number/text + strings *********
       $('#btnEval').addEventListener('click', ()=>{
         const rules = getRules();
         const selected = Array.from(SELECTED_IOTA);
@@ -1819,7 +1823,6 @@
           const def = rules[code];
           if (!def) return { reg:'HN', trace:'', hit:-1, ref:'' };
 
-          // Lecture typée des paramètres
           const ctx={};
           (def.params||[]).forEach(p=>{
             const id = paramPrefix ? `param_${code}_${p.id}` : `param_${p.id}`;
@@ -1832,7 +1835,6 @@
             }
           });
 
-          // Éval sûre
           function safeEval(expr, ctx){
             const safe = String(expr)
               .replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, id => {
@@ -1876,7 +1878,6 @@
           return;
         }
 
-        // Fallback : mode simple (#valRubrique)
         const code = ($('#valRubrique').value||'').trim();
         if (!code || !rules[code]){ applyResultBadge('HN'); $('#valTrace').innerHTML = ''; return; }
 
@@ -1890,7 +1891,6 @@
         if (sugg.length && !$('#ftRefNatinf').value) $('#ftRefNatinf').value = sugg.join(', ');
       });
 
-      // Éditeur de règles + reset (appui long)
       $('#btnRules').addEventListener('click', ()=>{
         const now = JSON.stringify(getRules(), null, 2);
         const txt = prompt('Édite les règles (JSON strict : guillemets doubles, pas de virgule traînante)\nExemple: {"if":"surface_m2 >= 1000","regime":"D"}', now);
@@ -1954,18 +1954,15 @@
 
       // BOUTON RESET PROCÉDURE
       $('#btnResetAll').addEventListener('click', ()=>{
-        // Fiche
         ['#ftTitre','#ftLieu','#ftDesc','#ftRefIota','#ftRefNatinf'].forEach(sel=>{
           const el=$(sel); if (el) el.value='';
         });
         $('#ftLatLng').textContent='—';
         $('#ftScore').textContent='0/4';
 
-        // IOTA sélectionnées
         SELECTED_IOTA.clear();
         renderIota('');
 
-        // Validateur
         $('#valRubrique').value='';
         $('#valParams').innerHTML='';
         const valRes = $('#valResult');
@@ -1974,12 +1971,10 @@
         valRes.textContent='—';
         $('#valTrace').innerHTML='';
 
-        // Pièces
         photos.length=0;
         sketches.length=0;
         refreshPieces();
 
-        // Mesures
         lastMeasure = { mode:null,length_m:0,area_m2:0 };
         if (typeof resetManual === 'function') resetManual();
         if (typeof stopGPS === 'function') stopGPS();
@@ -2020,7 +2015,6 @@
       return `${(m2/1e6).toFixed(3)} km²`;
     }
 
-    // Pousse les mesures dans le validateur (multi/single)
     function pushMeasureToValidator(autoEval=true){
       const setIf = (id, val)=>{
         const el = document.getElementById(id);
@@ -2033,7 +2027,7 @@
         SELECTED_IOTA.forEach(code=>{
           if (area>0){
             setIf(`param_${code}_surface_m2`, area);
-            setIf(`param_${code}_surface_drainee_m2`, area); // cas 3.3.2.0
+            setIf(`param_${code}_surface_drainee_m2`, area);
           }
           if (length>0){
             setIf(`param_${code}_longueur_m`, length);
