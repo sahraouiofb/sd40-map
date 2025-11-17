@@ -1084,7 +1084,6 @@
     map.addControl(new FullscreenControl());
 
     function toggleFullscreen(){
-      // Plein écran sur toute la page : la carte + bouton Procédure + panneau restent visibles
       const elem = document.documentElement;
       if (!document.fullscreenElement){
         if (elem.requestFullscreen) elem.requestFullscreen();
@@ -1247,7 +1246,7 @@
 
       const BCAE_KEYS = ['bcae','zone humide','drainage','nitrates','programme d\'action','bande tampon','haie','prairie'];
       const PHYTO_KEYS = ['phytopharmaceutique','phytosanitaire','certificat individuel','neonicotinoide','amm','znt','biocide'];
-      const bcaeList = $('#bcaeList'), phytoList = $('#phytoList'), autreList = $('#autreList');
+      const bcaeList = $('#bcaeList'), phytoList = $('#phytoList'), autreList = $('#autreList'];
 
       function filterBCAE(q){
         const n=normG(q);
@@ -1908,7 +1907,11 @@
         else { alert('Pack intégré absent.'); }
       }
 
-      function fmtNum(x){ const n=Number(x); if(!isFinite(n)) return String(x||''); return n.toLocaleString('fr-FR'); }
+      function fmtNum(x){
+        const n=Number(x);
+        if(!isFinite(n)) return String(x||'');
+        return n.toLocaleString('fr-FR');
+      }
       function humanizeCond(raw, def){
         let s = String(raw);
         (def?.params||[]).forEach(p=>{
@@ -2189,9 +2192,13 @@
           .replace(/[^0-9<>=!&|().+*\-/ %"'a-zA-Z_]/g,'');
         try{ return !!eval(safe); }catch{ return false; }
       }
-      function fmtNum(v){
-        const n=Number(v);
-        return Number.isFinite(n) ? n.toLocaleString('fr-FR') : String(v);
+
+      // === Formatage nombres PDF : 25 000 (espace normal) ===
+      function fmtNumPDF(v){
+        const n = Number(v);
+        if (!Number.isFinite(n)) return String(v || '');
+        // toLocaleString en fr-FR puis remplacement des espaces insécables par un espace simple
+        return n.toLocaleString('fr-FR').replace(/\s/g,' ');
       }
 
       const titre = ($('#ftTitre').value || 'Intervention').trim();
@@ -2284,7 +2291,7 @@
                 const raw=String(el.value||'').trim();
                 if (p.type==='number'){
                   const vv=parseFloat(raw.replace(',','.'));
-                  val = Number.isFinite(vv) ? fmtNum(vv) : '—';
+                  val = Number.isFinite(vv) ? fmtNumPDF(vv) : '—';
                 } else {
                   val = raw || '—';
                 }
@@ -2298,9 +2305,9 @@
             const eSurf = document.getElementById(`param_${code}_surface_m2`) || document.getElementById('param_surface_m2');
             const eDrain = document.getElementById(`param_${code}_surface_drainee_m2`) || document.getElementById('param_surface_drainee_m2');
             const eLong = document.getElementById(`param_${code}_longueur_m`) || document.getElementById('param_longueur_m');
-            if (eSurf) generic.push(`Surface (m²) : ${fmtNum(eSurf.value||'—')} m²`);
-            if (eDrain) generic.push(`Surface drainée (m²) : ${fmtNum(eDrain.value||'—')} m²`);
-            if (eLong) generic.push(`Longueur (m) : ${fmtNum(eLong.value||'—')} m`);
+            if (eSurf) generic.push(`Surface (m²) : ${fmtNumPDF(eSurf.value||'')} m²`);
+            if (eDrain) generic.push(`Surface drainée (m²) : ${fmtNumPDF(eDrain.value||'')} m²`);
+            if (eLong) generic.push(`Longueur (m) : ${fmtNumPDF(eLong.value||'')} m`);
             bullet(generic.length ? generic : ['Cette rubrique ne requiert pas de paramètres chiffrés dans l’outil.']);
           }
 
@@ -2342,7 +2349,10 @@
               }
             }
             const labelReg = decision==='A' ? 'Autorisation' : decision==='D' ? 'Déclaration' : 'Hors nomenclature';
-            para(`Au vu des valeurs renseignées, la rubrique « ${code} » relève de « ${labelReg} »${ref ? ` (${ref})` : ''}.`, { color:[30,41,59] });
+            para(
+              `Au vu des valeurs renseignées, la rubrique « ${code} » relève de « ${labelReg} »${ref ? ` (${ref})` : ''}.`,
+              { size:11, lh:17, after:10, color:[30,41,59], italic:false }
+            );
           } else {
             bullet(['Grille non documentée dans l’outil pour cette rubrique.']);
           }
