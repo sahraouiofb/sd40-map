@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8" />
-<title>SD40 – Aide IOTA pétitionnaires (pré-analyse régime)</title>
+<title>SD40 – Pré-analyse IOTA (police de l’environnement OFB)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <!-- Leaflet & plugins CSS -->
@@ -310,7 +310,7 @@
   <!-- ===================== UI Procédure ===================== -->
   <div id="proc" class="proc-drawer" hidden>
     <div class="proc-header">
-      <span>🗂️ Pré-analyse IOTA</span>
+      <span>🗂️ Pré-analyse IOTA – Contrôle OFB</span>
       <div style="display:flex;gap:6px;align-items:center;">
         <button
           type="button"
@@ -569,20 +569,44 @@
 
     /* ---- COUCHES ---- */
     const LAYERS = [
+      { name:"Axe_realimentes_Institution_Adour", url:"layers/Axe_realimentes_Institution_Adour.geojson" },
+      { name:"BDT_3_5_Bassin_Versant", url:"layers/BDT_3_5_Bassin_Versant.geojson" },
+      { name:"BDT_3_5_Plan_d_eau", url:"layers/BDT_3_5_Plan_d_eau.geojson" },
+      { name:"BDT_3_5_Reservoir", url:"layers/BDT_3_5_Reservoir.geojson" },
+      { name:"Cadastre_parcelles_Flux", url:"layers/Cadastre_parcelles_Flux.geojson" },
+      { name:"DCE_2022_2027_masses_deau_cotiere_Adour_Garonne", url:"layers/DCE_2022_2027_masses_deau_cotiere_Adour_Garonne.geojson" },
+      { name:"DCE_2022_2027_masses_deau_de_transition_Adour_Garonne", url:"layers/DCE_2022_2027_masses_deau_de_transition_Adour_Garonne.geojson" },
+      { name:"DCE__2022_2027__BV_specifique__AG", url:"layers/DCE__2022_2027__BV_specifique__AG.geojson" },
+      { name:"DCE__2022_2027__plans_deau__adour_garonne", url:"layers/DCE__2022_2027__plans_deau__adour_garonne.geojson" },
       { name:"DDT40_Carto_Cours_d_Eau_validee", url:"layers/DDT40_Carto_Cours_d_Eau_validee.geojson" },
       { name:"DDT40_Plan_d_Eau_loi_Eau", url:"layers/DDT40_Plan_d_Eau_loi_Eau.geojson" },
-      { name:"BDT_3_5_Plan_d_eau", url:"layers/BDT_3_5_Plan_d_eau.geojson" },
-      { name:"DCE_2022_2027__plans_deau__adour_garonne", url:"layers/DCE_2022_2027__plans_deau__adour_garonne.geojson.gz" },
+      { name:"DDT40_retenue_d_eau", url:"layers/DDT40_retenue_d_eau.geojson" },
+      { name:"DPT40Masque", url:"layers/DPT40Masque.geojson" },
+      { name:"DREAL_points_nodaux", url:"layers/DREAL_points_nodaux.geojson" },
+      { name:"IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux", url:"layers/IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux.geojson" },
+      { name:"INRAe_carte_sols", url:"layers/INRAe_carte_sols.geojson" },
+      { name:"Isochrones_nappe_alluviale_adour_IA", url:"layers/Isochrones_nappe_alluviale_adour_IA.geojson" },
+      { name:"ONF_Foret", url:"layers/ONF_Foret.geojson" },
+      /* GZIP */
+      { name:"DCE_2022-2027_cours_deau_Adour-Garonne", url:"layers/DCE_2022-2027_cours_deau_Adour-Garonne.geojson.gz" },
+      { name:"DCE_2022_2027__masses_deau_souterraine", url:"layers/DCE_2022_2027__masses_deau_souterraine.geojson.gz" },
       { name:"BDT_3_5_Surface_hydrographique", url:"layers/BDT_3_5_Surface_hydrographique.geojson.gz" },
-      { name:"axes_raliments_l_cde_retenues_l93_institution_adour", url:"layers/axes_raliments_l_cde_retenues_l93_institution_adour.geojson" }
+      { name:"IGN_BDHaies_V2_2024", url:"layers/IGN_BDHaies_V2_2024.geojson.gz" },
+      { name:"Nappes_des_sables", url:"layers/Nappes_des_sables.geojson.gz" },
+      { name:"Zones_Restriction_Prelevements_flux", url:"layers/Zones_Restriction_Prelevements_flux.geojson.gz" },
+      { name:"ZAS_sup_40_2024", url:"layers/ZAS_sup_40_2024.geojson" },
+      { name:"ZRE_-_2013", url:"layers/ZRE_-_2013.geojson" },
+      { name:"Zones_port_es_par_les_arr_t_s", url:"layers/Zones_port_es_par_les_arr_t_s.geojson" },
+      { name:"Zones_portes_arretes", url:"layers/Zones_portes_arretes.geojson" },
+      { name:"axes_raliments_l_cde_retenues_l93_institution_adour", url:"layers/axes_raliments_l_cde_retenues_l93_institution_adour.geojson" },
+      { name:"pe_aci_adour", url:"layers/pe_aci_adour.geojson" },
+      { name:"sortie", url:"layers/sortie.geojson" }
     ];
 
     /* ---- MAP + Basemaps ---- */
     const map = L.map('map', { zoomControl:true, preferCanvas:true }).setView([43.85,-0.7], 9);
 
     const pointMarkersLayer = L.layerGroup().addTo(map);
-    const historyLayer = L.layerGroup().addTo(map);
-
 
     function addGPSPoint(){
       if (!('geolocation' in navigator)){
@@ -922,24 +946,7 @@
     function zoomToHistory(id){
       const m = measureHistory.find(x=>x.id === id);
       if (!m || !m.latlngs || !m.latlngs.length) return;
-
-      if (typeof historyLayer !== 'undefined' && historyLayer){
-        try{ historyLayer.clearLayers(); }catch(_){}
-      }
-      const latlngs = m.latlngs.map(p=>L.latLng(p.lat, p.lng));
-
-      let geomLayer = null;
-      if (m.mode === 'point'){
-        geomLayer = L.marker(latlngs[0]).addTo(historyLayer);
-        map.setView(latlngs[0], Math.max(map.getZoom(), 17));
-        return;
-      } else if (m.mode === 'dist'){
-        geomLayer = L.polyline(latlngs, { color:'#0b7285', weight:3, dashArray:'6,4' }).addTo(historyLayer);
-      } else {
-        geomLayer = L.polygon(latlngs, { color:'#0b7285', weight:2, fillOpacity:0.15 }).addTo(historyLayer);
-      }
-
-      const bounds = geomLayer.getBounds ? geomLayer.getBounds() : L.latLngBounds(latlngs);
+      const bounds = L.latLngBounds(m.latlngs.map(p=>L.latLng(p.lat, p.lng)));
       map.fitBounds(bounds, { padding:[20,20] });
     }
 
@@ -1184,8 +1191,15 @@
     }
 
     function finishManual(){
-      // fin de saisie manuelle : on garde uniquement la géométrie active
-      // l'enregistrement dans l'historique se fait au clic sur le bouton « Validateur »
+      if (manualState && manualState.pts && manualState.pts.length >= (manualState.mode === 'area' ? 3 : 2)){
+        addMeasureToHistory({
+          source: 'manuel',
+          mode: manualState.mode,
+          length_m: manualState.mode === 'dist' ? computeLengthMeters(manualState.pts) : computeLengthMeters(manualState.pts),
+          area_m2: manualState.mode === 'area' ? computeAreaM2(manualState.pts) : 0,
+          latlngs: manualState.pts.map(ll=>({ lat: ll.lat, lng: ll.lng }))
+        });
+      }
       resetManual();
     }
 
@@ -1210,8 +1224,19 @@
 
     function stopGPS(){
       if (!gpsState) { updateMeasurePanel(); return; }
-      // on arrête simplement le suivi et on nettoie le tracé.
-      // L'enregistrement dans l'historique se fait au clic sur le bouton « Validateur ».
+      // avant de nettoyer, on enregistre la mesure si suffisante
+      if (gpsState.pts && gpsState.pts.length >= (gpsState.mode === 'area' ? 3 : 2)){
+        // on recalcule pour être indépendant de lastMeasure
+        const len = computeLengthMeters(gpsState.pts);
+        const area = gpsState.mode === 'area' ? computeAreaM2(gpsState.pts) : 0;
+        addMeasureToHistory({
+          source: 'gps',
+          mode: gpsState.mode,
+          length_m: len,
+          area_m2: area,
+          latlngs: gpsState.pts.map(ll=>({ lat: ll.lat, lng: ll.lng }))
+        });
+      }
       if (gpsState.watchId != null) navigator.geolocation.clearWatch(gpsState.watchId);
       if (gpsState.line)  map.removeLayer(gpsState.line);
       if (gpsState.poly)  map.removeLayer(gpsState.poly);
@@ -1385,43 +1410,12 @@
           if (typeof pointMarkersLayer !== 'undefined' && pointMarkersLayer){
             try{ pointMarkersLayer.clearLayers(); }catch(_){}
           }
-          if (typeof historyLayer !== 'undefined' && historyLayer){
-            try{ historyLayer.clearLayers(); }catch(_){}
-          }
           resetManual();
           stopGPS();
           updateMeasurePanel();
         });
         pauseBtn.addEventListener('click', ()=> toggleGPSPause());
         iotaBtn.addEventListener('click', ()=>{
-          // Enregistrement dans l'historique au moment de la validation
-          let entry = null;
-          if (manualState && manualState.pts && manualState.pts.length >= (manualState.mode === 'area' ? 3 : 2)){
-            const pts = manualState.pts;
-            const len = computeLengthMeters(pts);
-            const area = manualState.mode === 'area' ? computeAreaM2(pts) : 0;
-            entry = {
-              source: 'manuel',
-              mode: manualState.mode,
-              length_m: len,
-              area_m2: area,
-              latlngs: pts.map(ll=>({ lat: ll.lat, lng: ll.lng }))
-            };
-          } else if (gpsState && gpsState.pts && gpsState.pts.length >= (gpsState.mode === 'area' ? 3 : 2)){
-            const pts = gpsState.pts;
-            const len = computeLengthMeters(pts);
-            const area = gpsState.mode === 'area' ? computeAreaM2(pts) : 0;
-            entry = {
-              source: 'gps',
-              mode: gpsState.mode,
-              length_m: len,
-              area_m2: area,
-              latlngs: pts.map(ll=>({ lat: ll.lat, lng: ll.lng })),
-              accuracy_m: (gpsState.lastAccuracy != null ? gpsState.lastAccuracy : null)
-            };
-          }
-          if (entry) addMeasureToHistory(entry);
-
           pushMeasureToValidator(true);
           const btnEval = document.getElementById('btnEval');
           if (btnEval) btnEval.click();
@@ -2991,7 +2985,7 @@
       pdf.save('fiche-terrain.pdf');
     });
 
-    // === PDF “Fiche projet – Pré-analyse IOTA (pétitionnaires)” ===
+    // === PDF “Fiche contrôle – Pré-analyse IOTA (agents OFB)” ===
     // Attach PDF export handler only if the element exists
     const btnProcPDFEl = $('#btnProcPDF');
     if (btnProcPDFEl) btnProcPDFEl.addEventListener('click', async ()=>{
@@ -3105,7 +3099,7 @@ function smallNote(txt){
         pdf.setFillColor(12,34,60);
         pdf.rect(0,0,PAGE_W,60,'F');
         setFont(16,'bold',[255,255,255]);
-        pdf.text('FICHE PROJET – Pré-analyse IOTA', M.left, 36);
+        pdf.text('FICHE CONTROLE – Pré-analyse IOTA (OFB)', M.left, 36);
         setFont(10.5,'normal',[226,232,240]);
         pdf.text(new Date().toLocaleString('fr-FR'), PAGE_W - M.right, 36, { align:'right' });
         // Nous n’affichons plus le titre du projet ici pour éviter la répétition. Le titre
@@ -3461,13 +3455,14 @@ function smallNote(txt){
       heading('Avertissement');
       para(
         `Cette fiche de pré-analyse ne se substitue pas à l’instruction d’un dossier par l’autorité administrative compétente. ` +
-        `Elle a pour objectif d’aider le pétitionnaire à identifier les rubriques IOTA susceptibles d’être concernées et à préparer son dossier. ` +
-        `En cas de doute ou de projet complexe, il est recommandé de prendre contact avec les services instructeurs (DDT(M), OFB, etc.).`,
+        `Elle a pour objectif d’aider les agents de la police de l’environnement (OFB) à structurer leur analyse, objectiver les constats de terrain ` +
+        `et préparer, le cas échéant, leurs avis techniques et procédures (MI, PV, rapports, etc.). ` +
+        `En cas de doute ou de situation complexe, il est recommandé de confronter cette analyse aux textes en vigueur et, si besoin, aux services instructeurs (DDT(M), préfecture, etc.).`,
         { after: 4 }
       );
 
       addPageNumbers();
-      pdf.save('pre-analyse-iota_petitionnaire.pdf');
+      pdf.save('pre-analyse-iota_agents-ofb.pdf');
     });
 
     // ----- Bouton d'édition des règles IOTA -----
