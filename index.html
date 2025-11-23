@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8" />
-<title>SD40 – Carte + Procédure (IOTA/BCAE/Phyto + NATINF + Validateur)</title>
+<title>SD40 – Aide IOTA pétitionnaires (pré-analyse régime)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <!-- Leaflet & plugins CSS -->
@@ -47,10 +47,30 @@
   /* Outils */
   .tool-btn.leaflet-bar a,
   .fullscreen-btn.leaflet-bar a{
-    display:inline-flex;align-items:center;justify-content:center;
-    width:40px;height:40px;font:20px/1.1 system-ui; text-decoration:none; user-select:none;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:40px;
+    height:40px;
+    font:20px/1.1 system-ui;
+    text-decoration:none;
+    user-select:none;
+    background:#f8fafc;
+    border:1px solid #d0d7e1;
+    border-radius:8px;
+    color:#0b2239;
+    transition:background .2s,color .2s;
   }
-  .tool-btn.leaflet-bar a.active{background:#1f78b4;color:#fff}
+  .tool-btn.leaflet-bar a:hover,
+  .fullscreen-btn.leaflet-bar a:hover{
+    background:#e5e7eb;
+  }
+  .tool-btn.leaflet-bar a.active,
+  .fullscreen-btn.leaflet-bar a.active{
+    background:#0b2239;
+    color:#fff;
+    border-color:#0b2239;
+  }
 
   /* Popups */
   .popup-card{font:14px/1.35 system-ui,Segoe UI,Roboto,Arial;max-width:360px}
@@ -149,20 +169,133 @@
     border-color:#0b2239;
   }
 
+  /* === Form styling for procedure === */
+  .proc-row input,
+  .proc-row textarea,
+  .proc-row select{
+    padding:6px 8px;
+    border:1px solid #d0d7e1;
+    border-radius:6px;
+    font:14px system-ui;
+    width:100%;
+    box-sizing:border-box;
+  }
+  .proc-row input:focus,
+  .proc-row textarea:focus,
+  .proc-row select:focus{
+    outline:none;
+    border-color:#0b2239;
+    box-shadow:0 0 0 2px rgba(11,34,57,.3);
+  }
+
+  /* === Action buttons styling === */
+  .proc-actions button{
+    font:600 14px system-ui;
+    background:#0b2239;
+    color:#fff;
+    border:none;
+    border-radius:8px;
+    padding:8px 12px;
+    cursor:pointer;
+    transition:background .3s, transform .1s;
+  }
+  .proc-actions button:hover{
+    background:#132b4f;
+  }
+  .proc-actions button:active{
+    transform:translateY(1px);
+  }
+
+  /* === Primary buttons for evaluation, photo et croquis === */
+  #btnEval,
+  #btnPhoto,
+  #btnSketch{
+    font:600 14px system-ui;
+    background:#0b2239;
+    color:#fff;
+    border:none;
+    border-radius:8px;
+    padding:6px 10px;
+    cursor:pointer;
+    transition:background .3s, transform .1s;
+  }
+  #btnEval:hover,
+  #btnPhoto:hover,
+  #btnSketch:hover{
+    background:#132b4f;
+  }
+  #btnEval:active,
+  #btnPhoto:active,
+  #btnSketch:active{
+    transform:translateY(1px);
+  }
+
+
+  /* === Toggle switches for checkboxes === */
+  /* apply to leaflet layer list and IOTA list */
+  .leaflet-control-layers-overlays input[type="checkbox"],
+  #iotaList input[type="checkbox"]{
+    appearance:none;
+    -webkit-appearance:none;
+    width:40px;
+    height:22px;
+    background:#e5e7eb;
+    border-radius:22px;
+    position:relative;
+    cursor:pointer;
+    transition:background .3s;
+    flex-shrink:0; /* taille fixe uniformisée */
+  }
+  .leaflet-control-layers-overlays input[type="checkbox"]::before,
+  #iotaList input[type="checkbox"]::before{
+    content:'';
+    position:absolute;
+    top:3px;
+    left:3px;
+    width:16px;
+    height:16px;
+    background:#ffffff;
+    border-radius:50%;
+    transition:transform .3s;
+    box-shadow:0 1px 2px rgba(0,0,0,.2);
+  }
+  .leaflet-control-layers-overlays input[type="checkbox"]:checked,
+  #iotaList input[type="checkbox"]:checked{
+    background:#0b2239;
+  }
+  .leaflet-control-layers-overlays input[type="checkbox"]:checked::before,
+  #iotaList input[type="checkbox"]:checked::before{
+    transform:translateX(18px);
+  }
+
   /* Panneau de mesures */
   .leaflet-control.measure-panel{
-    border-radius:8px;
+    /* modern card appearance */
+    background:#fff;
+    border:1px solid #d0d7e1;
+    border-radius:10px;
     box-shadow:0 6px 18px rgba(0,0,0,.28);
     overflow:hidden;
+    padding:8px;
   }
   .leaflet-control.measure-panel button{
-    border:1px solid #d0d7e1;
+    font:600 14px system-ui;
     background:#f8fafc;
-    border-radius:6px;
+    color:#0b2239;
+    border:1px solid #d0d7e1;
+    border-radius:8px;
+    padding:6px 10px;
     cursor:pointer;
+    margin-right:4px;
+    transition:background .2s,color .2s;
   }
   .leaflet-control.measure-panel button:hover{
     background:#e5e7eb;
+  }
+  .leaflet-control.measure-panel button.active{
+    background:#0b2239;
+    color:#fff;
+    border-color:#0b2239;
   }
   /* Panneau mesures caché quand outils masqués */
   body.tools-hidden .leaflet-control.measure-panel{
@@ -177,19 +310,30 @@
   <!-- ===================== UI Procédure ===================== -->
   <div id="proc" class="proc-drawer" hidden>
     <div class="proc-header">
-      <span>🗂️ Procédure terrain</span>
-      <div style="display:flex;gap:8px">
-        <button id="btnRules" type="button" style="border:0;background:#fff;color:#0b2239;border-radius:8px;padding:6px 8px" title="Éditer les règles IOTA (JSON)">⚙️ Règles IOTA</button>
-        <button id="btnProcClose" type="button" style="border:0;background:#fff;color:#0b2239;border-radius:8px;padding:6px 8px" title="Fermer le panneau">Fermer</button>
+      <span>🗂️ Pré-analyse IOTA</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button
+          type="button"
+          id="btnRulesPanel"
+          style="border:0;background:#fff;color:#0b2239;border-radius:8px;padding:6px 8px;font:600 13px system-ui;"
+          title="Éditer les règles IOTA (protégé)"
+        >
+          ⚙️ Règles IOTA
+        </button>
+        <button
+          type="button"
+          id="btnProcClose"
+          style="border:0;background:#fff;color:#0b2239;border-radius:8px;padding:6px 8px"
+          title="Fermer le panneau"
+        >
+          ✕
+        </button>
       </div>
     </div>
 
-    <div class="proc-tabs">
-      <button data-tab="iota" class="active" type="button">IOTA</button>
-      <button data-tab="bcae" type="button">BCAE</button>
-      <button data-tab="phyto" type="button">Phyto</button>
-      <button data-tab="autre" type="button">Autre</button>
-      <button data-tab="validator" type="button">Validateur IOTA</button>
+<div class="proc-tabs">
+      <button type="button" data-tab="iota" class="active">IOTA</button>
+      <button type="button" data-tab="validateur">Validateur IOTA</button>
     </div>
 
     <div class="proc-body">
@@ -200,26 +344,8 @@
         <div class="note">Cochez une ou plusieurs rubriques : elles sont ajoutées à la fiche et évaluées. Appui long sur ⚙️ pour réinitialiser les règles intégrées.</div>
       </div>
 
-      <!-- BCAE -->
-      <div class="tab" id="tab-bcae" hidden>
-        <div class="proc-row"><input id="bcaeSearch" placeholder="Mot-clé (ex: ‘zone humide’, ‘drainage’, ‘nitrates’)" /></div>
-        <div id="bcaeList"></div>
-      </div>
-
-      <!-- Phyto -->
-      <div class="tab" id="tab-phyto" hidden>
-        <div class="proc-row"><input id="phytoSearch" placeholder="Mot-clé (ex: ‘phytopharmaceutique’, ‘certificat’, ‘néonicotinoïdes’)" /></div>
-        <div id="phytoList"></div>
-      </div>
-
-      <!-- Autre -->
-      <div class="tab" id="tab-autre" hidden>
-        <div class="proc-row"><input id="autreSearch" placeholder="Recherche NATINF (mot-clé ou code)"/></div>
-        <div id="autreList"></div>
-      </div>
-
       <!-- VALIDATEUR IOTA -->
-      <div class="tab" id="tab-validator" hidden>
+      <div class="tab" id="tab-validateur" hidden>
         <div class="proc-row">
           <input id="valRubrique" placeholder="Rubrique IOTA (ex : 3.2.3.0)" />
           <select id="valGeom">
@@ -238,14 +364,23 @@
 
       <hr>
 
-      <!-- Fiche terrain -->
-      <div class="proc-row"><input id="ftTitre" placeholder="Titre de l’intervention" /></div>
-      <div class="proc-row"><input id="ftLieu" placeholder="Lieu / commune" /></div>
-      <div class="proc-row"><textarea id="ftDesc" rows="4" placeholder="Constats, mesures, éléments matériels, témoins…"></textarea></div>
+      <!-- Fiche projet (pétitionnaire) -->
       <div class="proc-row">
-        <input id="ftRefIota" placeholder="Rubrique IOTA retenue (séparées par des virgules)" />
-        <input id="ftRefNatinf" placeholder="NATINF retenu (codes séparés par des virgules)" />
+        <input id="ftTitre" placeholder="Titre du projet / opération" />
       </div>
+      <div class="proc-row">
+        <input id="ftLieu" placeholder="Lieu / commune" />
+      </div>
+      <div class="proc-row">
+        <textarea id="ftDesc" rows="4"
+          placeholder="Description du projet, contexte, principaux travaux envisagés…"></textarea>
+      </div>
+      <div class="proc-row">
+        <input id="ftRefIota" placeholder="Rubriques IOTA pressenties (séparées par des virgules)" />
+      </div>
+
+      <!-- Champ NATINF caché pour compatibilité scripts existants -->
+      <input id="ftRefNatinf" type="hidden" />
 
       <!-- Pièces : Photo & Croquis -->
       <div class="proc-row">
@@ -269,6 +404,16 @@
       <button id="btnProcPDF" type="button">Exporter PDF</button>
       <button id="btnProcGJ" type="button">Exporter GeoJSON</button>
     </div>
+  </div>
+
+  <!-- Panneau d'édition des règles IOTA -->
+  <div id="rulesPanel" style="position:fixed; top:10%; left:50%; transform:translateX(-50%); width:80%; max-height:80%; overflow:auto; background:#ffffff; border:1px solid #d0d7e1; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.35); padding:16px; z-index:5000; display:none;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+      <span style="font-weight:600; font-size:16px;">Éditer les règles IOTA</span>
+      <button id="rulesClose" type="button" style="border:0; background:#0b2239; color:#fff; border-radius:6px; padding:4px 8px;">✕</button>
+    </div>
+    <div id="rulesList" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;"></div>
+    <div id="ruleDetail" style="max-height:50vh; overflow:auto; font-size:13px;"></div>
   </div>
 
   <!-- ========= PACK IOTA INTÉGRÉ ========= -->
@@ -391,6 +536,8 @@
     const PROC_KEY='sd40:procVisible';
     const RULES_KEY='sd40:iota_rules_v1';
     let PACK_RULES=null;
+    let RULES_UNLOCKED = false; // accès protégé au panneau des règles IOTA
+
 
     const procEl = $('#proc');
     const btnClose = $('#btnProcClose');
@@ -422,42 +569,58 @@
 
     /* ---- COUCHES ---- */
     const LAYERS = [
-      { name:"Axe_realimentes_Institution_Adour", url:"layers/Axe_realimentes_Institution_Adour.geojson" },
-      { name:"BDT_3_5_Bassin_Versant", url:"layers/BDT_3_5_Bassin_Versant.geojson" },
-      { name:"BDT_3_5_Plan_d_eau", url:"layers/BDT_3_5_Plan_d_eau.geojson" },
-      { name:"BDT_3_5_Reservoir", url:"layers/BDT_3_5_Reservoir.geojson" },
-      { name:"Cadastre_parcelles_Flux", url:"layers/Cadastre_parcelles_Flux.geojson" },
-      { name:"DCE_2022_2027_masses_deau_cotiere_Adour_Garonne", url:"layers/DCE_2022_2027_masses_deau_cotiere_Adour_Garonne.geojson" },
-      { name:"DCE_2022_2027_masses_deau_de_transition_Adour_Garonne", url:"layers/DCE_2022_2027_masses_deau_de_transition_Adour_Garonne.geojson" },
-      { name:"DCE__2022_2027__BV_specifique__AG", url:"layers/DCE__2022_2027__BV_specifique__AG.geojson" },
-      { name:"DCE__2022_2027__plans_deau__adour_garonne", url:"layers/DCE__2022_2027__plans_deau__adour_garonne.geojson" },
       { name:"DDT40_Carto_Cours_d_Eau_validee", url:"layers/DDT40_Carto_Cours_d_Eau_validee.geojson" },
       { name:"DDT40_Plan_d_Eau_loi_Eau", url:"layers/DDT40_Plan_d_Eau_loi_Eau.geojson" },
-      { name:"DDT40_retenue_d_eau", url:"layers/DDT40_retenue_d_eau.geojson" },
-      { name:"DPT40Masque", url:"layers/DPT40Masque.geojson" },
-      { name:"DREAL_points_nodaux", url:"layers/DREAL_points_nodaux.geojson" },
-      { name:"IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux", url:"layers/IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux.geojson" },
-      { name:"INRAe_carte_sols", url:"layers/INRAe_carte_sols.geojson" },
-      { name:"Isochrones_nappe_alluviale_adour_IA", url:"layers/Isochrones_nappe_alluviale_adour_IA.geojson" },
-      { name:"ONF_Foret", url:"layers/ONF_Foret.geojson" },
-      /* GZIP */
-      { name:"DCE_2022-2027_cours_deau_Adour-Garonne", url:"layers/DCE_2022-2027_cours_deau_Adour-Garonne.geojson.gz" },
-      { name:"DCE_2022_2027__masses_deau_souterraine", url:"layers/DCE_2022_2027__masses_deau_souterraine.geojson.gz" },
+      { name:"BDT_3_5_Plan_d_eau", url:"layers/BDT_3_5_Plan_d_eau.geojson" },
+      { name:"DCE_2022_2027__plans_deau__adour_garonne", url:"layers/DCE_2022_2027__plans_deau__adour_garonne.geojson.gz" },
       { name:"BDT_3_5_Surface_hydrographique", url:"layers/BDT_3_5_Surface_hydrographique.geojson.gz" },
-      { name:"IGN_BDHaies_V2_2024", url:"layers/IGN_BDHaies_V2_2024.geojson.gz" },
-      { name:"Nappes_des_sables", url:"layers/Nappes_des_sables.geojson.gz" },
-      { name:"Zones_Restriction_Prelevements_flux", url:"layers/Zones_Restriction_Prelevements_flux.geojson.gz" },
-      { name:"ZAS_sup_40_2024", url:"layers/ZAS_sup_40_2024.geojson" },
-      { name:"ZRE_-_2013", url:"layers/ZRE_-_2013.geojson" },
-      { name:"Zones_port_es_par_les_arr_t_s", url:"layers/Zones_port_es_par_les_arr_t_s.geojson" },
-      { name:"Zones_portes_arretes", url:"layers/Zones_portes_arretes.geojson" },
-      { name:"axes_raliments_l_cde_retenues_l93_institution_adour", url:"layers/axes_raliments_l_cde_retenues_l93_institution_adour.geojson" },
-      { name:"pe_aci_adour", url:"layers/pe_aci_adour.geojson" },
-      { name:"sortie", url:"layers/sortie.geojson" }
+      { name:"axes_raliments_l_cde_retenues_l93_institution_adour", url:"layers/axes_raliments_l_cde_retenues_l93_institution_adour.geojson" }
     ];
 
     /* ---- MAP + Basemaps ---- */
     const map = L.map('map', { zoomControl:true, preferCanvas:true }).setView([43.85,-0.7], 9);
+
+    const pointMarkersLayer = L.layerGroup().addTo(map);
+    const historyLayer = L.layerGroup().addTo(map);
+
+
+    function addGPSPoint(){
+      if (!('geolocation' in navigator)){
+        alert('Géolocalisation non disponible.');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(pos=>{
+        const { latitude, longitude, accuracy } = pos.coords;
+        const ll = L.latLng(latitude, longitude);
+        const m = L.marker(ll);
+        m.addTo(pointMarkersLayer);
+        lastPoint = {
+          lat: ll.lat,
+          lng: ll.lng,
+          accuracy: (typeof accuracy === 'number') ? accuracy : null
+        };
+        addMeasureToHistory({
+          source: 'gps',
+          mode: 'point',
+          length_m: 0,
+          area_m2: 0,
+          latlngs: [{ lat: ll.lat, lng: ll.lng }],
+          accuracy_m: lastPoint.accuracy
+        });
+        updateMeasurePanel();
+        try{
+          if (map.getZoom() < 17){
+            map.setView(ll, 17);
+          } else {
+            map.panTo(ll);
+          }
+        }catch(_){}
+      }, err=>{
+        alert('Erreur géolocalisation : ' + (err?.message || err));
+      });
+    }
+
+
 
     const baseOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom:20, attribution:'© OpenStreetMap'
@@ -665,17 +828,211 @@
     let manualState = null;
     let gpsState    = null;
     let lastMeasure = { mode:null, length_m:0, area_m2:0 };
+    let lastPoint   = null;
     let measurePanelEl = null;
+    let measureHistory = [];
+    let measureHistoryId = 0;
+
+    function addMeasureToHistory(entry){
+      if (!entry) return;
+      const now = new Date();
+      measureHistoryId += 1;
+      const payload = {
+        id: measureHistoryId,
+        source: entry.source || 'manuel',
+        mode: entry.mode || null,
+        length_m: Number(entry.length_m || 0),
+        area_m2: Number(entry.area_m2 || 0),
+        createdAt: entry.createdAt || now.toISOString(),
+        latlngs: (entry.latlngs || []).map(p=>({ lat:Number(p.lat), lng:Number(p.lng) })),
+        accuracy_m: (entry.accuracy_m != null ? Number(entry.accuracy_m) : null)
+      };
+      if (!payload.latlngs.length) return;
+      measureHistory.push(payload);
+      // on garde les 20 dernières mesures max
+      if (measureHistory.length > 20) measureHistory.shift();
+      renderMeasureHistory();
+    }
+
+    function renderMeasureHistory(){
+      if (!measurePanelEl) return;
+      const container = measurePanelEl.querySelector('#mp-history');
+      const countSpan = measurePanelEl.querySelector('#mp-count');
+      if (countSpan) countSpan.textContent = `(${measureHistory.length})`;
+      if (!container) return;
+      if (!measureHistory.length){
+        container.textContent = 'Aucune mesure';
+        return;
+      }
+      container.innerHTML = '';
+      measureHistory.forEach(m=>{
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+        row.style.justifyContent = 'space-between';
+        row.style.marginTop = '2px';
+
+        const label = document.createElement('span');
+        label.style.fontSize = '10px';
+        const src = (m.source === 'gps') ? 'GPS' : 'Man.';
+        let valTxt = '—';
+        if (m.mode === 'point'){
+          if (m.latlngs && m.latlngs.length){
+            const p = m.latlngs[0];
+            const acc = (typeof m.accuracy_m === 'number') ? ` (~${m.accuracy_m.toFixed(1)} m)` : '';
+            valTxt = `${p.lat.toFixed(5)} / ${p.lng.toFixed(5)}${acc}`;
+          }
+        } else if (m.mode === 'dist'){
+          valTxt = fmtLength(m.length_m);
+        } else if (m.area_m2){
+          valTxt = fmtArea(m.area_m2);
+        } else if (m.length_m){
+          valTxt = fmtLength(m.length_m);
+        }
+        const typeLabel = (m.mode === 'area') ? 'Surface' : (m.mode === 'point' ? 'Point' : 'Distance');
+        label.textContent = `${src} – ${typeLabel} : ${valTxt}`;
+
+        const btnWrap = document.createElement('div');
+        btnWrap.style.display = 'flex';
+        btnWrap.style.gap = '2px';
+
+        const zoomBtn = document.createElement('button');
+        zoomBtn.type = 'button';
+        zoomBtn.textContent = 'Zoom';
+        zoomBtn.style.fontSize = '9px';
+        zoomBtn.style.padding = '1px 3px';
+        zoomBtn.addEventListener('click', ()=>zoomToHistory(m.id));
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.textContent = 'X';
+        delBtn.style.fontSize = '9px';
+        delBtn.style.padding = '1px 4px';
+        delBtn.addEventListener('click', ()=>deleteHistory(m.id));
+
+        btnWrap.appendChild(zoomBtn);
+        btnWrap.appendChild(delBtn);
+
+        row.appendChild(label);
+        row.appendChild(btnWrap);
+        container.appendChild(row);
+      });
+    }
+
+    function zoomToHistory(id){
+      const m = measureHistory.find(x=>x.id === id);
+      if (!m || !m.latlngs || !m.latlngs.length) return;
+
+      if (typeof historyLayer !== 'undefined' && historyLayer){
+        try{ historyLayer.clearLayers(); }catch(_){}
+      }
+      const latlngs = m.latlngs.map(p=>L.latLng(p.lat, p.lng));
+
+      let geomLayer = null;
+      if (m.mode === 'point'){
+        geomLayer = L.marker(latlngs[0]).addTo(historyLayer);
+        map.setView(latlngs[0], Math.max(map.getZoom(), 17));
+        return;
+      } else if (m.mode === 'dist'){
+        geomLayer = L.polyline(latlngs, { color:'#0b7285', weight:3, dashArray:'6,4' }).addTo(historyLayer);
+      } else {
+        geomLayer = L.polygon(latlngs, { color:'#0b7285', weight:2, fillOpacity:0.15 }).addTo(historyLayer);
+      }
+
+      const bounds = geomLayer.getBounds ? geomLayer.getBounds() : L.latLngBounds(latlngs);
+      map.fitBounds(bounds, { padding:[20,20] });
+    }
+
+    function deleteHistory(id){
+      const idx = measureHistory.findIndex(x=>x.id === id);
+      if (idx === -1) return;
+      measureHistory.splice(idx,1);
+      renderMeasureHistory();
+    }
+
+    function exportHistoryAsText(){
+      if (!measureHistory.length){
+        alert('Aucune mesure enregistrée.');
+        return;
+      }
+      const lines = measureHistory.map((m, idx)=>{
+        const src = (m.source === 'gps') ? 'GPS' : 'Manuel';
+        const mode = (m.mode === 'area') ? 'Surface' : (m.mode === 'point' ? 'Point' : 'Distance');
+        let valTxt = '—';
+        if (m.mode === 'point'){
+          if (m.latlngs && m.latlngs.length){
+            const p = m.latlngs[0];
+            const acc = (typeof m.accuracy_m === 'number') ? ` (~${m.accuracy_m.toFixed(1)} m)` : '';
+            valTxt = `${p.lat.toFixed(5)} / ${p.lng.toFixed(5)}${acc}`;
+          }
+        } else if (m.mode === 'dist'){
+          valTxt = fmtLength(m.length_m);
+        } else if (m.area_m2){
+          valTxt = fmtArea(m.area_m2);
+        } else if (m.length_m){
+          valTxt = fmtLength(m.length_m);
+        }
+        const d = m.createdAt ? new Date(m.createdAt) : new Date();
+        const ts = !isNaN(d.getTime()) ? d.toISOString() : m.createdAt;
+        return `${idx+1}. [${ts}] ${src} – ${mode} : ${valTxt}`;
+      });
+      const blob = new Blob([lines.join('\n')],{type:'text/plain'});
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url;
+      a.download = 'mesures_terrain.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportHistoryAsGeoJSON(){
+      if (!measureHistory.length){
+        alert('Aucune mesure enregistrée.');
+        return;
+      }
+      const features = measureHistory.map(m=>{
+        const coords = (m.latlngs || []).map(p=>[p.lng, p.lat]);
+        let geometry;
+        if (m.mode === 'point'){
+          geometry = coords.length ? { type:'Point', coordinates: coords[0] } : { type:'Point', coordinates:[0,0] };
+        } else if (m.mode === 'dist'){
+          geometry = { type:'LineString', coordinates: coords };
+        } else {
+          const ring = coords.length ? [...coords, coords[0]] : [];
+          geometry = { type:'Polygon', coordinates: ring.length ? [ring] : [] };
+        }
+        return {
+          type:'Feature',
+          properties:{
+            source: m.source,
+            mode: m.mode,
+            length_m: m.length_m,
+            area_m2: m.area_m2,
+            date: m.createdAt
+          },
+          geometry
+        };
+      });
+      const gj = { type:'FeatureCollection', features };
+      const blob = new Blob([JSON.stringify(gj)],{type:'application/geo+json'});
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url;
+      a.download = 'mesures_terrain.geojson';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
 
     function updateMeasurePanel(){
-      if (!measurePanelEl) return;
-      const modeSpan = measurePanelEl.querySelector('#mp-mode');
-      const typeSpan = measurePanelEl.querySelector('#mp-type');
-      const dSpan    = measurePanelEl.querySelector('#mp-dist');
-      const aSpan    = measurePanelEl.querySelector('#mp-area');
-      const gpsRow   = measurePanelEl.querySelector('#mp-gps-row');
-      const gpsSpan  = measurePanelEl.querySelector('#mp-gps');
-      const pauseBtn = measurePanelEl.querySelector('#mp-pause');
+      const modeSpan   = measurePanelEl.querySelector('#mp-mode');
+      const typeSpan   = measurePanelEl.querySelector('#mp-type');
+      const dSpan      = measurePanelEl.querySelector('#mp-dist');
+      const aSpan      = measurePanelEl.querySelector('#mp-area');
+      const gpsRow     = measurePanelEl.querySelector('#mp-gps-row');
+      const gpsSpan    = measurePanelEl.querySelector('#mp-gps');
+      const pointRow   = measurePanelEl.querySelector('#mp-point-row');
+      const pointSpan  = measurePanelEl.querySelector('#mp-point');
+      const pauseBtn   = measurePanelEl.querySelector('#mp-pause');
 
       let mode='—', type='—';
 
@@ -704,12 +1061,23 @@
           pauseBtn.disabled = false;
           pauseBtn.textContent = gpsState.paused ? 'Reprendre GPS' : 'Pause GPS';
         }
-      } else {
+      } else if (gpsRow && gpsSpan){
         gpsRow.style.display = 'none';
         gpsSpan.textContent  = '—';
         if (pauseBtn){
           pauseBtn.disabled = !gpsState;
           pauseBtn.textContent = 'Pause GPS';
+        }
+      }
+
+      if (pointRow && pointSpan){
+        if (lastPoint && typeof lastPoint.lat === 'number' && typeof lastPoint.lng === 'number'){
+          pointRow.style.display = '';
+          const acc = (typeof lastPoint.accuracy === 'number') ? ` (~${lastPoint.accuracy.toFixed(1)} m)` : '';
+          pointSpan.textContent = `${lastPoint.lat.toFixed(5)} / ${lastPoint.lng.toFixed(5)}${acc}`;
+        } else {
+          pointRow.style.display = 'none';
+          pointSpan.textContent = '—';
         }
       }
     }
@@ -720,24 +1088,46 @@
       updateMeasurePanel();
     }
 
-    const ManualMeasure = L.Control.extend({
+    const MeasureTools = L.Control.extend({
       options:{ position:'topleft' },
       onAdd(){
         const wrap = L.DomUtil.create('div','leaflet-bar tool-btn');
-        const d = L.DomUtil.create('a','',wrap);
-        d.href='#'; d.title='Mesurer distance (manuel)'; d.innerHTML='📏';
-        const a = L.DomUtil.create('a','',wrap);
-        a.href='#'; a.title='Mesurer surface (manuel)'; a.innerHTML='▱';
-        const e = L.DomUtil.create('a','',wrap);
-        e.href='#'; e.title='Exporter la mesure (GeoJSON)'; e.innerHTML='📤';
+        wrap.style.display = 'flex';
+        wrap.style.flexDirection = 'column';
+        wrap.style.gap = '4px';
+        wrap.style.padding = '4px';
+
+        function makeBtn(label, title){
+          const a = L.DomUtil.create('a','',wrap);
+          a.href = '#';
+          a.title = title;
+          a.textContent = label;
+          a.style.width = 'auto';
+          a.style.height = 'auto';
+          a.style.padding = '4px 8px';
+          a.style.fontSize = '11px';
+          return a;
+        }
+
+        const dMan   = makeBtn('Dist M',    'Distance (manuel)');
+        const aMan   = makeBtn('Surf M',    'Surface (manuel)');
+        const dGps   = makeBtn('Dist GPS',  'Distance (GPS)');
+        const aGps   = makeBtn('Surf GPS',  'Surface (GPS)');
+        const pGps   = makeBtn('Point GPS', 'Point GPS');
+
         L.DomEvent.disableClickPropagation(wrap);
-        L.DomEvent.on(d,'click',L.DomEvent.stop).on(d,'click',()=>startManual('dist',d));
-        L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>startManual('area',a));
-        L.DomEvent.on(e,'click',L.DomEvent.stop).on(e,'click',()=>exportCurrentMeasure());
+        L.DomEvent.on(dMan,'click',L.DomEvent.stop).on(dMan,'click',()=>startManual('dist',dMan));
+        L.DomEvent.on(aMan,'click',L.DomEvent.stop).on(aMan,'click',()=>startManual('area',aMan));
+        L.DomEvent.on(dGps,'click',L.DomEvent.stop).on(dGps,'click',()=>startGPS('dist',dGps));
+        L.DomEvent.on(aGps,'click',L.DomEvent.stop).on(aGps,'click',()=>startGPS('area',aGps));
+        L.DomEvent.on(pGps,'click',L.DomEvent.stop).on(pGps,'click',()=>addGPSPoint());
+
         return wrap;
       }
     });
-    map.addControl(new ManualMeasure());
+
+
+    map.addControl(new MeasureTools());
 
     function resetManual(){
       if(!manualState) return;
@@ -793,7 +1183,11 @@
       }
     }
 
-    function finishManual(){ resetManual(); }
+    function finishManual(){
+      // fin de saisie manuelle : on garde uniquement la géométrie active
+      // l'enregistrement dans l'historique se fait au clic sur le bouton « Validateur »
+      resetManual();
+    }
 
     function updateManualLabel(latlng, text){
       if (manualState?.label) map.removeLayer(manualState.label);
@@ -812,27 +1206,12 @@
       updateMeasurePanel();
     }
 
-    const GPSMeasure = L.Control.extend({
-      options:{ position:'topleft' },
-      onAdd(){
-        const w = L.DomUtil.create('div','leaflet-bar tool-btn');
-        const d = L.DomUtil.create('a','',w);
-        d.href='#'; d.title='Mesurer distance (GPS)'; d.innerHTML='📍📏';
-        const a = L.DomUtil.create('a','',w);
-        a.href='#'; a.title='Mesurer surface (GPS)'; a.innerHTML='📍▱';
-        const e = L.DomUtil.create('a','',w);
-        e.href='#'; e.title='Exporter la mesure (GeoJSON)'; e.innerHTML='📤';
-        L.DomEvent.disableClickPropagation(w);
-        L.DomEvent.on(d,'click',L.DomEvent.stop).on(d,'click',()=>startGPS('dist',d));
-        L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',()=>startGPS('area',a));
-        L.DomEvent.on(e,'click',L.DomEvent.stop).on(e,'click',()=>exportCurrentMeasure());
-        return w;
-      }
-    });
-    map.addControl(new GPSMeasure());
+
 
     function stopGPS(){
       if (!gpsState) { updateMeasurePanel(); return; }
+      // on arrête simplement le suivi et on nettoie le tracé.
+      // L'enregistrement dans l'historique se fait au clic sur le bouton « Validateur ».
       if (gpsState.watchId != null) navigator.geolocation.clearWatch(gpsState.watchId);
       if (gpsState.line)  map.removeLayer(gpsState.line);
       if (gpsState.poly)  map.removeLayer(gpsState.poly);
@@ -969,17 +1348,26 @@
       onAdd(){
         const w = L.DomUtil.create('div','leaflet-control measure-panel');
         w.innerHTML = `
-          <div style="background:#0b2239;color:#fff;padding:4px 8px;font:600 11px system-ui;">Mesures</div>
-          <div style="background:#ffffff;padding:6px 8px;min-width:190px;font:11px system-ui;">
+          <div style="background:#0b2239;color:#fff;padding:4px 8px;font:600 11px system-ui;">Mesures terrain <span id="mp-count" style="font-weight:400;">(0)</span></div>
+          <div style="background:#ffffff;padding:6px 8px;min-width:210px;font:11px system-ui;">
             <div><b>Mode :</b> <span id="mp-mode">—</span></div>
             <div><b>Type :</b> <span id="mp-type">—</span></div>
             <div><b>Distance :</b> <span id="mp-dist">—</span></div>
             <div><b>Surface :</b> <span id="mp-area">—</span></div>
             <div id="mp-gps-row" style="display:none;"><b>GPS :</b> <span id="mp-gps">—</span></div>
+            <div id="mp-point-row" style="display:none;"><b>Point GPS :</b> <span id="mp-point">—</span></div>
             <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;">
               <button type="button" id="mp-clear" style="flex:1 1 auto;font-size:10px;padding:3px 4px;">Effacer</button>
               <button type="button" id="mp-pause" style="flex:1 1 auto;font-size:10px;padding:3px 4px;">Pause GPS</button>
               <button type="button" id="mp-iota"  style="flex:1 1 100%;font-size:10px;padding:3px 4px;">→ Validateur</button>
+            </div>
+            <div id="mp-history-container" style="margin-top:6px;border-top:1px solid #e5e7eb;padding-top:4px;max-height:120px;overflow:auto;">
+              <div style="font-weight:600;margin-bottom:2px;">Historique</div>
+              <div id="mp-history" style="font-size:10px;color:#111827;">Aucune mesure</div>
+              <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;">
+                <button type="button" id="mp-export-txt" style="flex:1 1 auto;font-size:9px;padding:2px 3px;">Exporter texte</button>
+                <button type="button" id="mp-export-geojson" style="flex:1 1 auto;font-size:9px;padding:2px 3px;">Exporter GeoJSON</button>
+              </div>
             </div>
           </div>`;
         L.DomEvent.disableClickPropagation(w);
@@ -988,19 +1376,58 @@
         const clearBtn = w.querySelector('#mp-clear');
         const pauseBtn = w.querySelector('#mp-pause');
         const iotaBtn  = w.querySelector('#mp-iota');
+        const exportTxtBtn = w.querySelector('#mp-export-txt');
+        const exportGeoBtn = w.querySelector('#mp-export-geojson');
 
         clearBtn.addEventListener('click', ()=>{
           lastMeasure = { mode:null, length_m:0, area_m2:0 };
+          lastPoint   = null;
+          if (typeof pointMarkersLayer !== 'undefined' && pointMarkersLayer){
+            try{ pointMarkersLayer.clearLayers(); }catch(_){}
+          }
+          if (typeof historyLayer !== 'undefined' && historyLayer){
+            try{ historyLayer.clearLayers(); }catch(_){}
+          }
           resetManual();
           stopGPS();
           updateMeasurePanel();
         });
         pauseBtn.addEventListener('click', ()=> toggleGPSPause());
         iotaBtn.addEventListener('click', ()=>{
+          // Enregistrement dans l'historique au moment de la validation
+          let entry = null;
+          if (manualState && manualState.pts && manualState.pts.length >= (manualState.mode === 'area' ? 3 : 2)){
+            const pts = manualState.pts;
+            const len = computeLengthMeters(pts);
+            const area = manualState.mode === 'area' ? computeAreaM2(pts) : 0;
+            entry = {
+              source: 'manuel',
+              mode: manualState.mode,
+              length_m: len,
+              area_m2: area,
+              latlngs: pts.map(ll=>({ lat: ll.lat, lng: ll.lng }))
+            };
+          } else if (gpsState && gpsState.pts && gpsState.pts.length >= (gpsState.mode === 'area' ? 3 : 2)){
+            const pts = gpsState.pts;
+            const len = computeLengthMeters(pts);
+            const area = gpsState.mode === 'area' ? computeAreaM2(pts) : 0;
+            entry = {
+              source: 'gps',
+              mode: gpsState.mode,
+              length_m: len,
+              area_m2: area,
+              latlngs: pts.map(ll=>({ lat: ll.lat, lng: ll.lng })),
+              accuracy_m: (gpsState.lastAccuracy != null ? gpsState.lastAccuracy : null)
+            };
+          }
+          if (entry) addMeasureToHistory(entry);
+
           pushMeasureToValidator(true);
           const btnEval = document.getElementById('btnEval');
           if (btnEval) btnEval.click();
         });
+        if (exportTxtBtn) exportTxtBtn.addEventListener('click', exportHistoryAsText);
+        if (exportGeoBtn) exportGeoBtn.addEventListener('click', exportHistoryAsGeoJSON);
 
         updateMeasurePanel();
         return w;
@@ -1008,51 +1435,7 @@
     });
     map.addControl(new MeasurePanel());
 
-    // Annotations Leaflet.Draw
-    const annotations = new L.FeatureGroup().addTo(map);
-    layersControl.addOverlay(annotations, 'Annotations (dessins)');
-    const drawControl = new L.Control.Draw({
-      position:'topleft',
-      edit: { featureGroup: annotations, poly:{allowIntersection:false}, remove:true },
-      draw: {
-        marker:{ repeatMode:true },
-        polyline:{ shapeOptions:{ color:'#ff7f00', weight:3 } },
-        polygon:{ allowIntersection:false, showArea:true, shapeOptions:{ color:'#ff7f00', weight:2, fillOpacity:.2 } },
-        rectangle:false, circle:false, circlemarker:false
-      }
-    });
-    map.addControl(drawControl);
-
-    const ANNOS_KEY='sd40:annotations';
-    function saveAnnotations(){ try{ localStorage.setItem(ANNOS_KEY, JSON.stringify(annotations.toGeoJSON())); }catch(_){ } }
-    function loadAnnotations(){
-      try{
-        const raw=localStorage.getItem(ANNOS_KEY); if(!raw) return;
-        const gj=JSON.parse(raw);
-        L.geoJSON(gj,{ style:()=>({color:'#ff7f00',weight:2,fillOpacity:.2}), pointToLayer:(_f,latlng)=>L.marker(latlng)})
-          .eachLayer(l=>annotations.addLayer(l));
-      }catch(_){}
-    }
-    loadAnnotations();
-    map.on(L.Draw.Event.CREATED, e => {
-      annotations.addLayer(e.layer); saveAnnotations();
-      try{
-        const gj = e.layer.toGeoJSON();
-        const g = gj.geometry || {};
-        if (g.type === 'Polygon' || g.type === 'MultiPolygon'){
-          lastMeasure.area_m2 = turf.area(gj);
-          const ring = g.type==='Polygon' ? g.coordinates[0] : g.coordinates[0][0];
-          lastMeasure.length_m = turf.length(turf.lineString(ring), {units:'kilometers'})*1000;
-        } else if (g.type === 'LineString' || g.type === 'MultiLineString'){
-          lastMeasure.length_m = turf.length(gj, {units:'kilometers'})*1000;
-          lastMeasure.area_m2 = 0;
-        }
-        pushMeasureToValidator(true);
-        updateMeasurePanel();
-      }catch(_){}
-    });
-    map.on(L.Draw.Event.EDITED, () => { saveAnnotations(); });
-    map.on(L.Draw.Event.DELETED, () => { saveAnnotations(); });
+    // Les outils de dessin/annotations sont désactivés dans cette version pour simplifier l'interface.
 
     // Home Landes
     const HomeControl = L.Control.extend({
@@ -1152,10 +1535,8 @@
         IOTA = Array.isArray(pack.iota)? pack.iota : DEMO_IOTA;
         if (pack.rules){ PACK_RULES = pack.rules; setRules(pack.rules); }
       }
-      try{
-        const r = await fetch('data/natinf_env_2023-10.json',{cache:'no-store'});
-        NATINF = r.ok ? await r.json() : DEMO_NATINF;
-      }catch(_){ NATINF = DEMO_NATINF; }
+      // Dans la version pétitionnaires, on ne propose plus de NATINF
+      NATINF = [];
       initProc();
     })();
 
@@ -1194,11 +1575,6 @@
         const arr = Array.from(SELECTED_IOTA);
         $('#ftRefIota').value = arr.join(', ');
 
-        const sugg = [...new Set(
-          arr.flatMap(c => natinfSuggestForIota(c).slice(0,3).map(x=>x.natinf))
-        )];
-        if (sugg.length) $('#ftRefNatinf').value = sugg.join(', ');
-
         buildValParams();
       }
 
@@ -1210,9 +1586,9 @@
 
         iotaList.innerHTML = out.map(x=>`
           <div class="row" style="padding:4px 0">
-            <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
+            <label style="display:flex;gap:8px;align-items:center;cursor:pointer;width:100%">
               <input type="checkbox" data-code="${x.code}" ${SELECTED_IOTA.has(x.code)?'checked':''}>
-              <div><b>${x.code}</b> — ${x.titre}</div>
+              <div style="line-height:1.3"><b>${x.code}</b> — ${x.titre}</div>
             </label>
           </div>
         `).join('') || '<em>Aucune rubrique</em>';
@@ -1240,7 +1616,12 @@
             </label>
           </div>`).join('') || '<em>Aucun résultat</em>';
         $$('input[type=radio]', listEl).forEach(r=>{
-          r.addEventListener('change', ()=>{ $('#ftRefNatinf').value = r.value; });
+          r.addEventListener('change', ()=>{
+            // Dans la version pétitionnaires, le champ NATINF n'existe plus ;
+            // on vérifie donc sa présence avant d'affecter une valeur pour éviter les erreurs.
+            const natinfEl = $('#ftRefNatinf');
+            if (natinfEl) natinfEl.value = r.value;
+          });
         });
       }
 
@@ -1262,15 +1643,7 @@
           return PHYTO_KEYS.some(k=>t.includes(normG(k))) || t.includes(n);
         });
       }
-      $('#bcaeSearch').addEventListener('input', (e)=> pickNatinf(bcaeList, filterBCAE(e.target.value)));
-      pickNatinf(bcaeList, filterBCAE('zone humide'));
-      $('#phytoSearch').addEventListener('input', (e)=> pickNatinf(phytoList, filterPHYTO(e.target.value)));
-      pickNatinf(phytoList, filterPHYTO('phytopharmaceutique'));
-      $('#autreSearch').addEventListener('input', (e)=>{
-        const q=normG(e.target.value);
-        const out=NATINF.filter(nf=> normG(nf.intitule).includes(q) || (nf.natinf||'').includes(q));
-        pickNatinf(autreList, out);
-      });
+      // NATINF-related searches (BCAE, Phyto, Autre) sont désactivées dans la version pétitionnaires
 
       // Badge lat/lng
       function updateLatLngBadge(ll){
@@ -1279,13 +1652,21 @@
       map.on('click', (e)=> updateLatLngBadge(e.latlng));
       updateLatLngBadge(map.getCenter());
 
-      // Complétude
+      // Complétude (version pétitionnaires)
       function evalScore(){
-        const f=[ $('#ftTitre').value, $('#ftDesc').value, $('#ftRefIota').value, $('#ftRefNatinf').value ];
-        const n=f.filter(x=>String(x||'').trim().length>0).length;
-        $('#ftScore').textContent = (n>=4? 'OK (4/4)': n+'/4');
+        let score = 0;
+        if ($('#ftTitre').value.trim()) score++;
+        if ($('#ftLieu').value.trim())  score++;
+        if ($('#ftDesc').value.trim())  score++;
+        // Les rubriques IOTA sont considérées comme un plus mais non obligatoires
+        const hasIota = $('#ftRefIota').value.trim() ? 1 : 0;
+        // Afficher un score sur 4 (3 champs requis + IOTA facultatif)
+        $('#ftScore').textContent = `${score + hasIota}/4`;
       }
-      ['#ftTitre','#ftDesc','#ftRefIota','#ftRefNatinf'].forEach(sel=> $(sel).addEventListener('input', evalScore));
+      ['#ftTitre','#ftLieu','#ftDesc','#ftRefIota'].forEach(sel=>{
+        const el = $(sel);
+        if (el) el.addEventListener('input', evalScore);
+      });
       evalScore();
 
       // === Photos & Croquis ===
@@ -1300,7 +1681,11 @@
           const im = document.createElement('img'); im.src=p.dataUrl; im.title=p.label||'Pièce'; cont.appendChild(im);
         });
       }
-      $('#btnPhoto').addEventListener('click', ()=> $('#photoInput').click());
+      // Attach photo upload button handler only if the element exists
+      {
+        const btnPhotoEl = $('#btnPhoto');
+        if (btnPhotoEl) btnPhotoEl.addEventListener('click', ()=> $('#photoInput').click());
+      }
       $('#photoInput').addEventListener('change', async (e)=>{
         const f=e.target.files?.[0]; if(!f) return;
         const dataUrl = await fileToDataURL(f);
@@ -1714,19 +2099,39 @@
         resizeSketch();
         setSketchBg('blank');
       }
-      $('#btnSketch').addEventListener('click', openSketch);
+      // Attach sketch button handler safely
+      {
+        const btnSketchEl = $('#btnSketch');
+        if (btnSketchEl) btnSketchEl.addEventListener('click', openSketch);
+      }
 
       // Exports fiche
-      $('#btnProcGJ').addEventListener('click', ()=>{
+      // Attach GeoJSON export handler only if the element exists
+      const btnProcGJEl = $('#btnProcGJ');
+      if (btnProcGJEl) btnProcGJEl.addEventListener('click', ()=>{
+        // Export fiche projet (GeoJSON simplifié – pétitionnaires)
         const ll = map.getCenter();
         const props = {
-          titre:$('#ftTitre').value, lieu:$('#ftLieu').value, desc:$('#ftDesc').value,
-          iota:$('#ftRefIota').value, natinf:$('#ftRefNatinf').value, date:new Date().toISOString()
+          titre: $('#ftTitre').value,
+          lieu:  $('#ftLieu').value,
+          desc:  $('#ftDesc').value,
+          iota:  $('#ftRefIota').value,
+          date:  new Date().toISOString()
         };
-        const gj = { type:'FeatureCollection', features:[{ type:'Feature', properties:props, geometry:{ type:'Point', coordinates:[ll.lng,ll.lat] } }]};
+        const gj = {
+          type:'FeatureCollection',
+          features:[{
+            type:'Feature',
+            properties:props,
+            geometry:{ type:'Point', coordinates:[ll.lng,ll.lat] }
+          }]
+        };
         const blob = new Blob([JSON.stringify(gj)], {type:'application/geo+json'});
         const url = URL.createObjectURL(blob);
-        const a=document.createElement('a'); a.href = url; a.download = 'fiche-terrain.geojson'; a.click();
+        const a   = document.createElement('a');
+        a.href = url;
+        a.download = 'projet-iota.geojson';
+        a.click();
         URL.revokeObjectURL(url);
       });
 
@@ -1812,7 +2217,9 @@
       $('#valRubrique').addEventListener('input', buildValParams);
       buildValParams();
 
-      $('#btnEval').addEventListener('click', ()=>{
+      // Attach regime evaluation button handler only if the element exists
+      const btnEvalEl = $('#btnEval');
+      if (btnEvalEl) btnEvalEl.addEventListener('click', ()=>{
         const rules = getRules();
         const selected = Array.from(SELECTED_IOTA);
         const traces = [];
@@ -1873,7 +2280,10 @@
           $('#valTrace').innerHTML = traces.join('');
           if (!$('#ftRefIota').value) $('#ftRefIota').value = selected.join(', ');
           const sugg = [...new Set(selected.flatMap(c => natinfSuggestForIota(c).slice(0,3).map(x=>x.natinf)))];
-          if (sugg.length && !$('#ftRefNatinf').value) $('#ftRefNatinf').value = sugg.join(', ');
+          // Dans la version pétitionnaires, le champ NATINF n'existe plus ;
+          // on vérifie sa présence avant de tenter d'assigner une valeur.
+          const natinfEl = $('#ftRefNatinf');
+          if (sugg.length && natinfEl && !natinfEl.value) natinfEl.value = sugg.join(', ');
           return;
         }
 
@@ -1887,19 +2297,25 @@
 
         if (!$('#ftRefIota').value) $('#ftRefIota').value = code;
         const sugg = natinfSuggestForIota(code).slice(0,3).map(x=>x.natinf);
-        if (sugg.length && !$('#ftRefNatinf').value) $('#ftRefNatinf').value = sugg.join(', ');
+        // Dans la version pétitionnaires, le champ NATINF n'existe plus ;
+        // on vérifie sa présence avant de tenter d'assigner une valeur.
+        const natinfEl = $('#ftRefNatinf');
+        if (sugg.length && natinfEl && !natinfEl.value) natinfEl.value = sugg.join(', ');
       });
 
-      $('#btnRules').addEventListener('click', ()=>{
-        const now = JSON.stringify(getRules(), null, 2);
-        const txt = prompt('Édite les règles (JSON strict : guillemets doubles, pas de virgule traînante)\nExemple: {"if":"surface_m2 >= 1000","regime":"D"}', now);
-        if (txt==null) return;
-        try{ const obj=JSON.parse(txt); setRules(obj); alert('Règles enregistrées.'); buildValParams(); }
-        catch(e){ alert('JSON invalide : '+e.message); }
-      });
-      let rulesPressTimer=null;
-      $('#btnRules').addEventListener('mousedown', ()=>{ rulesPressTimer = setTimeout(()=> resetRules(), 800); });
-      ['mouseup','mouseleave'].forEach(ev=> $('#btnRules').addEventListener(ev, ()=>{ if (rulesPressTimer){ clearTimeout(rulesPressTimer); rulesPressTimer=null; } }));
+      const btnRulesEl = $('#btnRules');
+      if (btnRulesEl){
+        btnRulesEl.addEventListener('click', ()=>{
+          const now = JSON.stringify(getRules(), null, 2);
+          const txt = prompt('Édite les règles (JSON strict : guillemets doubles, pas de virgule traînante)\nExemple: {"if":"surface_m2 >= 1000","regime":"D"}', now);
+          if (txt==null) return;
+          try{ const obj=JSON.parse(txt); setRules(obj); alert('Règles enregistrées.'); buildValParams(); }
+          catch(e){ alert('JSON invalide : '+e.message); }
+        });
+        let rulesPressTimer=null;
+        btnRulesEl.addEventListener('mousedown', ()=>{ rulesPressTimer = setTimeout(()=> resetRules(), 800); });
+        ['mouseup','mouseleave'].forEach(ev=> btnRulesEl.addEventListener(ev, ()=>{ if (rulesPressTimer){ clearTimeout(rulesPressTimer); rulesPressTimer=null; } }));
+      }
 
       function resetRules(){
         const pack = getEmbeddedPack();
@@ -1956,12 +2372,15 @@
       }
 
       // BOUTON RESET PROCÉDURE
-      $('#btnResetAll').addEventListener('click', ()=>{
-        ['#ftTitre','#ftLieu','#ftDesc','#ftRefIota','#ftRefNatinf'].forEach(sel=>{
-          const el=$(sel); if (el) el.value='';
+      // Attach reset button handler only if the element exists
+      const btnResetAllEl = $('#btnResetAll');
+      if (btnResetAllEl) btnResetAllEl.addEventListener('click', ()=>{
+        ['#ftTitre','#ftLieu','#ftDesc','#ftRefIota'].forEach(sel=>{
+          const el = $(sel); if (el) el.value = '';
         });
-        $('#ftLatLng').textContent='—';
-        $('#ftScore').textContent='0/4';
+        $('#ftLatLng').textContent = '—';
+        // Remettre la complétude à zéro (3 champs requis)
+        $('#ftScore').textContent  = '0/4';
 
         SELECTED_IOTA.clear();
         renderIota('');
@@ -2049,7 +2468,9 @@
     }
 
     /* ---------- PDF narratif pro — VERSION AMÉLIORÉE (corrigée) ---------- */
-    $('#btnProcPDF').addEventListener('click', async ()=>{
+    // L'écouteur original est désactivé en renommant l'ID ciblé
+    const btnProcPDFOldEl = $('#btnProcPDF_old');
+    if (btnProcPDFOldEl) btnProcPDFOldEl.addEventListener('click', async ()=>{
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({ unit:'pt', format:'a4' });
 
@@ -2132,7 +2553,7 @@
         for (let i=1;i<=n;i++){
           pdf.setPage(i);
           setFont(9.5, 'normal', [110,118,132]);
-          pdf.text('OFB – SD40', M.left, PAGE_H - 26);
+          pdf.text('OFB', M.left, PAGE_H - 26);
           pdf.text(`Page ${i} / ${n}`, PAGE_W - M.right, PAGE_H - 26, { align:'right' });
         }
       }
@@ -2252,8 +2673,8 @@
       const coordPhrase = (coord && coord.includes('Lat')) ? ` (coordonnées ${coord.replace('Lat','lat').replace('Lng','lng')})` : '';
       para(
         lieu
-          ? `L’intervention a été conduite à ${lieu}${coordPhrase}. Elle s’inscrit dans les missions de police de l’environnement de l’OFB – SD40.`
-          : `Cette intervention s’inscrit dans les missions de police de l’environnement de l’OFB – SD40.`,
+          ? `L’intervention a été conduite à ${lieu}${coordPhrase}. Elle s’inscrit dans les missions de police de l’environnement de l’OFB.`
+          : `Cette intervention s’inscrit dans les missions de police de l’environnement de l’OFB.`,
         { after:12 }
       );
       if (desc){
@@ -2347,40 +2768,89 @@
             }
           });
           if (logic.length){
-            const lines = logic.map(r=>{
-              if (r.if){
-                const cond = humanizeCondPDF(r.if, def);
+            // Formatage amélioré des conditions : transforme "X > A && X <= B" en "X comprise entre A et B" etc.
+            function formatCondForUI(expr, def) {
+              let s = String(expr || '');
+              (def?.params || []).forEach(p => {
+                const re = new RegExp(`\\b${p.id}\\b`, 'g');
+                s = s.replace(re, p.label || p.id);
+              });
+              const parts = s.split(/\s*&&\s*/);
+              if (parts.length === 2) {
+                const parseCond = part => {
+                  const m = part.trim().match(/^(.+?)\s*(>=|<=|>|<)\s*([0-9.]+)$/);
+                  if (!m) return null;
+                  return { label: m[1].trim(), op: m[2], value: Number(m[3]) };
+                };
+                const c1 = parseCond(parts[0]);
+                const c2 = parseCond(parts[1]);
+                if (c1 && c2 && c1.label === c2.label) {
+                  const min = Math.min(c1.value, c2.value);
+                  const max = Math.max(c1.value, c2.value);
+                  const fmt = n => Number(n).toLocaleString('fr-FR');
+                  return `${c1.label} comprise entre ${fmt(min)} et ${fmt(max)}`;
+                }
+              }
+              const fmt = n => Number(n).toLocaleString('fr-FR');
+              const describe = part => {
+                const m = part.trim().match(/^(.+?)\s*(>=|<=|>|<)\s*([0-9.]+)$/);
+                if (!m) return part.trim();
+                const label = m[1].trim();
+                const op = m[2];
+                const val = Number(m[3]);
+                const num = fmt(val);
+                switch(op) {
+                  case '>=': return `${label} ≥ ${num}`;
+                  case '>':  return `${label} > ${num}`;
+                  case '<=': return `${label} ≤ ${num}`;
+                  case '<':  return `${label} < ${num}`;
+                  default:   return `${label} ${op} ${num}`;
+                }
+              };
+              return parts.map(describe).join(' ET ');
+            }
+            const lines = logic.map(r => {
+              if (r.if) {
+                const cond = formatCondForUI(r.if, def);
                 const regime = r.regime || 'HN';
-                const labelReg = regime==='A' ? 'Autorisation' : regime==='D' ? 'Déclaration' : 'Hors nomenclature';
+                const labelReg = regime === 'A' ? 'Autorisation' : regime === 'D' ? 'Déclaration' : 'Hors nomenclature';
                 return `Si ${cond}, alors le régime est « ${labelReg} ».`;
               }
               const regime = r.else || 'HN';
-              const labelReg = regime==='A' ? 'Autorisation' : regime==='D' ? 'Déclaration' : 'Hors nomenclature';
+              const labelReg = regime === 'A' ? 'Autorisation' : regime === 'D' ? 'Déclaration' : 'Hors nomenclature';
               return `À défaut, le régime est « ${labelReg} ».`;
             });
             bullet(lines, { indent:18, bulletGap:5 });
 
             miniTitle('Appréciation');
-            let decision='HN', ref='';
-            for (let i=0;i<logic.length;i++){
-              const r=logic[i];
-              if (r.if){
-                if (safeEvalPDF(r.if, ctx)){ decision=r.regime||'HN'; ref=r.ref||''; break; }
+            let decision = 'HN', ref = '';
+            for (let i = 0; i < logic.length; i++) {
+              const r = logic[i];
+              if (r.if) {
+                // Évalue la condition à l’aide de safeEval (version générique) si disponible
+                const condOk = typeof safeEval === 'function' ? safeEval(r.if, ctx) : false;
+                if (condOk) {
+                  decision = r.regime || 'HN';
+                  ref = r.ref || '';
+                  break;
+                }
               } else {
-                decision=r.else||'HN'; ref=r.ref||''; break;
+                decision = r.else || 'HN';
+                ref = r.ref || '';
+                break;
               }
             }
-            const labelReg = decision==='A' ? 'Autorisation' : decision==='D' ? 'Déclaration' : 'Hors nomenclature';
+            const labelReg = decision === 'A' ? 'Autorisation' : decision === 'D' ? 'Déclaration' : 'Hors nomenclature';
             // Nettoyage du ref pour éviter les caractères qui cassent la police dans certains cas
             const refClean = (ref || '')
               .toString()
-              .replace(/[≥⩾]/g,'>= ')
-              .replace(/[≤⩽]/g,'<= ')
-              .replace(/[–—]/g,'-')
+              .replace(/[≥⩾]/g, '>= ')
+              .replace(/[≤⩽]/g, '<= ')
+              .replace(/[–—]/g, '-')
               .trim();
             para(
               `Au vu des valeurs renseignées, la rubrique « ${code} » relève de « ${labelReg} »${refClean ? ` (${refClean})` : ''}.`,
-              { color:[30,41,59] }
+              { color: [30, 41, 59] }
             );
           } else {
             bullet(['Grille non documentée dans l’outil pour cette rubrique.']);
@@ -2520,6 +2990,743 @@
       addPageNumbers();
       pdf.save('fiche-terrain.pdf');
     });
+
+    // === PDF “Fiche projet – Pré-analyse IOTA (pétitionnaires)” ===
+    // Attach PDF export handler only if the element exists
+    const btnProcPDFEl = $('#btnProcPDF');
+    if (btnProcPDFEl) btnProcPDFEl.addEventListener('click', async ()=>{
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ unit:'pt', format:'a4' });
+
+      const PAGE_W = pdf.internal.pageSize.getWidth();
+      const PAGE_H = pdf.internal.pageSize.getHeight();
+      const M = { left:56, right:56, top:88, bottom:64 };
+      let y = M.top;
+
+      function setFont(size=11, style='normal', color=[30,30,30]){
+        pdf.setFont('helvetica', style);
+        pdf.setFontSize(size);
+        pdf.setTextColor(color[0],color[1],color[2]);
+      }
+      function newPage(){
+        pdf.addPage();
+        y = M.top;
+      }
+      function ensureSpace(h){
+        if (y + h > PAGE_H - M.bottom){
+          newPage();
+        }
+      }
+      function hr(){
+        ensureSpace(12);
+        pdf.setDrawColor(220,223,233);
+        pdf.setLineWidth(0.8);
+        pdf.line(M.left, y, PAGE_W - M.right, y);
+        y += 12;
+      }
+      function heading(txt){
+        ensureSpace(24);
+        setFont(13.5,'bold',[15,23,42]);
+        pdf.text(String(txt), M.left, y);
+        y += 18;
+      }
+      function subhead(txt){
+        ensureSpace(20);
+        setFont(12,'bold',[31,41,55]);
+        pdf.text(String(txt), M.left, y);
+        y += 14;
+      }
+      function para(txt, opt={}){
+        const { size=11, lh=16, after=10, indent=0, color=[30,30,30], italic=false } = opt;
+        const content = (txt && String(txt).trim().length)
+          ? String(txt).trim().replace(/\s+/g,' ')
+          : '—';
+        setFont(size, italic?'italic':'normal', color);
+        const maxW = PAGE_W - M.left - M.right - indent;
+        const lines = pdf.splitTextToSize(content, maxW);
+        const h = lines.length * lh;
+        ensureSpace(h);
+        const x = M.left + indent;
+        lines.forEach(line=>{
+          pdf.text(line, x, y);
+          y += lh;
+        });
+        y += after;
+      }
+      function bullet(items, opt={}){
+        const { indent=14, bulletGap=6, color=[30,30,30] } = opt;
+        items.forEach(t=>{
+          const text = String(t || '').trim();
+          if (!text) return;
+          const lines = pdf.splitTextToSize(text, PAGE_W - M.left - M.right - indent);
+          ensureSpace(lines.length*16 + 6);
+          setFont(11, 'normal', color);
+          lines.forEach((ln, idx)=>{
+            pdf.text(ln, M.left + indent, y + idx*16);
+          });
+          y += lines.length*16 + bulletGap;
+        });
+      }
+
+function smallNote(txt){
+        para(txt, { size:10, lh:14, after:8, color:[90,96,110], italic:true });
+      }
+      function addPageNumbers(){
+        const n = pdf.getNumberOfPages();
+        for (let i=1;i<=n;i++){
+          pdf.setPage(i);
+          setFont(9.5, 'normal', [110,118,132]);
+          pdf.text('Pré-analyse IOTA', M.left, PAGE_H - 26);
+          pdf.text(`Page ${i} / ${n}`, PAGE_W - M.right, PAGE_H - 26, { align:'right' });
+        }
+      }
+      function drawRegimeBadge(regTxt){
+        const txt = String(regTxt || '').toLowerCase();
+        let col=[75,85,99];
+        let label='Régime non déterminé';
+        // On supprime la mention « hypothèse » et « à confirmer » dans l’étiquette.
+        if (txt.includes('autor')){
+          col=[185,28,28]; label='Autorisation';
+        } else if (txt.includes('décla') || txt.includes('decla')){
+          col=[154,52,18]; label='Déclaration';
+        } else if (txt.includes('hors') || txt.includes('hn')){
+          col=[55,65,81]; label='Hors nomenclature';
+        }
+        setFont(10, 'bold', [255,255,255]);
+        const padX=12, h=22;
+        const w = pdf.getTextWidth(label) + padX*2;
+        const x = PAGE_W - M.right - w;
+        const yBadge = M.top - 42;
+        pdf.setFillColor(col[0],col[1],col[2]);
+        pdf.roundedRect(x, yBadge, w, h, 10, 10, 'F');
+        pdf.text(label, x + padX, yBadge + h - 7);
+      }
+      function banner(title){
+        pdf.setFillColor(12,34,60);
+        pdf.rect(0,0,PAGE_W,60,'F');
+        setFont(16,'bold',[255,255,255]);
+        pdf.text('FICHE PROJET – Pré-analyse IOTA', M.left, 36);
+        setFont(10.5,'normal',[226,232,240]);
+        pdf.text(new Date().toLocaleString('fr-FR'), PAGE_W - M.right, 36, { align:'right' });
+        // Nous n’affichons plus le titre du projet ici pour éviter la répétition. Le titre
+        // sera indiqué dans le bloc « Identité du projet ».
+      }
+
+      // ----- Récupération des données de l'outil -----
+      const titre = ($('#ftTitre').value || '').trim();
+      const lieu  = ($('#ftLieu').value  || '').trim();
+      const desc  = ($('#ftDesc').value  || '').trim();
+      const iotaTxtRaw = ($('#ftRefIota').value || '').trim();
+      const coord = ($('#ftLatLng').textContent || '').trim();
+      const regRaw = ($('#valResult').textContent || '').trim();
+
+      /*
+       * Nettoie le texte du régime issu de #valResult pour supprimer d’éventuels caractères
+       * parasites (flèches ou symboles) afin d’afficher uniquement des mots lisibles
+       * comme « Autorisation », « Déclaration » ou « Hors nomenclature ».
+       */
+      let regimeTxt = regRaw ? regRaw.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s]+/g, '').trim() : '';
+      if (!regimeTxt) regimeTxt = 'Régime non déterminé';
+      const IOTA_CODES = iotaTxtRaw
+        ? iotaTxtRaw.split(',').map(s=>s.trim()).filter(Boolean)
+        : [];
+
+      const IOTA_MAP = new Map();
+      try{
+        (IOTA || []).forEach(it=>IOTA_MAP.set(it.code,it.titre));
+      }catch(_){}
+
+      banner(titre);
+      drawRegimeBadge(regimeTxt);
+
+      // ----- Bloc 1 : Identité du projet -----
+      heading('Identité du projet');
+      bullet([
+        `Titre : ${titre || 'Non renseigné'}`,
+        `Commune / lieu : ${lieu || 'Non renseigné'}`,
+        coord ? `Coordonnées (centre carte) : ${coord}` : `Coordonnées : non renseignées`,
+        `Date de génération de la fiche : ${new Date().toLocaleString('fr-FR')}`
+      ]);
+
+      smallNote(`Cette fiche est générée à partir de l’outil de pré-analyse IOTA mis à disposition pour le département des Landes. Elle constitue un support de préparation et ne vaut pas avis formel de l’administration.`);
+
+      hr();
+
+      // ----- Bloc 2 : Objet et description du projet -----
+      heading('Objet et description du projet');
+      para(
+        desc ||
+        'Aucune description détaillée n’a été saisie dans l’outil. Il est recommandé de préciser le contexte, la nature des travaux, les objectifs, les emprises concernées et, le cas échéant, les structures existantes.'
+      );
+
+      hr();
+
+      // ----- Bloc 3 : Régime IOTA -----
+      heading('Régime IOTA');
+      para(
+        `Selon les éléments saisis dans l’outil (rubriques IOTA et paramètres chiffrés), le régime suivant est estimé : ${regimeTxt}.`
+      );
+      smallNote(
+        `Ce résultat doit impérativement être confronté aux textes en vigueur (nomenclature IOTA, code de l’environnement, éventuels arrêtés préfectoraux, etc.) et vérifié par le service instructeur compétent.`
+      );
+      // Encadré mis en valeur pour le régime retenu
+      (function(regText){
+        const label = (regText || '—').trim() || '—';
+        // Déterminer les couleurs en fonction du régime retenu
+        let bg=[248,250,252], border=[148,163,184], txtColor=[15,23,42];
+        if (/autor/i.test(label)){
+          bg=[254,242,242]; border=[248,113,113]; txtColor=[127,29,29];
+        } else if (/décla|decla/i.test(label)){
+          bg=[255,247,237]; border=[251,146,60]; txtColor=[124,45,18];
+        } else if (/hors/i.test(label)){
+          bg=[249,250,251]; border=[148,163,184]; txtColor=[55,65,81];
+        }
+        const boxH = 40;
+        ensureSpace(boxH + 12);
+        const boxX = M.left;
+        const boxY = y;
+        const boxW = PAGE_W - M.left - M.right;
+        pdf.setFillColor(...bg);
+        pdf.setDrawColor(...border);
+        pdf.setLineWidth(0.8);
+        pdf.roundedRect(boxX, boxY, boxW, boxH, 6, 6, 'FD');
+        setFont(12.5,'bold',txtColor);
+        pdf.text('Régime retenu', boxX + 12, boxY + 16);
+        setFont(13.5,'bold',txtColor);
+        pdf.text(label, boxX + 12, boxY + 31);
+        y += boxH + 12;
+      })(regimeTxt);
+
+      // Rubriques IOTA pressenties
+      subhead('Rubriques IOTA pressenties');
+      if (!IOTA_CODES.length){
+        para('Aucune rubrique IOTA n’a été saisie.', { italic:true, color:[90,96,110] });
+      } else {
+        const lignes = IOTA_CODES.map(code=>{
+          const lib = IOTA_MAP.get(code) || '';
+          return lib ? `${code} – ${lib}` : code;
+        });
+        bullet(lignes);
+      }
+
+      hr();
+
+      // ----- Bloc 4 : Paramètres chiffrés utilisés dans le validateur -----
+      heading('Paramètres chiffrés saisis');
+
+      const rules = (typeof getRules === 'function') ? getRules() : {};
+      let evalCodes = [];
+      try { evalCodes = Array.from(SELECTED_IOTA || []); } catch(_){}
+
+      if (!evalCodes.length && IOTA_CODES.length){
+        evalCodes = IOTA_CODES;
+      }
+
+      if (!evalCodes.length){
+        para('Aucun paramètre n’a été saisi dans le validateur IOTA.', { italic:true, color:[90,96,110] });
+      } else {
+        evalCodes.forEach(code=>{
+          const def = rules[code] || {};
+          const labelDef = def.label || IOTA_MAP.get(code) || 'Rubrique non documentée';
+          subhead(`${code} – ${labelDef}`);
+
+          const lignes = [];
+          if (def.params && def.params.length){
+            def.params.forEach(p=>{
+              const el = document.getElementById(`param_${code}_${p.id}`) || document.getElementById(`param_${p.id}`);
+              let val = '—';
+              if (el){
+                const raw = String(el.value || '').trim();
+                if (p.type === 'number'){
+                  const v = parseFloat(raw.replace(',','.'));
+                  val = Number.isFinite(v) ? String(v) : '—';
+                } else {
+                  val = raw || '—';
+                }
+              }
+              // Nettoie le libellé pour séparer le nom du paramètre des options éventuelles.
+              const optMatch = (p.label || '').match(/\(([^)]+)\)/);
+              const options = optMatch ? optMatch[1] : '';
+              const labelClean = (p.label || '').replace(/\s*\([^)]*\)/, '').trim();
+              // S’il existe des options (ex. "<S1" / ">=S1"), on les place entre parenthèses après la valeur.
+              const suffix = options ? ` (options : ${options})` : '';
+              lignes.push(`${labelClean} : ${val}${suffix}`);
+            });
+          }
+          if (!lignes.length){
+            lignes.push('Aucun paramètre spécifique n’a été renseigné pour cette rubrique.');
+          }
+          bullet(lignes, { indent:18 });
+        });
+
+        smallNote(`Les valeurs ci-dessus reprennent les paramètres saisis dans l’outil pour aider à déterminer le régime IOTA. Elles doivent être renseignées avec soin et, si besoin, complétées ou corrigées dans le dossier de demande adressé à l’administration.`);
+      }
+
+      // ----- Bloc 5 : Détails des rubriques IOTA et seuils -----
+      heading('Détails des rubriques IOTA et seuils');
+      if (!IOTA_CODES.length){
+        para('Aucune rubrique IOTA n’a été saisie.', { italic:true, color:[90,96,110] });
+      } else {
+        IOTA_CODES.forEach(code=>{
+          const def = rules[code] || {};
+          const labelDef = def.label || IOTA_MAP.get(code) || 'Rubrique non documentée';
+          subhead(`${code} – ${labelDef}`);
+          if (def.logic && def.logic.length){
+            // Fonction utilitaire améliorée pour formater une condition en langage clair.
+            const betterFormatRuleDesc = (expr, def) => {
+              let s = String(expr || '');
+              // Remplace les identifiants par leurs labels lisibles
+              (def?.params || []).forEach(p => {
+                const re = new RegExp(`\\b${p.id}\\b`, 'g');
+                s = s.replace(re, p.label || p.id);
+              });
+              // Sépare les conditions liées par l’opérateur logique « && »
+              const parts = s.split(/\s*&&\s*/);
+              // Détection d’une plage numérique : deux conditions sur le même label avec des bornes différentes
+              if (parts.length === 2) {
+                const parseCond = part => {
+                  const m = part.trim().match(/^(.+?)\s*(>=|<=|>|<)\s*([0-9.]+)$/);
+                  if (!m) return null;
+                  return { label: m[1].trim(), op: m[2], value: Number(m[3]) };
+                };
+                const c1 = parseCond(parts[0]);
+                const c2 = parseCond(parts[1]);
+                if (c1 && c2 && c1.label === c2.label) {
+                  const min = Math.min(c1.value, c2.value);
+                  const max = Math.max(c1.value, c2.value);
+                  const fmt = n => Number(n).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ');
+                  return `${c1.label} comprise entre ${fmt(min)} et ${fmt(max)}`;
+                }
+              }
+              // Fonction utilitaire pour formater les nombres
+              const fmt = n => Number(n).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ');
+              // Décrit une condition en français narratif
+              const describe = part => {
+                const str = part.trim();
+                // Gestion des comparateurs numériques
+                let m = str.match(/^(.+?)\s*(>=|<=|>|<)\s*([0-9.]+)$/);
+                if (m) {
+                  const label = m[1].trim();
+                  const op = m[2];
+                  const val = Number(m[3]);
+                  const num = fmt(val);
+                  switch(op) {
+                    case '>=': return `${label} supérieure ou égale à ${num}`;
+                    case '>':  return `${label} strictement supérieure à ${num}`;
+                    case '<=': return `${label} inférieure ou égale à ${num}`;
+                    case '<':  return `${label} strictement inférieure à ${num}`;
+                    default:   return `${label} ${op} ${num}`;
+                  }
+                }
+                // Gestion des comparaisons d’égalité sur des chaînes
+                m = str.match(/^(.+?)\s*===?\s*'([^']+)'$/);
+                if (m) {
+                  const label = m[1].trim();
+                  const val = m[2].trim();
+                  return `${label} égale à ${val}`;
+                }
+                return str;
+              };
+              return parts.map(describe).join(' et ');
+            };
+            const lines = [];
+            // Fonction utilitaire pour formater une condition en langage naturel.
+            function formatRuleDesc(expr, def) {
+              // Remplace les identifiants par leurs labels lisibles
+              let s = String(expr || '');
+              (def?.params || []).forEach(p => {
+                const re = new RegExp(`\\b${p.id}\\b`, 'g');
+                s = s.replace(re, p.label || p.id);
+              });
+              // Sépare les conditions liées par « && »
+              const parts = s.split(/\s*&&\s*/);
+              // Tentative de détecter une plage (entre min et max)
+              if (parts.length === 2) {
+                const parseCond = part => {
+                  const m = part.trim().match(/^(.+?)\s*(>=|<=|>|<)\s*([0-9.]+)$/);
+                  if (!m) return null;
+                  return { label: m[1].trim(), op: m[2], value: Number(m[3]) };
+                };
+                const c1 = parseCond(parts[0]);
+                const c2 = parseCond(parts[1]);
+                if (c1 && c2 && c1.label === c2.label) {
+                  const min = Math.min(c1.value, c2.value);
+                  const max = Math.max(c1.value, c2.value);
+                  // Formatte les nombres selon la locale française
+                  const fmt = n => Number(n).toLocaleString('fr-FR');
+                  return `${c1.label} comprise entre ${fmt(min)} et ${fmt(max)}`;
+                }
+              }
+              // Sinon, traite chaque partie séparément
+              const fmt = n => Number(n).toLocaleString('fr-FR');
+              const describe = part => {
+                const m = part.trim().match(/^(.+?)\s*(>=|<=|>|<)\s*([0-9.]+)$/);
+                if (!m) return part.trim();
+                const label = m[1].trim();
+                const op = m[2];
+                const val = Number(m[3]);
+                const num = fmt(val);
+                switch(op) {
+                  case '>=': return `${label} ≥ ${num}`;
+                  case '>': return `${label} > ${num}`;
+                  case '<=': return `${label} ≤ ${num}`;
+                  case '<': return `${label} < ${num}`;
+                  default: return `${label} ${op} ${num}`;
+                }
+              };
+              return parts.map(describe).join(' ET ');
+            }
+            // On transforme la liste de règles en un texte narratif clair
+            const partsNarr = [];
+            def.logic.forEach(rule => {
+              if (rule.if) {
+                const human = betterFormatRuleDesc(rule.if, def);
+                const regime = rule.regime || 'HN';
+                const labelReg = regime === 'A' ? 'Autorisation' : regime === 'D' ? 'Déclaration' : 'Hors nomenclature';
+                partsNarr.push(`${human} : ${labelReg}`);
+              } else {
+                const r = rule.regime || rule.else || 'HN';
+                const labelReg = r === 'A' ? 'Autorisation' : r === 'D' ? 'Déclaration' : 'Hors nomenclature';
+                partsNarr.push(`Sinon : ${labelReg}`);
+              }
+            });
+            const narrative = partsNarr.join('; ') + '.';
+            para(narrative, { indent:18, after:12 });
+          } else {
+            para('Aucune règle disponible pour cette rubrique.', { italic:true, color:[90,96,110], indent:18 });
+          }
+          y += 4;
+        });
+      }
+
+      hr();
+
+      // ----- Bloc 6 : Localisation cartographique -----
+      heading('Localisation / contexte cartographique');
+
+      try{
+        const canvas = await html2canvas(document.getElementById('map'), {
+          useCORS:true,
+          backgroundColor:'#ffffff',
+          scale:1
+        });
+        const imgData = canvas.toDataURL('image/jpeg', 0.9);
+        const imgW = PAGE_W - M.left - M.right;
+        const ratio = canvas.height / canvas.width;
+        const imgH = imgW * ratio;
+        ensureSpace(imgH + 10);
+        pdf.addImage(imgData, 'JPEG', M.left, y, imgW, imgH);
+        y += imgH + 8;
+        smallNote(`Extrait cartographique indicatif au moment de la génération de la fiche (fond de plan et couches actives dans l’outil).`);
+      }catch(e){
+        para('La carte n’a pas pu être capturée (restriction CORS ou erreur technique).', { italic:true, color:[148,163,184] });
+      }
+
+      hr();
+
+      // ----- Bloc 7 : Pièces jointes (photos, croquis) -----
+      heading('Pièces et illustrations (facultatif)');
+
+      const itemsList = []
+        .concat((photos || []).map(p=>({ type:'photo', ...p })))
+        .concat((sketches || []).map(s=>({ type:'sketch', ...s })));
+
+      if (!itemsList.length){
+        para('Aucune photo ni croquis n’a été ajoutée dans l’outil.', { italic:true, color:[90,96,110] });
+      } else {
+        for (const it of itemsList){
+          ensureSpace(120);
+          const label = it.label || (it.type === 'photo' ? 'Photo' : 'Croquis');
+          subhead(label);
+          try{
+            const img = await dataUrlToImage(it.dataUrl);
+            const maxW = PAGE_W - M.left - M.right;
+            const maxH = 220;
+            let w = img.width;
+            let h = img.height;
+            const ratioImg = Math.min(maxW / w, maxH / h, 1);
+            w *= ratioImg; h *= ratioImg;
+            ensureSpace(h + 10);
+            pdf.addImage(it.dataUrl, 'JPEG', M.left, y, w, h);
+            y += h + 8;
+          }catch(_){
+            para('Impossible d’afficher cette pièce (format incompatible).', { italic:true, color:[148,163,184] });
+          }
+        }
+      }
+
+      hr();
+
+      // ----- Bloc 7 : Avertissement final -----
+      heading('Avertissement');
+      para(
+        `Cette fiche de pré-analyse ne se substitue pas à l’instruction d’un dossier par l’autorité administrative compétente. ` +
+        `Elle a pour objectif d’aider le pétitionnaire à identifier les rubriques IOTA susceptibles d’être concernées et à préparer son dossier. ` +
+        `En cas de doute ou de projet complexe, il est recommandé de prendre contact avec les services instructeurs (DDT(M), OFB, etc.).`,
+        { after: 4 }
+      );
+
+      addPageNumbers();
+      pdf.save('pre-analyse-iota_petitionnaire.pdf');
+    });
+
+    // ----- Bouton d'édition des règles IOTA -----
+    // Ce bouton ouvre un panneau listant toutes les rubriques IOTA et permet d'afficher et modifier leurs règles de manière lisible.
+    const rulesPanelEl   = $('#rulesPanel');
+    const rulesListEl    = $('#rulesList');
+    const ruleDetailEl   = $('#ruleDetail');
+    // Fonction pour rendre la liste et ouvrir le panneau
+    function openRulesPanel(){
+      // Réinitialise la liste et le détail
+      rulesListEl.innerHTML = '';
+      ruleDetailEl.innerHTML = '<em>Choisissez une rubrique pour voir et modifier ses règles.</em>';
+      const rulesObj = getRules();
+      // Affiche chaque code comme un bouton étiqueté avec son titre
+      Object.keys(rulesObj).sort().forEach(code=>{
+        const btn = document.createElement('button');
+        // Recherche du libellé via la liste IOTA globale
+        let title = '';
+        try{
+          if (Array.isArray(IOTA)){
+            const it = IOTA.find(x=>x.code===code);
+            if (it) title = it.titre || '';
+          }
+        }catch(_){ title = ''; }
+        btn.textContent = title ? `${code} – ${title}` : code;
+        btn.style.border = '1px solid #d0d7e1';
+        btn.style.background = '#f8fafc';
+        btn.style.borderRadius = '6px';
+        btn.style.padding = '4px 6px';
+        btn.style.cursor = 'pointer';
+        // Au clic sur une rubrique, affiche le détail modifiable
+        btn.addEventListener('click', ()=> renderRuleDetail(code));
+        rulesListEl.appendChild(btn);
+      });
+      rulesPanelEl.style.display = 'block';
+    }
+    // Fonction pour afficher et éditer les détails d'une rubrique
+    function renderRuleDetail(code){
+      const rulesObj = getRules();
+      const def = rulesObj[code] || {};
+      // Construire le conteneur de détail
+      const container = document.createElement('div');
+      container.style.display = 'flex';
+      container.style.flexDirection = 'column';
+      container.style.gap = '8px';
+      // Titre de la rubrique
+      const titleEl = document.createElement('div');
+      titleEl.style.fontWeight = '600';
+      titleEl.style.fontSize = '15px';
+      let label = '';
+      try{
+        if (Array.isArray(IOTA)){
+          const it = IOTA.find(x=>x.code===code);
+          if (it) label = it.titre || '';
+        }
+      }catch(_){ label = ''; }
+      titleEl.textContent = `${code} — ${label || def.label || ''}`;
+      container.appendChild(titleEl);
+      // Paramètres attendus
+      if (def.params && def.params.length){
+        const pList = document.createElement('div');
+        pList.innerHTML = '<b>Paramètres :</b>';
+        def.params.forEach(p=>{
+          const li = document.createElement('div');
+          li.textContent = p.label || p.id;
+          li.style.marginLeft = '12px';
+          pList.appendChild(li);
+        });
+        container.appendChild(pList);
+      }
+      // Logic editor
+      const logicDiv = document.createElement('div');
+      logicDiv.style.borderTop = '1px solid #e5e7eb';
+      logicDiv.style.paddingTop = '6px';
+      logicDiv.style.marginTop = '6px';
+      logicDiv.innerHTML = '<b>Règles de régime :</b>';
+      const entriesContainer = document.createElement('div');
+      entriesContainer.style.display = 'flex';
+      entriesContainer.style.flexDirection = 'column';
+      entriesContainer.style.gap = '6px';
+      /**
+       * Crée une entrée de règle comportant :
+       *  - un résumé lisible (non interactif) utilisant humanizeCond() pour mettre en forme la condition
+       *  - une ligne d’édition avec des champs Condition, Régime et Référence
+       * Le résumé n’est pas mis à jour en temps réel ; il sera recalculé après enregistrement.
+       */
+      function createEntry(entry){
+        const wrap = document.createElement('div');
+        wrap.style.display = 'flex';
+        wrap.style.flexDirection = 'column';
+        wrap.style.gap = '4px';
+        wrap.style.border = '1px solid #e5e7eb';
+        wrap.style.padding = '6px';
+        wrap.style.borderRadius = '4px';
+        // résumé
+        const summary = document.createElement('div');
+        summary.style.fontSize = '12px';
+        summary.style.color = '#374151';
+        const ifCond = String(entry.if || '').trim();
+        const regVal = entry.regime || entry.else || 'HN';
+        const refVal = String(entry.ref || '').trim();
+        const regimeLabel = regVal === 'A' ? 'Autorisation' : regVal === 'D' ? 'Déclaration' : 'Hors nomenclature';
+        try {
+          if (ifCond){
+            let human;
+            try {
+              human = humanizeCond(ifCond, def);
+            } catch(_){
+              human = ifCond;
+            }
+            summary.textContent = `Si ${human} -> ${regimeLabel}${refVal ? ` (${refVal})` : ''}`;
+          } else {
+            summary.textContent = `Sinon -> ${regimeLabel}${refVal ? ` (${refVal})` : ''}`;
+          }
+        } catch(_){
+          // En cas d'erreur inattendue, afficher la condition brute
+          summary.textContent = `${ifCond || 'Sinon'} -> ${regimeLabel}${refVal ? ` (${refVal})` : ''}`;
+        }
+        wrap.appendChild(summary);
+        // ligne d’édition
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.flexWrap = 'wrap';
+        row.style.gap = '4px';
+        row.style.alignItems = 'center';
+        // champ condition
+        const ifInput = document.createElement('input');
+        ifInput.type = 'text';
+        ifInput.value = entry.if || '';
+        ifInput.placeholder = "Condition (ex : surface_m2 >= 1000)";
+        ifInput.style.flex = '1 1 50%';
+        ifInput.style.minWidth = '140px';
+        row.appendChild(ifInput);
+        // sélecteur de régime
+        const regimeSel = document.createElement('select');
+        ['A','D','HN'].forEach(val=>{
+          const o = document.createElement('option');
+          o.value = val;
+          o.textContent = val;
+          if (val === regVal) o.selected = true;
+          regimeSel.appendChild(o);
+        });
+        row.appendChild(regimeSel);
+        // champ référence
+        const refInput = document.createElement('input');
+        refInput.type = 'text';
+        refInput.value = entry.ref || '';
+        refInput.placeholder = 'Référence';
+        refInput.style.flex = '1 1 25%';
+        refInput.style.minWidth = '100px';
+        row.appendChild(refInput);
+        // bouton supprimer
+        const delBtn = document.createElement('button');
+        delBtn.textContent = '✕';
+        delBtn.title = 'Supprimer cette règle';
+        delBtn.style.border = '1px solid #d0d7e1';
+        delBtn.style.background = '#f8fafc';
+        delBtn.style.borderRadius = '4px';
+        delBtn.style.padding = '2px 6px';
+        delBtn.addEventListener('click', ()=>{
+          entriesContainer.removeChild(wrap);
+        });
+        row.appendChild(delBtn);
+        // fonction getter pour enregistrer
+        wrap._getData = ()=>{
+          const ifVal = String(ifInput.value || '').trim();
+          const regV = regimeSel.value || 'HN';
+          const refV = String(refInput.value || '').trim();
+          if (ifVal){
+            const obj = { if: ifVal, regime: regV };
+            if (refV) obj.ref = refV;
+            return obj;
+          }
+          const obj = { regime: regV };
+          if (refV) obj.ref = refV;
+          return obj;
+        };
+        // append row
+        wrap.appendChild(row);
+        entriesContainer.appendChild(wrap);
+      }
+      // Crée les entrées existantes ou une entrée vide si aucune logique
+      if (Array.isArray(def.logic) && def.logic.length){
+        def.logic.forEach(r=> createEntry(r));
+      } else {
+        createEntry({});
+      }
+      logicDiv.appendChild(entriesContainer);
+      // Bouton pour ajouter une nouvelle règle
+      const addBtn = document.createElement('button');
+      addBtn.textContent = '+ Ajouter une règle';
+      addBtn.style.marginTop = '4px';
+      addBtn.style.border = '1px solid #d0d7e1';
+      addBtn.style.background = '#f8fafc';
+      addBtn.style.borderRadius = '4px';
+      addBtn.style.padding = '4px 6px';
+      addBtn.addEventListener('click', ()=> createEntry({}));
+      logicDiv.appendChild(addBtn);
+      // Bouton pour enregistrer les modifications
+      const saveBtn = document.createElement('button');
+      saveBtn.textContent = 'Enregistrer';
+      saveBtn.style.marginTop = '8px';
+      saveBtn.style.border = '1px solid #0b2239';
+      saveBtn.style.background = '#0b2239';
+      saveBtn.style.color = '#fff';
+      saveBtn.style.borderRadius = '4px';
+      saveBtn.style.padding = '4px 10px';
+      saveBtn.addEventListener('click', ()=>{
+        const entries = [];
+        entriesContainer.childNodes.forEach(child=>{
+          if (child._getData) entries.push(child._getData());
+        });
+        // séparer les règles avec et sans condition, ne conserver qu’un seul else
+        const newLogic = [];
+        let elseAdded = false;
+        entries.forEach(entry=>{
+          if (entry.if){
+            newLogic.push({ if: entry.if, regime: entry.regime, ...(entry.ref ? { ref: entry.ref } : {}) });
+          } else if (!elseAdded){
+            newLogic.push({ regime: entry.regime, ...(entry.ref ? { ref: entry.ref } : {}) });
+            elseAdded = true;
+          }
+        });
+        // mettre à jour les règles et sauvegarder
+        rulesObj[code] = { ...def, logic: newLogic };
+        setRules(rulesObj);
+        alert('Règles mises à jour.');
+        // Réouvrir le panneau et rafraîchir les données :
+        openRulesPanel();
+        // puis recharger les détails pour refléter les modifications
+        renderRuleDetail(code);
+      });
+      logicDiv.appendChild(saveBtn);
+      container.appendChild(logicDiv);
+      ruleDetailEl.innerHTML = '';
+      ruleDetailEl.appendChild(container);
+    }
+    // Gestion du bouton d'ouverture du panneau (protégé par mot de passe)
+    const btnRulesPanelEl = $('#btnRulesPanel');
+    if (btnRulesPanelEl) btnRulesPanelEl.addEventListener('click', ()=>{
+      if (!RULES_UNLOCKED){
+        const pass = prompt('Mot de passe requis pour accéder aux règles IOTA :');
+        if (pass === null) return; // annulation
+        if (pass.trim() !== 'SD40IOTA'){ // <<< mot de passe configurable ici
+          alert('Mot de passe incorrect.');
+          return;
+        }
+        RULES_UNLOCKED = true;
+      }
+      openRulesPanel();
+    });
+
+    // Bouton de fermeture du panneau d’édition
+    {
+      const rulesCloseEl = $('#rulesClose');
+      if (rulesCloseEl) rulesCloseEl.addEventListener('click', ()=>{
+        rulesPanelEl.style.display = 'none';
+      });
+    }
 
   })();
   </script>
