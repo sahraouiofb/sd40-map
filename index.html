@@ -322,6 +322,36 @@
   body.tools-hidden .leaflet-control.measure-panel{
     display:none !important;
   }
+
+  /* ===== APG (AIDA-INERIS) ===== */
+  .apg-card{
+    margin-top:10px;
+    padding:10px 10px;
+    border:1px solid rgba(15,23,42,.18);
+    border-radius:14px;
+    background:rgba(255,255,255,.76);
+    box-shadow:0 8px 24px rgba(15,23,42,.08);
+    backdrop-filter: blur(6px);
+  }
+  .apg-card h4{margin:0 0 6px;font:800 13.5px system-ui;letter-spacing:.2px}
+  .apg-meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .apg-meta .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:#eef2ff;color:#0b2239;font:700 12px system-ui}
+  .apg-links{font:500 13px system-ui;line-height:1.35}
+  .apg-links .grp{padding:8px;border-radius:12px;background:rgba(15,23,42,.03);margin:8px 0}
+  .apg-links .grp b{font-weight:800}
+  .apg-links a{color:#0b5cff;text-decoration:none}
+  .apg-links a:hover{text-decoration:underline}
+  .apg-links .hint{opacity:.75;font-size:12px}
+  .apg-error{color:#b42318;background:rgba(180,35,24,.08);border:1px solid rgba(180,35,24,.25);padding:8px;border-radius:12px}
+  .apg-warn{color:#8a4b00;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.25);padding:8px;border-radius:12px}
+  .apg-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+  .apg-actions button{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:7px 10px;border-radius:12px;border:1px solid rgba(15,23,42,.15);
+    background:#fff;font:700 12px system-ui;cursor:pointer
+  }
+  .apg-actions button:hover{background:rgba(15,23,42,.04)}
+
 </style>
 </head>
 
@@ -362,6 +392,20 @@
       <div class="tab" id="tab-iota">
         <div class="proc-row"><input id="iotaSearch" placeholder="Rechercher rubrique (ex : 3.2.3.0, ‘plans d’eau’)" /></div>
         <div id="iotaList"></div>
+
+        <div class="apg-card" id="apgCard">
+          <h4>APG (AIDA‑INERIS) associés aux rubriques sélectionnées</h4>
+          <div class="apg-meta">
+            <span class="pill">🔗 Source : AIDA‑INERIS</span>
+            <span class="pill" id="apgStatus">Prêt</span>
+          </div>
+          <div id="apgLinks" class="apg-links"><span class="hint">Sélectionnez une ou plusieurs rubriques ci‑dessus…</span></div>
+          <div class="apg-actions">
+            <button type="button" id="btnApgRefresh" title="Recharger l’index APG depuis AIDA">↻ Actualiser</button>
+            <button type="button" id="btnApgOpenList" title="Ouvrir la liste AIDA des APG associés à la nomenclature IOTA">📄 Ouvrir la liste AIDA</button>
+          </div>
+        </div>
+
         <div class="note">Cochez une ou plusieurs rubriques : elles sont ajoutées à la fiche et évaluées. Appui long sur ⚙️ pour réinitialiser les règles intégrées.</div>
       </div>
 
@@ -1619,11 +1663,215 @@
       // IOTA search (multi-sélection)
       const iotaList = $('#iotaList');
 
+      // ===== APG (AIDA-INERIS) : liens dynamiques selon rubriques sélectionnées =====
+      const APG_LIST_URL = 'https://aida.ineris.fr/reglementation/liste-apg-associes-a-nomenclature-iota';
+      const APG_CACHE_KEY = 'sd40:apgIndexIota_v1';
+      let APG_INDEX = null;
+      let APG_LOADING = null;
+
+      const apgStatusEl = $('#apgStatus');
+      const apgLinksEl  = $('#apgLinks');
+      const btnApgRefresh = $('#btnApgRefresh');
+      const btnApgOpenList = $('#btnApgOpenList');
+
+      function apgSetStatus(txt){
+        if (!apgStatusEl) return;
+        apgStatusEl.textContent = txt || '—';
+      }
+
+      function apgEscapeHtml(s){
+        return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      }
+      function apgEscapeAttr(s){ return apgEscapeHtml(s).replace(/`/g,'&#96;'); }
+
+      function apgGetCache(){
+        try{
+          const raw = localStorage.getItem(APG_CACHE_KEY);
+          if(!raw) return null;
+          const obj = JSON.parse(raw);
+          if(!obj || !obj.index) return null;
+          return obj.index;
+        }catch(_){ return null; }
+      }
+      function apgSetCache(index){
+        try{
+          localStorage.setItem(APG_CACHE_KEY, JSON.stringify({ts: Date.now(), index}));
+        }catch(_){}
+      }
+      function apgClearCache(){
+        try{ localStorage.removeItem(APG_CACHE_KEY); }catch(_){}
+        APG_INDEX = null;
+      }
+
+      async function apgFetchHtml(){
+        const enc = encodeURIComponent(APG_LIST_URL);
+        const candidates = [
+          APG_LIST_URL,
+          `https://api.allorigins.win/raw?url=${enc}`,
+          `https://corsproxy.io/?${APG_LIST_URL}`,
+          `https://r.jina.ai/${APG_LIST_URL}`
+        ];
+        let lastErr = null;
+        for (const url of candidates){
+          try{
+            const r = await fetch(url, { cache:'no-store' });
+            if(!r.ok) throw new Error(`HTTP ${r.status}`);
+            const t = await r.text();
+            if (t && t.length > 2000) return t;
+          }catch(e){ lastErr = e; }
+        }
+        throw lastErr || new Error('APG fetch failed');
+      }
+
+      function apgParseIndex(html){
+        const index = {};
+        // 1) DOM table parsing (meilleur cas)
+        try{
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          const tables = Array.from(doc.querySelectorAll('table'));
+          for (const table of tables){
+            const rows = Array.from(table.querySelectorAll('tr'));
+            for (const tr of rows){
+              const tds = tr.querySelectorAll('td');
+              if (tds.length < 2) continue;
+              const codeMatch = (tds[0].textContent||'').match(/\b\d\.\d\.\d\.\d\b/);
+              if(!codeMatch) continue;
+              const code = codeMatch[0];
+              const linkCell = tds[2] || tds[1];
+              const links = Array.from(linkCell.querySelectorAll('a[href]')).map(a=>{
+                const href = a.getAttribute('href');
+                const url = new URL(href, APG_LIST_URL).toString();
+                const title = (a.textContent||'').replace(/\s+/g,' ').trim();
+                return {title, url};
+              }).filter(x=>x.url && x.title);
+              if (!links.length) continue;
+              const uniq = [];
+              const seen = new Set();
+              for(const l of links){
+                const k = l.url + '|' + l.title;
+                if(seen.has(k)) continue;
+                seen.add(k); uniq.push(l);
+              }
+              if (uniq.length) index[code] = uniq;
+            }
+          }
+        }catch(_){}
+
+        if (Object.keys(index).length) return index;
+
+        // 2) Fallback regex
+        const txt = String(html||'');
+        const codes = Array.from(new Set((txt.match(/\b\d\.\d\.\d\.\d\b/g) || [])));
+        if(!codes.length) return index;
+        const positions = codes.map(c=>({c, i: txt.indexOf(c)})).filter(x=>x.i>=0).sort((a,b)=>a.i-b.i);
+        for (let k=0; k<positions.length; k++){
+          const code = positions[k].c;
+          const from = positions[k].i;
+          const to = (k+1<positions.length ? positions[k+1].i : txt.length);
+          const chunk = txt.slice(from, to);
+          const links = [];
+          const re = /<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+          let m;
+          while((m=re.exec(chunk))){
+            const href = m[1];
+            let title = m[2].replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+            if(!href || !title) continue;
+            const url = new URL(href, APG_LIST_URL).toString();
+            links.push({title, url});
+          }
+          if (links.length){
+            const uniq = [];
+            const seen = new Set();
+            for(const l of links){
+              const kk = l.url + '|' + l.title;
+              if(seen.has(kk)) continue;
+              seen.add(kk); uniq.push(l);
+            }
+            index[code] = uniq;
+          }
+        }
+        return index;
+      }
+
+      async function apgLoadIndex(force=false){
+        if (APG_INDEX && !force) return APG_INDEX;
+        const cached = (!force) ? apgGetCache() : null;
+        if (cached){
+          APG_INDEX = cached;
+          apgSetStatus('Index APG (cache)');
+          return APG_INDEX;
+        }
+        if (APG_LOADING && !force) return APG_LOADING;
+
+        APG_LOADING = (async()=>{
+          apgSetStatus('Chargement APG…');
+          const html = await apgFetchHtml();
+          const idx = apgParseIndex(html);
+          const n = Object.keys(idx).length;
+          if (!n) throw new Error('Index APG vide');
+          APG_INDEX = idx;
+          apgSetCache(idx);
+          apgSetStatus(`Index APG chargé (${n})`);
+          return APG_INDEX;
+        })().catch(err=>{
+          console.warn('APG: chargement impossible', err);
+          apgSetStatus('APG indisponible');
+          throw err;
+        }).finally(()=>{
+          APG_LOADING = null;
+        });
+
+        return APG_LOADING;
+      }
+
+      function apgRenderForCodes(codes, index){
+        const list = codes.slice().sort();
+        return list.map(code=>{
+          const links = (index && index[code]) ? index[code] : [];
+          if (!links.length){
+            return `<div class="grp"><b>${apgEscapeHtml(code)}</b><div class="hint">Aucun APG détecté dans AIDA pour cette rubrique (ou non listé).</div></div>`;
+          }
+          const items = links.map(l => `• <a href="${apgEscapeAttr(l.url)}" target="_blank" rel="noopener">${apgEscapeHtml(l.title)}</a>`).join('<br>');
+          return `<div class="grp"><b>${apgEscapeHtml(code)}</b><div style="margin-top:4px">${items}</div></div>`;
+        }).join('');
+      }
+
+      async function updateApgPanel(){
+        if (!apgLinksEl) return;
+        const codes = Array.from(SELECTED_IOTA || []);
+        if (!codes.length){
+          apgLinksEl.innerHTML = `<span class="hint">Sélectionnez une ou plusieurs rubriques ci‑dessus…</span>`;
+          return;
+        }
+        apgLinksEl.innerHTML = `<span class="hint">Recherche des APG dans AIDA…</span>`;
+        try{
+          const index = await apgLoadIndex(false);
+          apgLinksEl.innerHTML = apgRenderForCodes(codes, index);
+        }catch(_){
+          apgLinksEl.innerHTML = `
+            <div class="apg-error">
+              Impossible de charger la liste APG depuis AIDA depuis ce contexte (souvent à cause des restrictions du navigateur en <code>file://</code>).
+              <div style="margin-top:6px" class="hint">Contournement simple : ouvre l’outil via un petit serveur local (ex : « Live Server » / python -m http.server) ou clique « Ouvrir la liste AIDA ».</div>
+            </div>`;
+        }
+      }
+
+      btnApgOpenList && btnApgOpenList.addEventListener('click', ()=>{
+        window.open(APG_LIST_URL, '_blank', 'noopener');
+      });
+      btnApgRefresh && btnApgRefresh.addEventListener('click', async()=>{
+        apgClearCache();
+        try{ await apgLoadIndex(true); }catch(_){}
+        updateApgPanel();
+      });
+
+
       function syncIotaSelections(){
         const arr = Array.from(SELECTED_IOTA);
         $('#ftRefIota').value = arr.join(', ');
 
         buildValParams();
+        updateApgPanel();
       }
 
       function renderIota(q=''){
@@ -1652,6 +1900,7 @@
       }
 
       renderIota();
+      updateApgPanel();
       $('#iotaSearch').addEventListener('input', (e)=>renderIota(e.target.value));
 
       // NATINF helpers
