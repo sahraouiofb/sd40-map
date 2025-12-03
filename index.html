@@ -322,36 +322,6 @@
   body.tools-hidden .leaflet-control.measure-panel{
     display:none !important;
   }
-
-  /* ===== APG (AIDA-INERIS) ===== */
-  .apg-card{
-    margin-top:10px;
-    padding:10px 10px;
-    border:1px solid rgba(15,23,42,.18);
-    border-radius:14px;
-    background:rgba(255,255,255,.76);
-    box-shadow:0 8px 24px rgba(15,23,42,.08);
-    backdrop-filter: blur(6px);
-  }
-  .apg-card h4{margin:0 0 6px;font:800 13.5px system-ui;letter-spacing:.2px}
-  .apg-meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
-  .apg-meta .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:#eef2ff;color:#0b2239;font:700 12px system-ui}
-  .apg-links{font:500 13px system-ui;line-height:1.35}
-  .apg-links .grp{padding:8px;border-radius:12px;background:rgba(15,23,42,.03);margin:8px 0}
-  .apg-links .grp b{font-weight:800}
-  .apg-links a{color:#0b5cff;text-decoration:none}
-  .apg-links a:hover{text-decoration:underline}
-  .apg-links .hint{opacity:.75;font-size:12px}
-  .apg-error{color:#b42318;background:rgba(180,35,24,.08);border:1px solid rgba(180,35,24,.25);padding:8px;border-radius:12px}
-  .apg-warn{color:#8a4b00;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.25);padding:8px;border-radius:12px}
-  .apg-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
-  .apg-actions button{
-    display:inline-flex;align-items:center;gap:6px;
-    padding:7px 10px;border-radius:12px;border:1px solid rgba(15,23,42,.15);
-    background:#fff;font:700 12px system-ui;cursor:pointer
-  }
-  .apg-actions button:hover{background:rgba(15,23,42,.04)}
-
 </style>
 </head>
 
@@ -393,17 +363,32 @@
         <div class="proc-row"><input id="iotaSearch" placeholder="Rechercher rubrique (ex : 3.2.3.0, ‘plans d’eau’)" /></div>
         <div id="iotaList"></div>
 
-        <div class="apg-card" id="apgCard">
-          <h4>APG (AIDA‑INERIS) associés aux rubriques sélectionnées</h4>
-          <div class="apg-meta">
-            <span class="pill">🔗 Source : AIDA‑INERIS</span>
-            <span class="pill" id="apgStatus">Prêt</span>
+        <div id="apgPanel" style="margin-top:10px;border:1px solid rgba(0,0,0,.12);border-radius:12px;padding:10px;background:rgba(255,255,255,.86)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div style="font-weight:800">APG (AIDA-INERIS)</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+              <button id="btnApgReload" type="button" style="padding:6px 10px;border-radius:10px;border:1px solid rgba(0,0,0,.18);background:#fff;cursor:pointer">↻ Actualiser</button>
+              <button id="btnApgOpenAida" type="button" style="padding:6px 10px;border-radius:10px;border:1px solid rgba(0,0,0,.18);background:#fff;cursor:pointer">📄 Ouvrir la page AIDA</button>
+            </div>
           </div>
-          <div id="apgLinks" class="apg-links"><span class="hint">Sélectionnez une ou plusieurs rubriques ci‑dessus…</span></div>
-          <div class="apg-actions">
-            <button type="button" id="btnApgRefresh" title="Recharger l’index APG depuis AIDA">↻ Actualiser</button>
-            <button type="button" id="btnApgOpenList" title="Ouvrir la liste AIDA des APG associés à la nomenclature IOTA">📄 Ouvrir la liste AIDA</button>
+          <div id="apgStatus" style="margin-top:8px;font-size:12px;opacity:.75">Sélectionne une ou plusieurs rubriques IOTA pour afficher les arrêtés de prescriptions générales associés.</div>
+          <div id="apgLinks" style="margin-top:10px"></div>
+        </div>
+
+        <div id="natinfPanel" style="margin-top:10px;border:1px solid rgba(0,0,0,.18);border-radius:12px;padding:10px;background:rgba(255,255,255,.86)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div style="font-weight:800">NATINF (propositions)</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center">
+              <label style="display:flex;gap:6px;align-items:center;font-size:12px;opacity:.9">
+                <input type="checkbox" id="natinfMorale"> Personne morale
+              </label>
+              <button id="btnNatinfSelectAll" type="button" style="padding:6px 10px;border:1px solid rgba(0,0,0,.18);border-radius:10px;background:#fff;cursor:pointer">✓ Tout</button>
+              <button id="btnNatinfClear" type="button" style="padding:6px 10px;border:1px solid rgba(0,0,0,.18);border-radius:10px;background:#fff;cursor:pointer">🧹 Vider</button>
+            </div>
           </div>
+          <div id="natinfStatus" style="margin-top:8px;font-size:12px;opacity:.75">Sélectionnez des rubriques et évaluez le régime pour afficher les codes NATINF associés.</div>
+          <div id="natinfSelected" style="margin-top:8px;font-size:12px"></div>
+          <div id="natinfLinks" style="margin-top:10px"></div>
         </div>
 
         <div class="note">Cochez une ou plusieurs rubriques : elles sont ajoutées à la fiche et évaluées. Appui long sur ⚙️ pour réinitialiser les règles intégrées.</div>
@@ -1598,6 +1583,167 @@
       return regs.reduce((acc, r)=> (REG_ORDER[r] > REG_ORDER[acc] ? r : acc), 'HN');
     }
 
+    // ===== NATINF (IOTA) — propositions selon rubriques sélectionnées + régime retenu =====
+    // Dataset "ciblé" : uniquement les NATINF directement utiles pour IOTA (autorisation/déclaration + prescriptions).
+    // Source : Annexe 1 NATINF droit pénal environnemental (PDF fourni).
+    const NATINF_IOTA = [
+      // Personne physique — Autorisation (délits + contrav.)
+      { natinf:'13167', intitule:"EXECUTION SANS AUTORISATION DE TRAVAUX NUISIBLES A L'EAU OU AU MILIEU AQUATIQUE", qualif:'délit', regimes:['A'], personne:'PP' },
+      { natinf:'13165', intitule:"EXPLOITATION SANS AUTORISATION D'UNE INSTALLATION OU D'UN OUVRAGE NUISIBLE A L'EAU OU AU MILIEU AQUATIQUE", qualif:'délit', regimes:['A'], personne:'PP' },
+      { natinf:'13169', intitule:"EXERCICE SANS AUTORISATION D'UNE ACTIVITE NUISIBLE A L'EAU OU AU MILIEU AQUATIQUE", qualif:'délit', regimes:['A'], personne:'PP' },
+      { natinf:'25437', intitule:"MISE EN PLACE SANS AUTORISATION D'UNE INSTALLATION OU D'UN OUVRAGE NUISIBLE A L'EAU OU AU MILIEU AQUATIQUE", qualif:'délit', regimes:['A'], personne:'PP' },
+      { natinf:'13229', intitule:"REALISATION D'UNE INSTALLATION OU D'UN OUVRAGE NUISIBLE A L'EAU OU AU MILIEU AQUATIQUE SANS RESPECT DES PRESCRIPTIONS DE L'ARRETE D'AUTORISATION ET DES ARRETES COMPLEMENTAIRES", qualif:'C5', regimes:['A'], personne:'PP' },
+      { natinf:'13230', intitule:"EXECUTION DE TRAVAUX NUISIBLES A L'EAU OU LE MILIEU AQUATIQUE SANS RESPECT DES PRESCRIPTIONS DE L'ARRETE D'AUTORISATION ET DES ARRETES COMPLEMENTAIRES", qualif:'C5', regimes:['A'], personne:'PP' },
+      { natinf:'13231', intitule:"EXERCICE D'UNE ACTIVITE NUISIBLE A L'EAU OU LE MILIEU AQUATIQUE SANS RESPECT DES PRESCRIPTIONS DE L'ARRETE D'AUTORISATION ET DES ARRETES COMPLEMENTAIRES", qualif:'C5', regimes:['A'], personne:'PP' },
+
+      // Personne physique — Déclaration (contrav.)
+      { natinf:'25850', intitule:"EXECUTION DE TRAVAUX NUISIBLES A L'EAU OU AU MILIEU AQUATIQUE SANS DETENIR LE RECEPISSE DE DECLARATION", qualif:'C5', regimes:['D'], personne:'PP' },
+      { natinf:'25849', intitule:"EXERCICE D'UNE ACTIVITE NUISIBLE A L'EAU OU AU MILIEU AQUATIQUE SANS DETENIR LE RECEPISSE DE DECLARATION", qualif:'C5', regimes:['D'], personne:'PP' },
+      { natinf:'25851', intitule:"EXPLOITATION D'UN OUVRAGE OU D'UNE INSTALLATION NUISIBLE A L'EAU OU AU MILIEU AQUATIQUE SANS DETENIR LE RECEPISSE DE DECLARATION", qualif:'C5', regimes:['D'], personne:'PP' },
+      { natinf:'22007', intitule:"NON RESPECT DE PRESCRIPTION ATTACHEE A LA DECLARATION D'UN OUVRAGE, D'UNE INSTALLATION, D'UNE ACTIVITE OU DE TRAVAUX NUISIBLES A L'EAU OU AU MILIEU AQUATIQUE", qualif:'C5', regimes:['D'], personne:'PP' },
+      { natinf:'25855', intitule:"NON RESPECT DU PROJET FONDEMENT DE L'AUTORISATION OU DE LA DECLARATION D'OPERATION NUISIBLE A L'EAU OU AU MILIEU AQUATIQUE", qualif:'C5', regimes:['A','D'], personne:'PP' },
+
+      // Personne morale — Autorisation (délits)
+      { natinf:'29638', intitule:"EXECUTION SANS AUTORISATION PAR PERSONNE MORALE DE TRAVAUX NUISIBLES A L'EAU OU AU MILIEU AQUATIQUE", qualif:'délit', regimes:['A'], personne:'PM' },
+      { natinf:'29637', intitule:"EXPLOITATION SANS AUTORISATION PAR PERSONNE MORALE D'UNE INSTALLATION OU D'UN OUVRAGE NUISIBLE A L'EAU OU AU MILIEU AQUATIQUE", qualif:'délit', regimes:['A'], personne:'PM' },
+      { natinf:'29639', intitule:"EXERCICE SANS AUTORISATION PAR PERSONNE MORALE D'UNE ACTIVITE NUISIBLE A L'EAU OU AU MILIEU AQUATIQUE", qualif:'délit', regimes:['A'], personne:'PM' },
+      { natinf:'29643', intitule:"MISE EN PLACE SANS AUTORISATION PAR PERSONNE MORALE D'UNE INSTALLATION OU D'UN OUVRAGE NUISIBLE A L'EAU OU AU MILIEU AQUATIQUE", qualif:'délit', regimes:['A'], personne:'PM' },
+
+      // Personne morale — Déclaration (contrav.)
+      { natinf:'28102', intitule:"EXECUTION, PAR PERSONNE MORALE, D'OPERATION NUISIBLE A L'EAU OU AU MILIEU AQUATIQUE SANS DETENIR LE RECEPISSE DE DECLARATION", qualif:'C5', regimes:['D'], personne:'PM' },
+
+      // Personne morale — Déclaration (contrav.)
+      { natinf:'32673', intitule:"NON RESPECT PAR PERSONNE MORALE DE PRESCRIPTION ATTACHEE A LA DECLARATION D'UN OUVRAGE, D'UNE INSTALLATION, D'UNE ACTIVITE OU DE TRAVAUX NUISIBLES A L'EAU OU AU MILIEU AQUATIQUE", qualif:'C5', regimes:['D'], personne:'PM' }
+    ];
+    window.NATINF_IOTA = NATINF_IOTA;
+
+    function getRegimeFromBadge(){
+      const el = document.getElementById('valResult');
+      if (!el) return 'HN';
+      if (el.classList.contains('pill-A')) return 'A';
+      if (el.classList.contains('pill-D')) return 'D';
+      return 'HN';
+    }
+
+    function parseCsvCodes(s){
+      return String(s||'').split(',').map(x=>x.trim()).filter(Boolean);
+    }
+
+    function uniq(arr){
+      return Array.from(new Set(arr));
+    }
+
+    function setNatinfField(codes){
+      const el = document.getElementById('ftRefNatinf');
+      if (!el) return;
+      el.value = uniq(codes).join(', ');
+      // Complétude
+      try{ updateFormScore && updateFormScore(); }catch(_){}
+    }
+
+    function updateNatinfUI(){
+      const panel = document.getElementById('natinfPanel');
+      if (!panel) return;
+      const statusEl = document.getElementById('natinfStatus');
+      const linksEl = document.getElementById('natinfLinks');
+      const selEl = document.getElementById('natinfSelected');
+      const moralEl = document.getElementById('natinfMorale');
+      const ftEl = document.getElementById('ftRefNatinf');
+
+      const selectedRub = (typeof SELECTED_IOTA !== 'undefined') ? Array.from(SELECTED_IOTA) : [];
+      const regime = getRegimeFromBadge();
+      const wantPM = !!(moralEl && moralEl.checked);
+
+      if (!selectedRub.length){
+        if (statusEl) statusEl.textContent = 'Aucune rubrique IOTA sélectionnée.';
+        if (linksEl) linksEl.innerHTML = '';
+        if (selEl) selEl.textContent = '';
+        return;
+      }
+
+      const label = (regime === 'A') ? 'Autorisation' : (regime === 'D') ? 'Déclaration' : 'Hors nomenclature';
+      if (statusEl){
+        statusEl.textContent = `Rubriques sélectionnées : ${selectedRub.join(', ')} — Régime : ${label}${regime==='HN' ? ' (évaluez le régime pour affiner)' : ''}.`;
+      }
+
+      const pool = NATINF_IOTA
+        .filter(it => it.regimes.includes(regime) || (regime==='HN' && it.regimes.length))
+        .filter(it => wantPM ? true : it.personne !== 'PM');
+
+      // Auto-remplissage "propre" si vide : 3 premiers codes du régime actuel
+      const current = parseCsvCodes(ftEl ? ftEl.value : '');
+      if (ftEl && !current.length && (regime === 'A' || regime === 'D')){
+        const auto = pool.filter(it=>it.regimes.includes(regime)).slice(0,3).map(it=>it.natinf);
+        if (auto.length) ftEl.value = auto.join(', ');
+      }
+
+      const selected = parseCsvCodes(ftEl ? ftEl.value : '');
+      if (selEl){
+        selEl.innerHTML = selected.length
+          ? `<b>Sélection :</b> ${selected.join(', ')}`
+          : `<span style="opacity:.75"><b>Sélection :</b> —</span>`;
+      }
+
+      if (!linksEl) return;
+      const rows = pool
+        .filter(it => (regime === 'HN') ? true : it.regimes.includes(regime))
+        .map(it=>{
+          const checked = selected.includes(it.natinf) ? 'checked' : '';
+          const badge = it.qualif ? `<span class="badge" style="margin-left:6px">${it.qualif}</span>` : '';
+          const pm = it.personne === 'PM' ? `<span class="badge" style="margin-left:6px">PM</span>` : '';
+          return `
+            <div class="row" style="padding:4px 0">
+              <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
+                <input type="checkbox" data-natinf="${it.natinf}" ${checked}>
+                <div style="line-height:1.25">
+                  <b>${it.natinf}</b> — ${it.intitule}
+                  ${badge}${pm}
+                </div>
+              </label>
+            </div>`;
+        }).join('');
+
+      linksEl.innerHTML = rows || '<em>Aucune suggestion NATINF pour le contexte actuel.</em>';
+
+      // listeners
+      try{
+        const boxes = linksEl.querySelectorAll('input[type=checkbox][data-natinf]');
+        boxes.forEach(cb=>{
+          cb.addEventListener('change', ()=>{
+            const picked = Array.from(linksEl.querySelectorAll('input[type=checkbox][data-natinf]:checked'))
+              .map(x=>x.dataset.natinf);
+            setNatinfField(picked);
+            updateNatinfUI(); // maj "Sélection"
+          }, { passive:true });
+        });
+      }catch(_){}
+    }
+
+
+    (function initNatinfPanel(){
+      const btnAll = document.getElementById('btnNatinfSelectAll');
+      const btnClr = document.getElementById('btnNatinfClear');
+      const moralEl = document.getElementById('natinfMorale');
+      if (btnAll) btnAll.addEventListener('click', ()=>{
+        const regime = getRegimeFromBadge();
+        const wantPM = !!(moralEl && moralEl.checked);
+        const codes = NATINF_IOTA
+          .filter(it => (regime==='A' || regime==='D') ? it.regimes.includes(regime) : true)
+          .filter(it => wantPM ? true : it.personne !== 'PM')
+          .map(it=>it.natinf);
+        setNatinfField(codes);
+        updateNatinfUI();
+      }, { passive:true });
+
+      if (btnClr) btnClr.addEventListener('click', ()=>{
+        setNatinfField([]);
+        updateNatinfUI();
+      }, { passive:true });
+
+      if (moralEl) moralEl.addEventListener('change', ()=> updateNatinfUI(), { passive:true });
+    })();
+
+
     function applyResultBadge(codeOrLabel){
       let code = codeOrLabel;
       if (!['A','D','HN'].includes(code)) {
@@ -1663,215 +1809,243 @@
       // IOTA search (multi-sélection)
       const iotaList = $('#iotaList');
 
-      // ===== APG (AIDA-INERIS) : liens dynamiques selon rubriques sélectionnées =====
-      const APG_LIST_URL = 'https://aida.ineris.fr/reglementation/liste-apg-associes-a-nomenclature-iota';
-      const APG_CACHE_KEY = 'sd40:apgIndexIota_v1';
-      let APG_INDEX = null;
-      let APG_LOADING = null;
+      
+      // ===== APG (AIDA-INERIS) — liens dynamiques par rubrique IOTA =====
+      const AIDA_APG_PAGE = 'https://aida.ineris.fr/reglementation/liste-apg-associes-a-nomenclature-iota';
+      const APG_CACHE_KEY = 'AIDA_APG_INDEX_V1';
+      const APG_CACHE_MAX_AGE_MS = 30 * 24 * 3600 * 1000; // 30 jours
 
-      const apgStatusEl = $('#apgStatus');
-      const apgLinksEl  = $('#apgLinks');
-      const btnApgRefresh = $('#btnApgRefresh');
-      const btnApgOpenList = $('#btnApgOpenList');
+      const apgStatus = $('#apgStatus');
+      const apgLinks = $('#apgLinks');
+      const btnApgReload = $('#btnApgReload');
+      const btnApgOpenAida = $('#btnApgOpenAida');
 
-      function apgSetStatus(txt){
-        if (!apgStatusEl) return;
-        apgStatusEl.textContent = txt || '—';
+      function apgSetStatus(txt, isErr=false){
+        if(!apgStatus) return;
+        apgStatus.textContent = txt;
+        apgStatus.style.opacity = isErr ? '1' : '.75';
+        apgStatus.style.fontWeight = isErr ? '700' : '400';
       }
 
-      function apgEscapeHtml(s){
-        return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      function uniqBy(arr, keyFn){
+        const seen = new Set();
+        const out = [];
+        for(const x of arr){
+          const k = keyFn(x);
+          if(seen.has(k)) continue;
+          seen.add(k);
+          out.push(x);
+        }
+        return out;
       }
-      function apgEscapeAttr(s){ return apgEscapeHtml(s).replace(/`/g,'&#96;'); }
 
-      function apgGetCache(){
+      function tryReadApgCache(){
         try{
           const raw = localStorage.getItem(APG_CACHE_KEY);
           if(!raw) return null;
           const obj = JSON.parse(raw);
-          if(!obj || !obj.index) return null;
+          if(!obj || !obj.ts || !obj.index) return null;
+          if(Date.now() - obj.ts > APG_CACHE_MAX_AGE_MS) return null;
           return obj.index;
-        }catch(_){ return null; }
+        }catch(e){ return null; }
       }
-      function apgSetCache(index){
+
+      function writeApgCache(index){
         try{
           localStorage.setItem(APG_CACHE_KEY, JSON.stringify({ts: Date.now(), index}));
-        }catch(_){}
-      }
-      function apgClearCache(){
-        try{ localStorage.removeItem(APG_CACHE_KEY); }catch(_){}
-        APG_INDEX = null;
+        }catch(e){}
       }
 
-      async function apgFetchHtml(){
-        const enc = encodeURIComponent(APG_LIST_URL);
-        const candidates = [
-          APG_LIST_URL,
-          `https://api.allorigins.win/raw?url=${enc}`,
-          `https://corsproxy.io/?${APG_LIST_URL}`,
-          `https://r.jina.ai/${APG_LIST_URL}`
-        ];
-        let lastErr = null;
-        for (const url of candidates){
-          try{
-            const r = await fetch(url, { cache:'no-store' });
-            if(!r.ok) throw new Error(`HTTP ${r.status}`);
-            const t = await r.text();
-            if (t && t.length > 2000) return t;
-          }catch(e){ lastErr = e; }
+      function parseRubriqueCodes(s){
+        // gère 3.2.3.0 mais tolère aussi des variantes plus longues
+        const re = /\b\d+(?:\.\d+){3,6}\b/g;
+        const found = (s.match(re) || []).map(x=>x.trim());
+        // normalisation: on garde la forme "x.x.x.x" si elle est incluse
+        const norm = [];
+        for(const code of found){
+          if(/^\d+\.\d+\.\d+\.\d+$/.test(code)) norm.push(code);
+          else{
+            const m = code.match(/^(\d+\.\d+\.\d+\.\d+)/);
+            if(m) norm.push(m[1]);
+          }
         }
-        throw lastErr || new Error('APG fetch failed');
+        return Array.from(new Set(norm));
       }
 
-      function apgParseIndex(html){
+      function parseAidaHtmlToIndex(raw){
         const index = {};
-        // 1) DOM table parsing (meilleur cas)
-        try{
-          const doc = new DOMParser().parseFromString(html, 'text/html');
-          const tables = Array.from(doc.querySelectorAll('table'));
-          for (const table of tables){
-            const rows = Array.from(table.querySelectorAll('tr'));
-            for (const tr of rows){
-              const tds = tr.querySelectorAll('td');
-              if (tds.length < 2) continue;
-              const codeMatch = (tds[0].textContent||'').match(/\b\d\.\d\.\d\.\d\b/);
-              if(!codeMatch) continue;
-              const code = codeMatch[0];
-              const linkCell = tds[2] || tds[1];
-              const links = Array.from(linkCell.querySelectorAll('a[href]')).map(a=>{
-                const href = a.getAttribute('href');
-                const url = new URL(href, APG_LIST_URL).toString();
-                const title = (a.textContent||'').replace(/\s+/g,' ').trim();
-                return {title, url};
-              }).filter(x=>x.url && x.title);
-              if (!links.length) continue;
-              const uniq = [];
-              const seen = new Set();
-              for(const l of links){
-                const k = l.url + '|' + l.title;
-                if(seen.has(k)) continue;
-                seen.add(k); uniq.push(l);
-              }
-              if (uniq.length) index[code] = uniq;
+        const isHtml = /<a\b/i.test(raw);
+        if(isHtml){
+          const doc = new DOMParser().parseFromString(raw, 'text/html');
+          const links = Array.from(doc.querySelectorAll('a[href]'))
+            .map(a => ({
+              title: (a.textContent || '').replace(/\s+/g,' ').trim(),
+              url: new URL(a.getAttribute('href'), AIDA_APG_PAGE).href
+            }))
+            .filter(x => x.url.includes('aida.ineris.fr') && x.title.length > 6);
+
+          for(const l of links){
+            const codes = parseRubriqueCodes(l.title);
+            if(!codes.length) continue;
+            for(const c of codes){
+              (index[c] ||= []).push(l);
             }
           }
-        }catch(_){}
-
-        if (Object.keys(index).length) return index;
-
-        // 2) Fallback regex
-        const txt = String(html||'');
-        const codes = Array.from(new Set((txt.match(/\b\d\.\d\.\d\.\d\b/g) || [])));
-        if(!codes.length) return index;
-        const positions = codes.map(c=>({c, i: txt.indexOf(c)})).filter(x=>x.i>=0).sort((a,b)=>a.i-b.i);
-        for (let k=0; k<positions.length; k++){
-          const code = positions[k].c;
-          const from = positions[k].i;
-          const to = (k+1<positions.length ? positions[k+1].i : txt.length);
-          const chunk = txt.slice(from, to);
-          const links = [];
-          const re = /<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+        }else{
+          // fallback (proxy "reader" / markdown): [texte](https://aida.ineris.fr/...)
+          const re = /\[([^\]]+)\]\((https?:\/\/aida\.ineris\.fr\/[^)]+)\)/g;
           let m;
-          while((m=re.exec(chunk))){
-            const href = m[1];
-            let title = m[2].replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
-            if(!href || !title) continue;
-            const url = new URL(href, APG_LIST_URL).toString();
-            links.push({title, url});
-          }
-          if (links.length){
-            const uniq = [];
-            const seen = new Set();
-            for(const l of links){
-              const kk = l.url + '|' + l.title;
-              if(seen.has(kk)) continue;
-              seen.add(kk); uniq.push(l);
+          while((m = re.exec(raw))){
+            const title = m[1].replace(/\s+/g,' ').trim();
+            const url = m[2].trim();
+            const codes = parseRubriqueCodes(title);
+            if(!codes.length) continue;
+            for(const c of codes){
+              (index[c] ||= []).push({title, url});
             }
-            index[code] = uniq;
           }
+        }
+        for(const k of Object.keys(index)){
+          index[k] = uniqBy(index[k], x=>x.url);
         }
         return index;
       }
 
-      async function apgLoadIndex(force=false){
-        if (APG_INDEX && !force) return APG_INDEX;
-        const cached = (!force) ? apgGetCache() : null;
-        if (cached){
-          APG_INDEX = cached;
-          apgSetStatus('Index APG (cache)');
-          return APG_INDEX;
+      async function fetchText(url){
+        const r = await fetch(url, {cache:'no-store'});
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        return await r.text();
+      }
+
+      async function loadApgIndex(force=false){
+        if(!force){
+          const cached = tryReadApgCache();
+          if(cached) return cached;
         }
-        if (APG_LOADING && !force) return APG_LOADING;
 
-        APG_LOADING = (async()=>{
-          apgSetStatus('Chargement APG…');
-          const html = await apgFetchHtml();
-          const idx = apgParseIndex(html);
-          const n = Object.keys(idx).length;
-          if (!n) throw new Error('Index APG vide');
-          APG_INDEX = idx;
-          apgSetCache(idx);
-          apgSetStatus(`Index APG chargé (${n})`);
-          return APG_INDEX;
-        })().catch(err=>{
-          console.warn('APG: chargement impossible', err);
-          apgSetStatus('APG indisponible');
-          throw err;
-        }).finally(()=>{
-          APG_LOADING = null;
-        });
+        apgSetStatus('Chargement de la liste APG AIDA…');
 
-        return APG_LOADING;
-      }
+        // NOTE : AIDA ne fournit pas (à ce jour) d’en-têtes CORS permettant un fetch direct depuis un navigateur.
+        // On passe donc par des proxys "CORS-friendly" + cache localStorage.
+        const proxies = [
+          (u)=>`https://r.jina.ai/http://` + u.replace(/^https?:\/\//,''),
+          (u)=>`https://r.jina.ai/` + u,
+          (u)=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`
+        ];
 
-      function apgRenderForCodes(codes, index){
-        const list = codes.slice().sort();
-        return list.map(code=>{
-          const links = (index && index[code]) ? index[code] : [];
-          if (!links.length){
-            return `<div class="grp"><b>${apgEscapeHtml(code)}</b><div class="hint">Aucun APG détecté dans AIDA pour cette rubrique (ou non listé).</div></div>`;
+        let lastErr = null;
+        for(const mk of proxies){
+          const prox = mk(AIDA_APG_PAGE);
+          try{
+            const txt = await fetchText(prox);
+            const idx = parseAidaHtmlToIndex(txt);
+            if(idx && Object.keys(idx).length){
+              writeApgCache(idx);
+              apgSetStatus('Liste APG AIDA chargée.');
+              return idx;
+            }
+            lastErr = new Error('Index vide (proxy OK mais parsing KO)');
+          }catch(e){
+            lastErr = e;
           }
-          const items = links.map(l => `• <a href="${apgEscapeAttr(l.url)}" target="_blank" rel="noopener">${apgEscapeHtml(l.title)}</a>`).join('<br>');
-          return `<div class="grp"><b>${apgEscapeHtml(code)}</b><div style="margin-top:4px">${items}</div></div>`;
-        }).join('');
+        }
+
+        apgSetStatus(
+          "Impossible de charger la liste APG depuis AIDA (CORS/proxy bloqué, bloqueur de pub, réseau…). " +
+          "Utilise « Ouvrir la page AIDA ».",
+          true
+        );
+        throw lastErr || new Error('Chargement APG impossible');
       }
 
-      async function updateApgPanel(){
-        if (!apgLinksEl) return;
-        const codes = Array.from(SELECTED_IOTA || []);
-        if (!codes.length){
-          apgLinksEl.innerHTML = `<span class="hint">Sélectionnez une ou plusieurs rubriques ci‑dessus…</span>`;
+      function renderApgLinksForSelected(index, selectedCodes){
+        if(!apgLinks) return;
+        apgLinks.innerHTML = '';
+
+        if(!selectedCodes.length){
+          apgSetStatus('Sélectionne une ou plusieurs rubriques IOTA pour afficher les APG associés.');
           return;
         }
-        apgLinksEl.innerHTML = `<span class="hint">Recherche des APG dans AIDA…</span>`;
+
+        const blocks = [];
+        for(const code of selectedCodes){
+          const items = (index && index[code]) ? index[code] : [];
+          if(!items.length){
+            blocks.push(`
+              <div style="margin:10px 0">
+                <div style="font-weight:800">${code}</div>
+                <div style="font-size:12px;opacity:.75">Aucun APG trouvé dans la liste AIDA pour cette rubrique (ou rubrique absente de l’index).</div>
+              </div>
+            `);
+            continue;
+          }
+          blocks.push(`
+            <div style="margin:10px 0">
+              <div style="font-weight:800">${code}</div>
+              <ul style="margin:6px 0 0 18px;padding:0;line-height:1.35">
+                ${items.map(it=>`<li style="margin:4px 0"><a href="${it.url}" target="_blank" rel="noopener">${escapeHtml(it.title)}</a></li>`).join('')}
+              </ul>
+            </div>
+          `);
+        }
+        apgLinks.innerHTML = blocks.join('');
+      }
+
+      function escapeHtml(s){
+        return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+      }
+
+      let APG_INDEX = null;
+      let APG_LOADING = false;
+
+      async function updateApgUI(selectedCodes, forceReload=false){
+        if(!apgLinks || !apgStatus) return;
+
+        if(!selectedCodes || !selectedCodes.length){
+          renderApgLinksForSelected(APG_INDEX, []);
+          return;
+        }
+        if(APG_LOADING) return;
+
         try{
-          const index = await apgLoadIndex(false);
-          apgLinksEl.innerHTML = apgRenderForCodes(codes, index);
-        }catch(_){
-          apgLinksEl.innerHTML = `
-            <div class="apg-error">
-              Impossible de charger la liste APG depuis AIDA depuis ce contexte (souvent à cause des restrictions du navigateur en <code>file://</code>).
-              <div style="margin-top:6px" class="hint">Contournement simple : ouvre l’outil via un petit serveur local (ex : « Live Server » / python -m http.server) ou clique « Ouvrir la liste AIDA ».</div>
-            </div>`;
+          APG_LOADING = true;
+          if(!APG_INDEX || forceReload){
+            APG_INDEX = await loadApgIndex(!!forceReload);
+          }
+          renderApgLinksForSelected(APG_INDEX, selectedCodes);
+        }catch(e){
+          // message déjà posé par loadApgIndex()
+          const fallback = selectedCodes.map(c=>`
+            <div style="margin:10px 0">
+              <div style="font-weight:800">${c}</div>
+              <div style="font-size:12px;opacity:.75">
+                Ouvre la page AIDA puis fais Ctrl+F sur <b>${c}</b> :
+                <a href="${AIDA_APG_PAGE}" target="_blank" rel="noopener">ouvrir</a>
+              </div>
+            </div>
+          `).join('');
+          apgLinks.innerHTML = fallback;
+        }finally{
+          APG_LOADING = false;
         }
       }
 
-      btnApgOpenList && btnApgOpenList.addEventListener('click', ()=>{
-        window.open(APG_LIST_URL, '_blank', 'noopener');
-      });
-      btnApgRefresh && btnApgRefresh.addEventListener('click', async()=>{
-        apgClearCache();
-        try{ await apgLoadIndex(true); }catch(_){}
-        updateApgPanel();
+      if(btnApgOpenAida) btnApgOpenAida.addEventListener('click', ()=>window.open(AIDA_APG_PAGE, '_blank'));
+      if(btnApgReload) btnApgReload.addEventListener('click', ()=>{
+        try{ localStorage.removeItem(APG_CACHE_KEY); }catch(e){}
+        updateApgUI(Array.from(SELECTED_IOTA), true);
       });
 
-
-      function syncIotaSelections(){
+function syncIotaSelections(){
         const arr = Array.from(SELECTED_IOTA);
         $('#ftRefIota').value = arr.join(', ');
 
+        
+        // APG AIDA: mise à jour des liens selon rubriques sélectionnées
+        updateApgUI(arr);
+
         buildValParams();
-        updateApgPanel();
+        try{ updateNatinfUI(); }catch(_){ }
       }
 
       function renderIota(q=''){
@@ -1900,7 +2074,6 @@
       }
 
       renderIota();
-      updateApgPanel();
       $('#iotaSearch').addEventListener('input', (e)=>renderIota(e.target.value));
 
       // NATINF helpers
@@ -2618,6 +2791,7 @@
           });
           globalReg = mostRestrictive(regs);
           applyResultBadge(globalReg);
+        try{ updateNatinfUI(); }catch(_){ }
           $('#valTrace').innerHTML = traces.join('');
           if (!$('#ftRefIota').value) $('#ftRefIota').value = selected.join(', ');
           const sugg = [...new Set(selected.flatMap(c => natinfSuggestForIota(c).slice(0,3).map(x=>x.natinf)))];
@@ -2629,11 +2803,12 @@
         }
 
         const code = ($('#valRubrique').value||'').trim();
-        if (!code || !rules[code]){ applyResultBadge('HN'); $('#valTrace').innerHTML = ''; return; }
+        if (!code || !rules[code]){ applyResultBadge('HN'); try{ updateNatinfUI(); }catch(_){ } $('#valTrace').innerHTML = ''; return; }
 
         const r = evalOne(code, false);
         globalReg = r.reg;
         applyResultBadge(globalReg);
+        try{ updateNatinfUI(); }catch(_){ }
         $('#valTrace').innerHTML = r.trace;
 
         if (!$('#ftRefIota').value) $('#ftRefIota').value = code;
@@ -3549,6 +3724,65 @@ function smallNote(txt){
         });
         bullet(lignes);
       }
+
+      // Codes NATINF
+      subhead('Codes NATINF');
+      const natinfCodes = (function(){
+        const v = (document.getElementById('ftRefNatinf')||{}).value || '';
+        return v.split(',').map(x=>x.trim()).filter(Boolean);
+      })();
+
+      if (!natinfCodes.length){
+        para('Aucun code NATINF n’a été renseigné.', { italic:true, color:[90,96,110] });
+      } else {
+        const nfMap = new Map((window.NATINF_IOTA||[]).map(x=>[String(x.natinf), x]));
+        const lines = natinfCodes.map(c=>{
+          const it = nfMap.get(String(c));
+          if(!it) return c;
+          const extra = [it.qualif, it.personne].filter(Boolean).join(' · ');
+          return extra ? `${it.natinf} – ${it.intitule} (${extra})` : `${it.natinf} – ${it.intitule}`;
+        });
+        bullet(lines);
+      }
+
+      // APG (AIDA-INERIS) associés aux rubriques sélectionnées
+      subhead('APG (AIDA-INERIS)');
+      const apgSelCodes = IOTA_CODES.length ? IOTA_CODES : (function(){ try{return Array.from(SELECTED_IOTA||[]);}catch(_){return [];} })();
+      let apgItems = [];
+      try{
+        if (typeof APG_INDEX === 'object' && APG_INDEX){
+          for (const c of apgSelCodes){
+            const arr = APG_INDEX[c] || [];
+            for (const it of arr){
+              apgItems.push({ code:c, title:it.title, url:it.url });
+            }
+          }
+        }
+      }catch(_){}
+
+      // fallback DOM (si l’index AIDA n’est pas chargé)
+      if (!apgItems.length){
+        try{
+          apgItems = Array.from(document.querySelectorAll('#apgLinks a[href]'))
+            .map(a=>({ code:'', title:(a.textContent||'').trim(), url:a.href }));
+        }catch(_){}
+      }
+
+      if (!apgItems.length){
+        para('Aucun lien APG n’est disponible (liste AIDA non chargée ou aucune rubrique sélectionnée).', { italic:true, color:[90,96,110] });
+      } else {
+        // Limite de sécurité pour éviter un PDF interminable
+        const LIM = 60;
+        const lines = apgItems.slice(0, LIM).map(it=>{
+          const prefix = it.code ? `${it.code} – ` : '';
+          return `${prefix}${it.title} — ${it.url}`;
+        });
+        bullet(lines);
+        if (apgItems.length > LIM){
+          smallNote(`Liste tronquée à ${LIM} liens (total : ${apgItems.length}).`);
+        }
+      }
+
 
       hr();
 
