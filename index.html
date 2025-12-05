@@ -2137,7 +2137,7 @@ function syncIotaSelections(){
         // Afficher un score sur 4 (3 champs requis + IOTA facultatif)
         $('#ftScore').textContent = `${score + hasIota}/4`;
       }
-      ['#ftTitre','#ftLieu','#ftDesc','#ftRefIota'].forEach(sel=>{
+      ['#ftTitre','#ftLieu','#ftDesc','#ftRefIota','#ftRefNatinf'].forEach(sel=>{
         const el = $(sel);
         if (el) el.addEventListener('input', evalScore);
       });
@@ -2895,7 +2895,7 @@ function syncIotaSelections(){
       // Attach reset button handler only if the element exists
       const btnResetAllEl = $('#btnResetAll');
       if (btnResetAllEl) btnResetAllEl.addEventListener('click', ()=>{
-        ['#ftTitre','#ftLieu','#ftDesc','#ftRefIota'].forEach(sel=>{
+        ['#ftTitre','#ftLieu','#ftDesc','#ftRefIota','#ftRefNatinf'].forEach(sel=>{
           const el = $(sel); if (el) el.value = '';
         });
         $('#ftLatLng').textContent = '—';
@@ -2904,6 +2904,25 @@ function syncIotaSelections(){
 
         SELECTED_IOTA.clear();
         renderIota('');
+
+        // Nettoyage NATINF + APG à la RAZ
+        try{ 
+          const ftN = $('#ftRefNatinf'); 
+          if(ftN) ftN.value = ''; 
+        }catch(e){}
+        try{ 
+          const ns = document.getElementById('natinfSelected'); if(ns) ns.textContent = '';
+          const nl = document.getElementById('natinfLinks');    if(nl) nl.innerHTML = '';
+          const nst= document.getElementById('natinfStatus');   if(nst) nst.textContent = 'Sélectionnez des rubriques et évaluez le régime pour afficher les codes NATINF associés.';
+        }catch(e){}
+        try{
+          const al = document.getElementById('apgLinks');  if(al) al.innerHTML = '';
+          const ast= document.getElementById('apgStatus'); if(ast) ast.textContent = 'Sélectionne une ou plusieurs rubriques IOTA pour afficher les APG associés.';
+        }catch(e){}
+        // Re-sync global (vide aussi APG et recharge l'UI NATINF)
+        try{ if(typeof syncIotaSelections === 'function') syncIotaSelections(); }catch(e){}
+        try{ if(typeof updateNatinfUI === 'function') updateNatinfUI(); }catch(e){}
+        try{ if(typeof updateApgUI === 'function') updateApgUI([]); }catch(e){}
 
         $('#valRubrique').value='';
         $('#valParams').innerHTML='';
