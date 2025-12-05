@@ -326,6 +326,20 @@
   body.tools-hidden .leaflet-control.measure-panel{
     display:none !important;
   }
+  /* === Grand 3 : Qualité décisionnelle + anti-bêtises === */
+  .input-error{border-color:#dc2626 !important; box-shadow:0 0 0 2px rgba(220,38,38,.18) !important;}
+  .input-warn{border-color:#f59e0b !important; box-shadow:0 0 0 2px rgba(245,158,11,.18) !important;}
+  .quality-box{border:1px solid #e5e7eb;border-radius:12px;padding:10px;background:rgba(255,255,255,.92);margin-top:8px}
+  .quality-box .q-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .quality-box .q-issues{margin-top:6px;font-size:11px;color:#111827}
+  .quality-box .q-issues ul{margin:.25rem 0 .25rem 1rem}
+  .quality-box .q-issues li{margin:.15rem 0}
+  .quality-pill{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;font-weight:700;font-size:11px;border:1px solid rgba(0,0,0,.12)}
+  .quality-ok{background:rgba(16,185,129,.12)}
+  .quality-warn{background:rgba(245,158,11,.12)}
+  .quality-bad{background:rgba(239,68,68,.12)}
+
+
 </style>
 </head>
 
@@ -413,6 +427,15 @@
           <button id="btnEval" type="button">Évaluer le régime</button>
           <span id="valResult" class="pill pill-HN">—</span>
         </div>
+
+        <div id="valQuality" class="quality-box">
+          <div class="q-head">
+            <div><b>Qualité décisionnelle</b> <span id="valQualityStatus" class="quality-pill">—</span></div>
+            <button id="btnCopyDecision" type="button" style="padding:6px 10px;border-radius:10px;border:1px solid rgba(0,0,0,.18);background:#fff;cursor:pointer;font-size:12px">Copier la synthèse</button>
+          </div>
+          <div id="valQualityIssues" class="q-issues">Renseignez vos paramètres puis lancez l’évaluation : je vous signale ce qui manque.</div>
+        </div>
+
         <div id="valTrace" class="mono"></div>
       </div>
 
@@ -942,6 +965,150 @@
       if (measureHistory.length > 20) measureHistory.shift();
       renderMeasureHistory();
     }
+
+    // === Grand 2 : analyse automatique des zonages sur la dernière mesure validée ===
+    const ANALYSIS_OVERLAY_LAYERS = [
+      { key:'ZRE', name:'ZRE_-_2013', label:"ZRE (répartition des eaux)" },
+      { key:'ZAS', name:'ZAS_sup_40_2024', label:"ZAS sécheresse" },
+      { key:'ZRP', name:'Zones_Restriction_Prelevements_flux', label:"Zones de restriction de prélèvements" },
+      { key:'ZPA', name:'Zones_portes_arretes', label:"Zones portées par arrêté préfectoral" }
+    ];
+
+    const analysisCache = new Map();
+
+    async function getAnalysisFC(name){
+      if (analysisCache.has(name)) return analysisCache.get(name);
+      const it = (typeof LAYERS !== 'undefined' ? LAYERS : []).find(l => l.name === name);
+      if (!it){ analysisCache.set(name, null); return null; }
+      try{
+        const gj = await loadGeoJSONSmart(it.url);
+        const fc = normalizeFC(gj);
+        analysisCache.set(name, fc);
+        return fc;
+      }catch(err){
+        console.warn('[analyse auto] ERREUR chargement', name, err);
+        analysisCache.set(name, null);
+        return null;
+      }
+    }
+
+    function buildMeasureGeometryFeature(m){
+      const coords = (m.latlngs || []).map(p=>[p.lng, p.lat]);
+      if (!coords.length) return null;
+      if (m.mode === 'point'){
+        return turf.point(coords[0], { mode:m.mode });
+      } else if (m.mode === 'dist'){
+        return turf.lineString(coords, { mode:m.mode });
+      } else { // area
+        const ring = coords.length > 1 ? [...coords, coords[0]] : coords;
+        return turf.polygon([ring], { mode:m.mode });
+      }
+    }
+
+    function pickFeatureLabel(props){
+      if (!props) return null;
+      const candidates = ['NOM','Nom','nom','LIBELLE','Libellé','libelle','INTITULE','Intitulé','intitule','ID','id','CODE','Code','code'];
+      for (const k of candidates){
+        if (props[k] != null && String(props[k]).trim()) return String(props[k]).trim();
+      }
+      return null;
+    }
+
+    async function runAutomaticOverlayAnalysisForLastMeasure(){
+      try{
+        if (!measureHistory.length || !measurePanelEl) return;
+        const m = measureHistory[measureHistory.length - 1];
+        const autoContainer = measurePanelEl.querySelector('#mp-auto-content');
+        if (!autoContainer) return;
+
+        const geom = buildMeasureGeometryFeature(m);
+        if (!geom){
+          autoContainer.textContent = "Aucune géométrie exploitable pour l’analyse automatique.";
+          return;
+        }
+
+        const summaries = [];
+
+        for (const cfg of ANALYSIS_OVERLAY_LAYERS){
+          const fc = await getAnalysisFC(cfg.name);
+          if (!fc || !Array.isArray(fc.features) || !fc.features.length) continue;
+
+          let count = 0;
+          const labels = [];
+
+          for (const f of fc.features){
+            if (!f || !f.geometry) continue;
+            let hit = false;
+
+            if (geom.geometry.type === 'Point'){
+              if (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'){
+                if (turf.booleanPointInPolygon(geom, f)) hit = true;
+              }
+            } else if (geom.geometry.type === 'LineString'){
+              const inter = turf.lineIntersect(geom, f);
+              if (inter && inter.features && inter.features.length) hit = true;
+            } else if (geom.geometry.type === 'Polygon'){
+              const inter = turf.intersect(geom, f);
+              if (inter) hit = true;
+            }
+
+            if (hit){
+              count++;
+              const lab = pickFeatureLabel(f.properties);
+              if (lab) labels.push(lab);
+            }
+          }
+
+          if (!count) continue;
+
+          const uniqLabels = Array.from(new Set(labels));
+          let txt = `${cfg.label} : ${count} emprise(s) concernée(s)`;
+          if (uniqLabels.length){
+            txt += ` (${uniqLabels.slice(0,4).join(' ; ')}${uniqLabels.length > 4 ? '…' : ''})`;
+          }
+
+          if (m.mode === 'area'){
+            let totalHa = 0;
+            for (const f of fc.features){
+              if (!f || !f.geometry) continue;
+              const inter = turf.intersect(geom, f);
+              if (inter){
+                const a = turf.area(inter);
+                if (Number.isFinite(a)) totalHa += a / 10000;
+              }
+            }
+            if (totalHa > 0.0001){
+              txt += ` – emprise intersectée ≈ ${totalHa.toFixed(totalHa >= 1 ? 2 : 3)} ha.`;
+            }
+          }
+
+          summaries.push(txt);
+        }
+
+        if (!summaries.length){
+          autoContainer.textContent = "Aucun zonage réglementaire majeur identifié sur l’emprise mesurée (selon les couches disponibles).";
+        } else {
+          autoContainer.innerHTML = '';
+          const ul = document.createElement('ul');
+          ul.style.paddingLeft = '16px';
+          ul.style.margin = '0';
+          summaries.forEach(t=>{
+            const li = document.createElement('li');
+            li.textContent = t;
+            li.style.fontSize = '10px';
+            ul.appendChild(li);
+          });
+          autoContainer.appendChild(ul);
+        }
+      }catch(err){
+        console.warn('[analyse auto] erreur', err);
+        try{
+          const autoContainer = measurePanelEl?.querySelector('#mp-auto-content');
+          if (autoContainer) autoContainer.textContent = "Analyse automatique indisponible (erreur technique).";
+        }catch(_){}
+      }
+    }
+
 
     function renderMeasureHistory(){
       if (!measurePanelEl) return;
@@ -1473,6 +1640,11 @@
               <button type="button" id="mp-pause" style="flex:1 1 auto;font-size:10px;padding:3px 4px;">Pause GPS</button>
               <button type="button" id="mp-iota"  style="flex:1 1 100%;font-size:10px;padding:3px 4px;">→ Validateur</button>
             </div>
+            <div id="mp-auto-container" style="margin-top:6px;border-top:1px solid #e5e7eb;padding-top:4px;">
+              <div style="font-weight:600;margin-bottom:2px;font-size:11px;">Analyse automatique</div>
+              <div id="mp-auto-content" style="font-size:10px;color:#111827;">Valider une mesure pour déclencher l’analyse des zonages (ZRE, ZAS, restrictions…).</div>
+            </div>
+
             <div id="mp-history-container" style="margin-top:6px;border-top:1px solid #e5e7eb;padding-top:4px;max-height:120px;overflow:auto;">
               <div style="font-weight:600;margin-bottom:2px;">Historique</div>
               <div id="mp-history" style="font-size:10px;color:#111827;">Aucune mesure</div>
@@ -1500,6 +1672,12 @@
           resetManual();
           stopGPS();
           updateMeasurePanel();
+
+          // Remettre l’analyse auto à l’état neutre
+          try{
+            const autoC = w.querySelector('#mp-auto-content');
+            if (autoC){ autoC.textContent = 'Valider une mesure pour déclencher l’analyse des zonages (ZRE, ZAS, restrictions…).'; }
+          }catch(_){ }
         });
         pauseBtn.addEventListener('click', ()=> toggleGPSPause());
         iotaBtn.addEventListener('click', ()=>{
@@ -1701,6 +1879,7 @@
                 <div style="flex:1;min-width:0;line-height:1.25">
                   <b>${it.natinf}</b> — ${it.intitule}
                   ${badge}${pm}
+                  <div class="note" style="margin-top:2px">Régime(s): ${it.regimes.join('/')} · ${it.qualif||'—'} · ${it.personne||'PP'}</div>
                 </div>
                 <input type="checkbox" data-natinf="${it.natinf}" ${checked}>
               </label>
@@ -1761,6 +1940,261 @@
       el.classList.add('pill', 'pill-'+code);
       el.textContent = `${RESULT_ICON[code]} ${RESULT_LABELS[code]}`;
     }
+
+    // === Grand 3 : Qualité décisionnelle (contrôles de cohérence + synthèse) ===
+    function _num(v){
+      if (v==null) return NaN;
+      const s = String(v).trim().replace(/\s+/g,'').replace(/\//g,'').replace(',', '.');
+      const n = parseFloat(s);
+      return Number.isFinite(n) ? n : NaN;
+    }
+
+    function _setInputState(el, state, title){
+      if (!el) return;
+      el.classList.remove('input-error','input-warn');
+      if (state === 'error') el.classList.add('input-error');
+      if (state === 'warn')  el.classList.add('input-warn');
+      if (title) el.title = title;
+      else el.removeAttribute('title');
+    }
+
+    function _extractRequiredParamIds(def){
+      // Paramètres réellement utilisés dans les conditions "if" des règles
+      const ids = new Set((def?.params||[]).map(p=>p.id));
+      const required = new Set();
+      try{
+        (def?.logic||[]).forEach(r=>{
+          if (!r || !r.if) return;
+          const expr = String(r.if);
+          // récupère des identifiants de variable plausibles
+          const toks = expr.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g) || [];
+          toks.forEach(t=>{ if (ids.has(t)) required.add(t); });
+        });
+      }catch(_){}
+      // Si rien détecté mais params présents : on reste permissif (aucun "required" forcé)
+      return required;
+    }
+
+    function _getSelectedRubriquesForQuality(){
+      try{
+        if (typeof SELECTED_IOTA !== 'undefined' && SELECTED_IOTA && SELECTED_IOTA.size){
+          return Array.from(SELECTED_IOTA);
+        }
+      }catch(_){}
+      const single = (document.getElementById('valRubrique')||{}).value || '';
+      const c = String(single).trim();
+      return c ? [c] : [];
+    }
+
+    function _getParamElementFor(code, pid){
+      // Multi-sélection (par rubriques) : param_${code}_${pid}
+      const el1 = document.getElementById(`param_${code}_${pid}`);
+      if (el1) return el1;
+      // Mode rubrique unique : param_${pid}
+      const el2 = document.getElementById(`param_${pid}`);
+      if (el2) return el2;
+      return null;
+    }
+
+    function _getLastMeasurePayload(){
+      try{
+        if (Array.isArray(measureHistory) && measureHistory.length){
+          return measureHistory[measureHistory.length-1];
+        }
+      }catch(_){}
+      try{
+        if (typeof lastMeasure !== 'undefined' && lastMeasure && (lastMeasure.length_m || lastMeasure.area_m2)){
+          return { length_m:lastMeasure.length_m||0, area_m2:lastMeasure.area_m2||0, mode:lastMeasure.mode||null };
+        }
+      }catch(_){}
+      return null;
+    }
+
+    function _autofillFromLastMeasureIfEmpty(code, def){
+      const m = _getLastMeasurePayload();
+      if (!m) return;
+      const area = Number(m.area_m2||0);
+      const len  = Number(m.length_m||0);
+      const params = def?.params || [];
+      params.forEach(p=>{
+        const el = _getParamElementFor(code, p.id);
+        if (!el || String(el.value||'').trim()) return;
+        const pid = String(p.id||'').toLowerCase();
+        // surfaces
+        if (area > 0 && (pid.includes('surface') || pid.includes('surf')) && (pid.includes('m2') || pid.endsWith('m2'))){
+          el.value = String(Math.round(area));
+        }
+        // longueurs
+        if (len > 0 && (pid.includes('longueur') || pid.includes('length') || pid.includes('lin')) && (pid.includes('m') || pid.endsWith('m'))){
+          el.value = String(Math.round(len));
+        }
+      });
+    }
+
+    function _qualityRender(issues, level){
+      const box = document.getElementById('valQuality');
+      const st  = document.getElementById('valQualityStatus');
+      const out = document.getElementById('valQualityIssues');
+      if (!box || !st || !out) return;
+
+      st.classList.remove('quality-ok','quality-warn','quality-bad');
+      if (level === 'ok'){ st.classList.add('quality-ok'); st.textContent='✅ OK'; }
+      else if (level === 'warn'){ st.classList.add('quality-warn'); st.textContent='⚠️ À compléter'; }
+      else { st.classList.add('quality-bad'); st.textContent='❌ Incomplet'; }
+
+      if (!issues.length){
+        out.textContent = "Rien à signaler : décision cohérente au regard des paramètres saisis (à confronter aux textes).";
+        return;
+      }
+      const ul = document.createElement('ul');
+      issues.forEach(x=>{
+        const li = document.createElement('li');
+        li.textContent = x;
+        ul.appendChild(li);
+      });
+      out.innerHTML='';
+      out.appendChild(ul);
+    }
+
+    function validateDecisionQuality(){
+      const rules = (typeof getRules === 'function') ? getRules() : {};
+      const selected = _getSelectedRubriquesForQuality();
+      const issues = [];
+      const isEvalDone = (function(){
+        const el = document.getElementById('valResult');
+        const t = (el && el.textContent) ? el.textContent.trim() : '';
+        return t && t !== '—';
+      })();
+
+      // Reset highlighting
+      try{
+        const pv = document.getElementById('valParams');
+        if (pv){
+          pv.querySelectorAll('input').forEach(i=> _setInputState(i, null, null));
+        }
+      }catch(_){}
+
+      if (!selected.length){
+        issues.push("Aucune rubrique IOTA sélectionnée / saisie.");
+        _qualityRender(issues, 'bad');
+        return { issues, level:'bad' };
+      }
+
+      if (!isEvalDone){
+        issues.push("Régime non évalué : cliquez sur « Évaluer le régime ».");
+      }
+
+      selected.forEach(code=>{
+        const def = rules[code];
+        if (!def){
+          // pas bloquant, mais on prévient
+          issues.push(`Règles non disponibles pour ${code} (mode secours).`);
+          return;
+        }
+
+        // Autofill opportuniste (ne remplace jamais une valeur déjà saisie)
+        _autofillFromLastMeasureIfEmpty(code, def);
+
+        const required = _extractRequiredParamIds(def);
+        (def.params||[]).forEach(p=>{
+          const el = _getParamElementFor(code, p.id);
+          if (!el) return;
+          const raw = String(el.value||'').trim();
+
+          // Normaliser à la volée (espaces, virgule)
+          if (raw && /\s/.test(raw)){
+            el.value = raw.replace(/\s+/g,'');
+          }
+
+          if (p.type === 'number'){
+            const n = _num(el.value);
+            if (required.has(p.id) && (!raw || !Number.isFinite(n))){
+              issues.push(`${code} — paramètre manquant : ${p.label}`);
+              _setInputState(el, 'error', 'Manquant / invalide pour l’évaluation');
+            } else if (raw && !Number.isFinite(n)){
+              issues.push(`${code} — valeur invalide : ${p.label}`);
+              _setInputState(el, 'error', 'Nombre attendu (ex: 25000 ou 25 000)');
+            } else if (Number.isFinite(n) && n < 0){
+              issues.push(`${code} — valeur négative : ${p.label}`);
+              _setInputState(el, 'warn', 'Valeur négative : vérifier');
+            } else if (Number.isFinite(n) && n > 1e9){
+              issues.push(`${code} — valeur très élevée : ${p.label}`);
+              _setInputState(el, 'warn', 'Valeur très élevée : vérifier l’unité');
+            }
+          } else {
+            if (required.has(p.id) && !raw){
+              issues.push(`${code} — paramètre manquant : ${p.label}`);
+              _setInputState(el, 'error', 'Champ requis pour l’évaluation');
+            }
+          }
+        });
+      });
+
+      const level = issues.some(x=>x.includes('manquant') || x.includes('invalide') || x.includes('Aucune rubrique')) ? 'bad'
+                   : issues.length ? 'warn' : 'ok';
+
+      _qualityRender(issues, level);
+      return { issues, level };
+    }
+
+    function buildDecisionSummaryText(){
+      const selected = _getSelectedRubriquesForQuality();
+      const regime = (typeof getRegimeFromBadge === 'function') ? getRegimeFromBadge() : '';
+      const coords = (document.getElementById('ftLatLng')||{}).textContent || '';
+      const q = validateDecisionQuality();
+      const lines = [];
+      lines.push(`Synthèse décisionnelle`);
+      if (coords && coords.trim() && coords.trim() !== '—') lines.push(`Localisation : ${coords.trim()}`);
+      if (selected.length) lines.push(`Rubriques : ${selected.join(', ')}`);
+      if (regime) {
+        const label = (regime === 'A') ? 'Autorisation' : (regime === 'D') ? 'Déclaration' : 'Hors nomenclature';
+        lines.push(`Régime (outil) : ${label} (${regime})`);
+      }
+      if (q.level === 'ok') lines.push(`Qualité : OK`);
+      else if (q.level === 'warn') lines.push(`Qualité : À compléter`);
+      else lines.push(`Qualité : Incomplet`);
+      if (q.issues && q.issues.length){
+        lines.push(`Points à corriger :`);
+        q.issues.slice(0,10).forEach(i=> lines.push(`- ${i}`));
+      }
+      return lines.join('\n');
+    }
+
+    // Wiring : écouteurs UI
+    (function(){
+      const btn = document.getElementById('btnCopyDecision');
+      if (btn){
+        btn.addEventListener('click', ()=>{
+          const txt = buildDecisionSummaryText();
+          if (navigator.clipboard && navigator.clipboard.writeText){
+            navigator.clipboard.writeText(txt).catch(()=>{ prompt('Copiez la synthèse :', txt); });
+          } else {
+            prompt('Copiez la synthèse :', txt);
+          }
+        });
+      }
+      const vp = document.getElementById('valParams');
+      if (vp){
+        vp.addEventListener('input', ()=>{ try{ validateDecisionQuality(); }catch(_){ } }, { passive:true });
+        vp.addEventListener('blur', (e)=>{
+          const t = e.target;
+          if (t && t.tagName === 'INPUT'){
+            // Normalisation soft pour les nombres
+            if (t.type === 'number' || t.inputMode === 'decimal' || /\d/.test(String(t.value||''))){
+              const v = String(t.value||'').trim().replace(/\s+/g,'').replace(/\//g,'');
+              if (v.includes(',')) t.value = v.replace(',', '.');
+            }
+          }
+        }, true);
+      }
+      // Quand l'utilisateur saisit une rubrique manuelle
+      const vr = document.getElementById('valRubrique');
+      if (vr) vr.addEventListener('input', ()=>{ try{ validateDecisionQuality(); }catch(_){ } }, { passive:true });
+
+      // 1er rendu
+      try{ validateDecisionQuality(); }catch(_){}
+    })();
+
 
     function getEmbeddedPack(){
       try{ const el=document.getElementById('iota-pack-officiel'); return el? JSON.parse(el.textContent) : null; }
@@ -2738,6 +3172,9 @@ function syncIotaSelections(){
           console.warn('Erreur lors de la validation de la mesure (historique)', e);
         }
 
+        // 🔍 Grand 2 : analyse automatique sur la dernière mesure validée
+        try{ runAutomaticOverlayAnalysisForLastMeasure && runAutomaticOverlayAnalysisForLastMeasure(); }catch(_){ }
+
         const rules = getRules();
         const selected = Array.from(SELECTED_IOTA);
         const traces = [];
@@ -2796,7 +3233,15 @@ function syncIotaSelections(){
           globalReg = mostRestrictive(regs);
           applyResultBadge(globalReg);
         try{ updateNatinfUI(); }catch(_){ }
-          $('#valTrace').innerHTML = traces.join('');
+          const _cnt = {A:0,D:0,HN:0};
+          regs.forEach(x=>{ if(_cnt[x]!=null) _cnt[x]++; });
+          const _sum = `
+            <div class="quality-box" style="margin-top:8px;background:rgba(248,250,252,.92)">
+              <div style="font-weight:800">Synthèse — régime global : ${RESULT_ICON[globalReg]} ${RESULT_LABELS[globalReg]}</div>
+              <div class="note" style="margin-top:4px">Rubriques : ${selected.join(', ')} · A:${_cnt.A} · D:${_cnt.D} · HN:${_cnt.HN}</div>
+            </div>`;
+          $('#valTrace').innerHTML = _sum + traces.join('');
+          try{ validateDecisionQuality && validateDecisionQuality(); }catch(_){}
           if (!$('#ftRefIota').value) $('#ftRefIota').value = selected.join(', ');
           const sugg = [...new Set(selected.flatMap(c => natinfSuggestForIota(c).slice(0,3).map(x=>x.natinf)))];
           // Dans la version pétitionnaires, le champ NATINF n'existe plus ;
@@ -2813,8 +3258,13 @@ function syncIotaSelections(){
         globalReg = r.reg;
         applyResultBadge(globalReg);
         try{ updateNatinfUI(); }catch(_){ }
-        $('#valTrace').innerHTML = r.trace;
-
+        const _sum = `
+          <div class="quality-box" style="margin-top:8px;background:rgba(248,250,252,.92)">
+            <div style="font-weight:800">Synthèse — régime : ${RESULT_ICON[globalReg]} ${RESULT_LABELS[globalReg]}</div>
+            <div class="note" style="margin-top:4px">Rubrique : ${code}</div>
+          </div>`;
+        $('#valTrace').innerHTML = _sum + r.trace;
+        try{ validateDecisionQuality && validateDecisionQuality(); }catch(_){}
         if (!$('#ftRefIota').value) $('#ftRefIota').value = code;
         const sugg = natinfSuggestForIota(code).slice(0,3).map(x=>x.natinf);
         // Dans la version pétitionnaires, le champ NATINF n'existe plus ;
