@@ -966,12 +966,20 @@
       renderMeasureHistory();
     }
 
-    // === Grand 2 : analyse automatique des zonages sur la dernière mesure validée ===
+    // === Grand 2 : analyse automatique "ce que je recoupe" sur la dernière mesure validée ===
     const ANALYSIS_OVERLAY_LAYERS = [
+      // Zonages "sécheresse / prélèvements"
       { key:'ZRE', name:'ZRE_-_2013', label:"ZRE (répartition des eaux)" },
       { key:'ZAS', name:'ZAS_sup_40_2024', label:"ZAS sécheresse" },
       { key:'ZRP', name:'Zones_Restriction_Prelevements_flux', label:"Zones de restriction de prélèvements" },
-      { key:'ZPA', name:'Zones_portes_arretes', label:"Zones portées par arrêté préfectoral" }
+      { key:'ZPA', name:'Zones_portes_arretes', label:"Zones portées par arrêté préfectoral" },
+
+      // Contexte hydro / milieux (utile pour qualifier vite le dossier)
+      { key:'ZH',  name:'IGN_BCAE2_TOURBIERES_ZONES-HUMIDES_Flux', label:"Zones humides (IGN / BCAE2)" },
+      { key:'CDE', name:'DDT40_Carto_Cours_d_Eau_validee', label:"Cours d’eau (DDT40 validés)", maxLabels:6 },
+      { key:'PDE', name:'DDT40_Plan_d_Eau_loi_Eau', label:"Plans d’eau (DDT40 - loi sur l’eau)", maxLabels:6 },
+      { key:'RET', name:'DDT40_retenue_d_eau', label:"Retenues d’eau (DDT40)", maxLabels:6 },
+      { key:'HYD', name:'BDT_3_5_Surface_hydrographique', label:"Surfaces hydrographiques (BDTOPO)" }
     ];
 
     const analysisCache = new Map();
@@ -983,6 +991,18 @@
       try{
         const gj = await loadGeoJSONSmart(it.url);
         const fc = normalizeFC(gj);
+        // pré-calc bbox pour accélérer les tests (sur la session)
+        try{
+          if (fc && Array.isArray(fc.features)){
+            for (const f of fc.features){
+              if (!f || !f.geometry) continue;
+              if (!f.__bbox){
+                try{ f.__bbox = turf.bbox(f); }catch(_){}
+              }
+            }
+            fc.__bboxReady = true;
+          }
+        }catch(_){}
         analysisCache.set(name, fc);
         return fc;
       }catch(err){
@@ -1007,11 +1027,55 @@
 
     function pickFeatureLabel(props){
       if (!props) return null;
-      const candidates = ['NOM','Nom','nom','LIBELLE','Libellé','libelle','INTITULE','Intitulé','intitule','ID','id','CODE','Code','code'];
+      const candidates = [
+        'NOM','Nom','nom',
+        'NOM_CE','NOM_CE2','NOM_CE3',
+        'NOM_EAU','NOM_EAUX','NOM_PLAN','NOM_PLAN_EAU',
+        'TOPONYME','TOPONYMIE','toponyme',
+        'LIBELLE','Libellé','libelle','LIB','lib',
+        'INTITULE','Intitulé','intitule','INTIT','intit',
+        'NAME','Name','name',
+        'ID','id','CODE','Code','code'
+      ];
       for (const k of candidates){
         if (props[k] != null && String(props[k]).trim()) return String(props[k]).trim();
       }
       return null;
+    }
+
+    function bboxIntersects(a, b){
+      // a,b : [minX,minY,maxX,maxY]
+      return !(a[0] > b[2] || a[2] < b[0] || a[1] > b[3] || a[3] < b[1]);
+    }
+
+    function isPolyGeom(t){
+      return (t==='Polygon' || t==='MultiPolygon');
+    }
+
+    function safeBooleanIntersects(a, b){
+      try{
+        return turf.booleanIntersects(a, b);
+      }catch(_){
+        // fallback (rare) : méthodes simples par type
+        try{
+          const ta = a?.geometry?.type, tb = b?.geometry?.type;
+          if (ta==='Point' && isPolyGeom(tb)) return turf.booleanPointInPolygon(a, b);
+          if (ta==='LineString'){
+            const inter = turf.lineIntersect(a, b);
+            return !!(inter && inter.features && inter.features.length);
+          }
+          if (isPolyGeom(ta) && isPolyGeom(tb)){
+            const inter = turf.intersect(a, b);
+            return !!inter;
+          }
+        }catch(_2){}
+        return false;
+      }
+    }
+
+    function fmtHa(ha){
+      if (!Number.isFinite(ha) || ha<=0) return null;
+      return (ha >= 1) ? `${ha.toFixed(2)} ha` : `${ha.toFixed(3)} ha`;
     }
 
     async function runAutomaticOverlayAnalysisForLastMeasure(){
@@ -1021,83 +1085,113 @@
         const autoContainer = measurePanelEl.querySelector('#mp-auto-content');
         if (!autoContainer) return;
 
+        autoContainer.innerHTML = '<span style="color:#6b7280;">Analyse en cours…</span>';
+
         const geom = buildMeasureGeometryFeature(m);
         if (!geom){
           autoContainer.textContent = "Aucune géométrie exploitable pour l’analyse automatique.";
           return;
         }
 
+        const geomBbox = turf.bbox(geom);
+        const geomType = geom.geometry?.type || '?';
+
+        let geomInfo = '';
+        let empriseHa = 0;
+        try{
+          if (geomType === 'Point'){
+            const c = geom.geometry.coordinates;
+            geomInfo = `Point : ${Number(c[1]).toFixed(5)} / ${Number(c[0]).toFixed(5)}`;
+          } else if (geomType === 'LineString'){
+            const mLen = turf.length(geom, {units:'kilometers'}) * 1000;
+            geomInfo = `Linéaire : ${(mLen>=1000 ? (mLen/1000).toFixed(2)+' km' : Math.round(mLen)+' m')}`;
+          } else if (geomType === 'Polygon'){
+            empriseHa = turf.area(geom) / 10000;
+            geomInfo = `Surface : ${(empriseHa>=1 ? empriseHa.toFixed(2) : empriseHa.toFixed(3))} ha`;
+          }
+        }catch(_){}
+
         const summaries = [];
+        const ul = document.createElement('ul');
+        ul.style.paddingLeft = '16px';
+        ul.style.margin = '0';
 
         for (const cfg of ANALYSIS_OVERLAY_LAYERS){
           const fc = await getAnalysisFC(cfg.name);
           if (!fc || !Array.isArray(fc.features) || !fc.features.length) continue;
 
+          const maxLabels = Number.isFinite(cfg.maxLabels) ? cfg.maxLabels : 4;
+
           let count = 0;
+          let totalHa = 0;
           const labels = [];
 
           for (const f of fc.features){
             if (!f || !f.geometry) continue;
-            let hit = false;
 
-            if (geom.geometry.type === 'Point'){
-              if (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'){
-                if (turf.booleanPointInPolygon(geom, f)) hit = true;
-              }
-            } else if (geom.geometry.type === 'LineString'){
-              const inter = turf.lineIntersect(geom, f);
-              if (inter && inter.features && inter.features.length) hit = true;
-            } else if (geom.geometry.type === 'Polygon'){
-              const inter = turf.intersect(geom, f);
-              if (inter) hit = true;
-            }
+            // pré-filtre bbox si dispo
+            if (f.__bbox && !bboxIntersects(geomBbox, f.__bbox)) continue;
 
-            if (hit){
-              count++;
+            const hit = safeBooleanIntersects(geom, f);
+            if (!hit) continue;
+
+            count++;
+
+            if (labels.length < maxLabels){
               const lab = pickFeatureLabel(f.properties);
               if (lab) labels.push(lab);
+            }
+
+            // Surfaces d'intersection (seulement polygones)
+            if (geomType === 'Polygon'){
+              const ft = f.geometry.type;
+              if (isPolyGeom(ft)){
+                try{
+                  const inter = turf.intersect(geom, f);
+                  if (inter){
+                    const a = turf.area(inter);
+                    if (Number.isFinite(a)) totalHa += a / 10000;
+                  }
+                }catch(_){}
+              }
             }
           }
 
           if (!count) continue;
 
-          const uniqLabels = Array.from(new Set(labels));
-          let txt = `${cfg.label} : ${count} emprise(s) concernée(s)`;
+          const uniqLabels = Array.from(new Set(labels)).filter(Boolean);
+          let txt = `${cfg.label} : ${count} entité(s) touchée(s)`;
+
           if (uniqLabels.length){
-            txt += ` (${uniqLabels.slice(0,4).join(' ; ')}${uniqLabels.length > 4 ? '…' : ''})`;
+            txt += ` (${uniqLabels.slice(0, maxLabels).join(' ; ')}${uniqLabels.length > maxLabels ? '…' : ''})`;
           }
 
-          if (m.mode === 'area'){
-            let totalHa = 0;
-            for (const f of fc.features){
-              if (!f || !f.geometry) continue;
-              const inter = turf.intersect(geom, f);
-              if (inter){
-                const a = turf.area(inter);
-                if (Number.isFinite(a)) totalHa += a / 10000;
-              }
-            }
-            if (totalHa > 0.0001){
-              txt += ` – emprise intersectée ≈ ${totalHa.toFixed(totalHa >= 1 ? 2 : 3)} ha.`;
+          if (geomType === 'Polygon' && totalHa > 0.0001){
+            const pct = (empriseHa > 0 ? (100 * totalHa / empriseHa) : 0);
+            const haTxt = fmtHa(totalHa);
+            if (haTxt){
+              txt += ` — intersection ≈ ${haTxt}${(pct>0.5 ? ` (${pct.toFixed(pct>=10?1:2)}%)` : '')}`;
             }
           }
 
           summaries.push(txt);
+
+          const li = document.createElement('li');
+          li.textContent = txt;
+          ul.appendChild(li);
         }
 
         if (!summaries.length){
-          autoContainer.textContent = "Aucun zonage réglementaire majeur identifié sur l’emprise mesurée (selon les couches disponibles).";
+          autoContainer.innerHTML = `<div style="color:#6b7280;">${geomInfo ? `<div style="margin-bottom:3px;color:#374151;"><strong>${geomInfo}</strong></div>` : ''}Aucune couche “majeure” recoupée (selon les couches disponibles).</div>`;
         } else {
           autoContainer.innerHTML = '';
-          const ul = document.createElement('ul');
-          ul.style.paddingLeft = '16px';
-          ul.style.margin = '0';
-          summaries.forEach(t=>{
-            const li = document.createElement('li');
-            li.textContent = t;
-            li.style.fontSize = '10px';
-            ul.appendChild(li);
-          });
+          if (geomInfo){
+            const head = document.createElement('div');
+            head.style.marginBottom = '3px';
+            head.style.color = '#374151';
+            head.innerHTML = `<strong>${geomInfo}</strong>`;
+            autoContainer.appendChild(head);
+          }
           autoContainer.appendChild(ul);
         }
       }catch(err){
@@ -1108,6 +1202,7 @@
         }catch(_){}
       }
     }
+
 
 
     function renderMeasureHistory(){
